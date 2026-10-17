@@ -35,6 +35,8 @@ public class AutorEntity {
     @Column(columnDefinition = "TEXT")
     private String biografia;
 
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
     @ManyToMany(mappedBy = "autores", fetch = FetchType.LAZY)
     @Builder.Default
     private List<LibroEntity> libros = new ArrayList<>();

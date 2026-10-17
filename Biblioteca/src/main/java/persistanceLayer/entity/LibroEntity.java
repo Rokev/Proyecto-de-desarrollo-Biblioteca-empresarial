@@ -64,6 +64,8 @@ public class LibroEntity{
     @Builder.Default
     private List<AutorEntity> autores = new ArrayList<>();
 
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
     @OneToMany(mappedBy = "libro", fetch = FetchType.LAZY)
     @Builder.Default
     private List<EjemplarEntity> ejemplares = new ArrayList<>();

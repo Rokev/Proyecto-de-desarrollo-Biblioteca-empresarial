@@ -42,6 +42,10 @@ public class EventoEntity {
     @Column(nullable = false)
     private Integer cupoMaximo;
 
+    /** Cupos libres actualizados al inscribir / cancelar (RF-16, RF-17, RF-18). */
+    @Column(nullable = false)
+    private Integer cuposDisponibles;
+
     /** PROGRAMADO, CANCELADO, FINALIZADO. */
     @Column(nullable = false, length = 20)
     @Builder.Default
@@ -51,6 +55,8 @@ public class EventoEntity {
     @JoinColumn(name = "sede_id", nullable = false)
     private SedeEntity sede;
 
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
     @OneToMany(mappedBy = "evento", fetch = FetchType.LAZY)
     @Builder.Default
     private List<InscripcionEventoEntity> inscripciones = new ArrayList<>();

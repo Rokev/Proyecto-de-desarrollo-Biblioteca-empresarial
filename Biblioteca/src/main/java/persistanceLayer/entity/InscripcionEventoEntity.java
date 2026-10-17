@@ -3,9 +3,7 @@ package persistanceLayer.entity;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
-import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
-import lombok.ToString;
 import lombok.Builder;
 
 import java.time.LocalDateTime;
@@ -29,6 +27,14 @@ public class InscripcionEventoEntity {
 
     @Column(nullable = false)
     private LocalDateTime fechaInscripcion;
+
+    /** Cantidad de cupos reservados por el usuario (RF-16). */
+    @Column(nullable = false)
+    @Builder.Default
+    private Integer cantidadCupos = 1;
+
+    /** Se llena al cancelar y liberar el cupo (RF-17). */
+    private LocalDateTime fechaCancelacion;
 
     /** ACTIVA, CANCELADA. */
     @Column(nullable = false, length = 20)

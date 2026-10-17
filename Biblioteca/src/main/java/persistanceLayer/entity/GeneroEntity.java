@@ -32,6 +32,8 @@ public class GeneroEntity {
     @Column(length = 200)
     private String descripcion;
 
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
     @OneToMany(mappedBy = "genero", fetch = FetchType.LAZY)
     @Builder.Default
     private List<LibroEntity> libros = new ArrayList<>();

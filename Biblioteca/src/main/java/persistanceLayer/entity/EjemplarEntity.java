@@ -31,7 +31,7 @@ public class EjemplarEntity {
     @Column(nullable = false, unique = true, length = 40)
     private String codigoBarras;
 
-    /** DISPONIBLE, PRESTADO, EN_TRANSITO, DANADO, etc. */
+    /** DISPONIBLE, RESERVADO, PRESTADO, EN_TRANSITO, DANADO, etc. */
     @Column(nullable = false, length = 20)
     @Builder.Default
     private String estado = "DISPONIBLE";
@@ -45,6 +45,8 @@ public class EjemplarEntity {
     @JoinColumn(name = "sede_id", nullable = false)
     private SedeEntity sede;
 
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
     @OneToMany(mappedBy = "ejemplar", fetch = FetchType.LAZY)
     @Builder.Default
     private List<PrestamoEntity> prestamos = new ArrayList<>();

@@ -53,6 +53,8 @@ public class MetodoPagoEntity {
     @JoinColumn(name = "usuario_id", nullable = false)
     private UsuarioEntity usuario;
 
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
     @OneToMany(mappedBy = "metodoPago", fetch = FetchType.LAZY)
     @Builder.Default
     private List<PagoEntity> pagos = new ArrayList<>();

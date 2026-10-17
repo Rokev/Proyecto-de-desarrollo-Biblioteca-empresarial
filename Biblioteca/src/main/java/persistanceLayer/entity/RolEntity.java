@@ -32,6 +32,8 @@ public class RolEntity {
     @Column(length = 200)
     private String descripcion;
 
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
     @OneToMany(mappedBy = "rol", fetch = FetchType.LAZY)
     @Builder.Default
     private List<UsuarioEntity> usuarios = new ArrayList<>();

@@ -54,6 +54,9 @@ public class ReservaSalaEntity {
     @Column(nullable = false)
     private LocalDateTime fechaCreacion;
 
+    /** Se llena al cancelar y liberar la sala (RF-22). */
+    private LocalDateTime fechaCancelacion;
+
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "usuario_id", nullable = false)
     private UsuarioEntity usuario;
@@ -62,6 +65,8 @@ public class ReservaSalaEntity {
     @JoinColumn(name = "sala_id", nullable = false)
     private SalaEstudioEntity sala;
 
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
     @OneToMany(mappedBy = "reservaSala", fetch = FetchType.LAZY)
     @Builder.Default
     private List<PagoEntity> pagos = new ArrayList<>();

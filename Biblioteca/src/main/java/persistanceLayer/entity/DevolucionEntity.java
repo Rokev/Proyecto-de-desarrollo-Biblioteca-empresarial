@@ -3,9 +3,7 @@ package persistanceLayer.entity;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
-import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
-import lombok.ToString;
 import lombok.Builder;
 
 import java.time.LocalDateTime;
@@ -33,7 +31,7 @@ public class DevolucionEntity {
     @Column(nullable = false)
     private LocalDateTime fechaSolicitud;
 
-    /** Se llena cuando la sede escanea y verifica el libro. */
+    /** Se llena cuando el bibliotecario registra la devolución en la sede receptora. */
     private LocalDateTime fechaConfirmacion;
 
     /** PENDIENTE, CONFIRMADA, RECHAZADA. */
@@ -52,4 +50,9 @@ public class DevolucionEntity {
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "sede_devolucion_id", nullable = false)
     private SedeEntity sedeDevolucion;
+
+    /** Bibliotecario que registra la devolución (RF-08 / RF-62). */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "bibliotecario_id")
+    private UsuarioEntity bibliotecario;
 }

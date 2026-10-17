@@ -38,7 +38,7 @@ public class MultaEntity {
     @Column(nullable = false)
     private LocalDateTime fechaGeneracion;
 
-    /** PENDIENTE, PAGADA. */
+    /** PENDIENTE, PAGADA, ANULADA (p. ej. si se acepta la justificación del retraso). */
     @Column(nullable = false, length = 20)
     @Builder.Default
     private String estado = "PENDIENTE";
@@ -52,6 +52,8 @@ public class MultaEntity {
     @JoinColumn(name = "prestamo_id")
     private PrestamoEntity prestamo;
 
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
     @OneToMany(mappedBy = "multa", fetch = FetchType.LAZY)
     @Builder.Default
     private List<PagoEntity> pagos = new ArrayList<>();

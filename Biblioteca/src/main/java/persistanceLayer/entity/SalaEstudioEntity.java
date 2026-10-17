@@ -48,6 +48,8 @@ public class SalaEstudioEntity {
     @JoinColumn(name = "sede_id", nullable = false)
     private SedeEntity sede;
 
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
     @OneToMany(mappedBy = "sala", fetch = FetchType.LAZY)
     @Builder.Default
     private List<ReservaSalaEntity> reservas = new ArrayList<>();

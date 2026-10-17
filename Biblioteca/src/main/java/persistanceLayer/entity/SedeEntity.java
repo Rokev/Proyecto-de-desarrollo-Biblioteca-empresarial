@@ -61,22 +61,32 @@ public class SedeEntity {
     @Builder.Default
     private Boolean enOperacion = true;
 
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
     @OneToMany(mappedBy = "sede", fetch = FetchType.LAZY)
     @Builder.Default
     private List<UsuarioEntity> personal = new ArrayList<>();
 
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
     @OneToMany(mappedBy = "sede", fetch = FetchType.LAZY)
     @Builder.Default
     private List<EjemplarEntity> ejemplares = new ArrayList<>();
 
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
     @OneToMany(mappedBy = "sede", fetch = FetchType.LAZY)
     @Builder.Default
     private List<SalaEstudioEntity> salasEstudio = new ArrayList<>();
 
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
     @OneToMany(mappedBy = "sede", fetch = FetchType.LAZY)
     @Builder.Default
     private List<EventoEntity> eventos = new ArrayList<>();
 
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
     @OneToMany(mappedBy = "sedeDevolucion", fetch = FetchType.LAZY)
     @Builder.Default
     private List<DevolucionEntity> devolucionesRecibidas = new ArrayList<>();
