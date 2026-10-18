@@ -33,7 +33,7 @@ import java.util.List;
 @RequiredArgsConstructor
 @Slf4j
 @Tag(name = "Sedes", description = "Operaciones CRUD para la gestion de sedes de la biblioteca")
-public class SedeController {
+class SedeController {
 
     private final SedeService sedeService;
 

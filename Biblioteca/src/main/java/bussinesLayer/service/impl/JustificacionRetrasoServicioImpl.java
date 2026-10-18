@@ -18,7 +18,7 @@ import java.util.List;
 @Transactional
 @RequiredArgsConstructor
 @Slf4j
-public class JustificacionRetrasoServiceImpl implements JustificacionRetrasoService {
+class JustificacionRetrasoServiceImpl implements JustificacionRetrasoService {
 
     private static final String ESTADO_INICIAL = "PENDIENTE";
 

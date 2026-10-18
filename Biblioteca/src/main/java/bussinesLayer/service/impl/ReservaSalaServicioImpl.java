@@ -20,7 +20,7 @@ import java.util.List;
 @Transactional
 @RequiredArgsConstructor
 @Slf4j
-public class ReservaSalaServiceImpl implements ReservaSalaService {
+class ReservaSalaServiceImpl implements ReservaSalaService {
 
     private static final String ESTADO_INICIAL = "PENDIENTE_PAGO";
     private static final String ESTADO_CANCELADA = "CANCELADA";

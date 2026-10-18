@@ -33,7 +33,7 @@ import java.util.List;
 @RequiredArgsConstructor
 @Slf4j
 @Tag(name = "Preguntas frecuentes", description = "Operaciones CRUD para la gestion de preguntas frecuentes")
-public class PreguntaFrecuenteController {
+class PreguntaFrecuenteController {
 
     private final PreguntaFrecuenteService preguntaFrecuenteService;
 
