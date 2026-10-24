@@ -1,57 +1,7 @@
 package persistanceLayer.mapper;
 
-import bussinesLayer.dto.AutorDTO;
-import bussinesLayer.dto.DevolucionDTO;
-import bussinesLayer.dto.EjemplarDTO;
-import bussinesLayer.dto.EventoDTO;
-import bussinesLayer.dto.GeneroDTO;
-import bussinesLayer.dto.InscripcionEventoDTO;
-import bussinesLayer.dto.LibroDTO;
-import bussinesLayer.dto.MetodoPagoDTO;
-import bussinesLayer.dto.MultaDTO;
-import bussinesLayer.dto.NotificacionDTO;
-import bussinesLayer.dto.PagoDTO;
-import bussinesLayer.dto.PedidoInterciudadDTO;
-import bussinesLayer.dto.PlanSuscripcionDTO;
-import bussinesLayer.dto.PreguntaFrecuenteDTO;
-import bussinesLayer.dto.PrestamoDTO;
-import bussinesLayer.dto.ReservaLibroDTO;
-import bussinesLayer.dto.ReservaSalaDTO;
-import bussinesLayer.dto.RolDTO;
-import bussinesLayer.dto.SalaEstudioDTO;
-import bussinesLayer.dto.SancionDTO;
-import bussinesLayer.dto.SedeDTO;
-import bussinesLayer.dto.SesionDTO;
-import bussinesLayer.dto.SuscripcionDTO;
-import bussinesLayer.dto.TokenRecuperacionDTO;
-import bussinesLayer.dto.TrasladoRetornoDTO;
-import bussinesLayer.dto.UsuarioDTO;
-import persistanceLayer.entity.AutorEntity;
-import persistanceLayer.entity.DevolucionEntity;
-import persistanceLayer.entity.EjemplarEntity;
-import persistanceLayer.entity.EventoEntity;
-import persistanceLayer.entity.GeneroEntity;
-import persistanceLayer.entity.InscripcionEventoEntity;
-import persistanceLayer.entity.LibroEntity;
-import persistanceLayer.entity.MetodoPagoEntity;
-import persistanceLayer.entity.MultaEntity;
-import persistanceLayer.entity.NotificacionEntity;
-import persistanceLayer.entity.PagoEntity;
-import persistanceLayer.entity.PedidoInterciudadEntity;
-import persistanceLayer.entity.PlanSuscripcionEntity;
-import persistanceLayer.entity.PreguntaFrecuente;
-import persistanceLayer.entity.PrestamoEntity;
-import persistanceLayer.entity.ReservaLibroEntity;
-import persistanceLayer.entity.ReservaSalaEntity;
-import persistanceLayer.entity.RolEntity;
-import persistanceLayer.entity.SalaEstudioEntity;
-import persistanceLayer.entity.SancionEntity;
-import persistanceLayer.entity.SedeEntity;
-import persistanceLayer.entity.SesionEntity;
-import persistanceLayer.entity.SuscripcionEntity;
-import persistanceLayer.entity.TokenRecuperacionEntity;
-import persistanceLayer.entity.TrasladoRetornoEntity;
-import persistanceLayer.entity.UsuarioEntity;
+import bussinesLayer.dto.*;
+import persistanceLayer.entity.*;
 import org.mapstruct.Mapping;
 
 import java.util.ArrayList;
@@ -297,6 +247,10 @@ public interface Mapper {
 	@Mapping(target = "plan", ignore = true)
 	@Mapping(target = "pagos", ignore = true)
 	SuscripcionEntity suscripcionToEntity(SuscripcionDTO dto);
+
+	TarifaEnvioDTO tarifaEnvioToDto(TarifaEnvioEntity entity);
+
+	TarifaEnvioEntity tarifaEnvioToEntity(TarifaEnvioDTO dto);
 
 	@Mapping(target = "usuarioId", source = "usuario.id")
 	TokenRecuperacionDTO tokenRecuperacionToDto(TokenRecuperacionEntity entity);

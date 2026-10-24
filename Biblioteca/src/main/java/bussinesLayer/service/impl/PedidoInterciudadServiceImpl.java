@@ -5,6 +5,7 @@ import bussinesLayer.exception.BusinessValidationException;
 import bussinesLayer.exception.ResourceNotFoundException;
 import bussinesLayer.service.PedidoInterciudadService;
 import bussinesLayer.service.SuscripcionService;
+import bussinesLayer.service.TarifaEnvioService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -40,7 +41,6 @@ public class PedidoInterciudadServiceImpl implements PedidoInterciudadService {
     private static final int DIAS_MAXIMO_SOLICITUD = 7;
     private static final int DIAS_PLAZO_RECOGIDA = 2; 
     private static final int DIAS_PRESTAMO_INTERCIUDAD = 14; 
-    private static final double TARIFA_ENVIO_FIJA = 30000.00; 
     private static final BigDecimal RECARGO_NO_RECIBIDO = new BigDecimal("15000.00"); 
 
     private final PedidoInterciudadDAO pedidoDAO;
@@ -53,6 +53,7 @@ public class PedidoInterciudadServiceImpl implements PedidoInterciudadService {
     private final MultaDAO multaDAO;
     private final NotificacionDAO notificacionDAO;
     private final SuscripcionService suscripcionService;
+    private final TarifaEnvioService tarifaEnvioService;
 
     // ------------------------------------------------------------Solicitar
 
@@ -78,7 +79,9 @@ public class PedidoInterciudadServiceImpl implements PedidoInterciudadService {
             throw new BusinessValidationException("El usuario posee sanciones activas que impiden realizar pedidos");
         }
 
-        EjemplarDTO ejemplar = reservarEjemplarDeOtraCiudad(solicitud.getLibroId(), solicitud.getCiudadEntrega());
+        EjemplarDTO ejemplar = reservarEjemplarConTarifa(solicitud.getLibroId(), solicitud.getCiudadEntrega());
+        String ciudadOrigen = obtenerCiudadDeSede(ejemplar.getSedeId());
+        BigDecimal costoEnvio = tarifaEnvioService.calcularCosto(ciudadOrigen, solicitud.getCiudadEntrega());
         LocalDateTime ahora = LocalDateTime.now();
 
         // Crear Préstamo Vinculado
@@ -99,7 +102,7 @@ public class PedidoInterciudadServiceImpl implements PedidoInterciudadService {
         pedido.setDireccionEntrega(solicitud.getDireccionEntrega().trim());
         pedido.setFechaRecepcion(solicitud.getFechaRecepcion());
         pedido.setHoraRecepcion(solicitud.getHoraRecepcion().trim());
-        pedido.setCostoEnvio(TARIFA_ENVIO_FIJA);
+        pedido.setCostoEnvio(costoEnvio.doubleValue());
         pedido.setFechaSolicitud(ahora);
         pedido.setUsuarioId(solicitud.getUsuarioId());
         pedido.setEjemplarId(ejemplar.getId());
@@ -311,13 +314,29 @@ public class PedidoInterciudadServiceImpl implements PedidoInterciudadService {
 
     // ------------------------------------------------------------ Métodos Auxiliares
 
-    private EjemplarDTO reservarEjemplarDeOtraCiudad(Long libroId, String ciudadEntrega) {
-        for (EjemplarDTO candidato : ejemplarDAO.findDisponiblesEnOtraCiudad(libroId, ciudadEntrega)) {
+
+    private EjemplarDTO reservarEjemplarConTarifa(Long libroId, String ciudadEntrega) {
+        List<EjemplarDTO> candidatos = ejemplarDAO.findDisponiblesEnOtraCiudad(libroId, ciudadEntrega);
+        if (candidatos.isEmpty()) {
+            throw new BusinessValidationException("No hay ejemplares disponibles en ciudades distintas a " + ciudadEntrega);
+        }
+        for (EjemplarDTO candidato : candidatos) {
+            String ciudadOrigen = obtenerCiudadDeSede(candidato.getSedeId());
+            if (tarifaEnvioService.buscarCosto(ciudadOrigen, ciudadEntrega).isEmpty()) {
+                continue;
+            }
             if (ejemplarDAO.cambiarEstadoSiEs(candidato.getId(), EJEMPLAR_DISPONIBLE, EJEMPLAR_RESERVADO) == 1) {
                 return candidato;
             }
         }
-        throw new BusinessValidationException("No hay ejemplares disponibles en ciudades distintas a " + ciudadEntrega);
+        throw new BusinessValidationException(
+                "No hay ejemplares disponibles con tarifa de envío definida hacia " + ciudadEntrega);
+    }
+
+    private String obtenerCiudadDeSede(Long sedeId) {
+        return sedeDAO.findById(sedeId)
+                .map(SedeDTO::getCiudad)
+                .orElseThrow(() -> new ResourceNotFoundException("Sede no encontrada: " + sedeId));
     }
 
     private void cambiarEstadoEjemplar(Long ejemplarId, String esperado, String nuevo) {
