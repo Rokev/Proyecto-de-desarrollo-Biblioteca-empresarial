@@ -95,11 +95,6 @@ public class ReservaLibroDAO {
         return reservaLibroRepository.existsByUsuarioIdAndLibroIdAndEstadoIn(usuarioId, libroId, estados);
     }
 
-    @Transactional
-    public int expirarVencidas(LocalDateTime ahora) {
-        return reservaLibroRepository.expirarVencidas(ahora);
-    }
-
     private UsuarioEntity referenciaUsuario(Long idUsuario) {
         if (idUsuario == null) {
             return null;

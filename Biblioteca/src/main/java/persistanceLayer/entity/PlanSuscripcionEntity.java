@@ -43,6 +43,12 @@ public class PlanSuscripcionEntity {
     @Column(nullable = false)
     private Integer duracionMeses;
 
+    /** Descuento en salas de estudio como fracción entre 0 y 1 (0.15 = 15 %).
+     *  Se copia a la suscripción al comprar el plan (RF-29). */
+    @Column(nullable = false, precision = 5, scale = 4)
+    @Builder.Default
+    private BigDecimal descuentoSalas = BigDecimal.ZERO;
+
     @Column(nullable = false)
     @Builder.Default
     private Boolean activo = true;

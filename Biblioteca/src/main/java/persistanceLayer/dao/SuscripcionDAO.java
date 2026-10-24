@@ -49,6 +49,9 @@ public class SuscripcionDAO {
                 existente.setEstado(dto.getEstado());
             }
             existente.setValorMensual(dto.getValorMensual());
+            if (dto.getDescuentoSalas() != null) {
+                existente.setDescuentoSalas(dto.getDescuentoSalas());
+            }
             if (dto.getRenovacionAutomatica() != null) {
                 existente.setRenovacionAutomatica(dto.getRenovacionAutomatica());
             }
@@ -88,6 +91,10 @@ public class SuscripcionDAO {
 
     public boolean existsByUsuarioIdAndEstadoIgnoreCase(Long usuarioId, String estado) {
         return suscripcionRepository.existsByUsuarioIdAndEstadoIgnoreCase(usuarioId, estado);
+    }
+
+    public boolean existsByUsuarioIdAndEstadoIn(Long usuarioId, Collection<String> estados) {
+        return suscripcionRepository.existsByUsuarioIdAndEstadoIn(usuarioId, estados);
     }
 
     public Optional<SuscripcionDTO> findFirstByUsuarioIdAndEstadoInAndFechaFinGreaterThanEqualOrderByFechaFinDesc(Long usuarioId, Collection<String> estados, LocalDate fecha) {

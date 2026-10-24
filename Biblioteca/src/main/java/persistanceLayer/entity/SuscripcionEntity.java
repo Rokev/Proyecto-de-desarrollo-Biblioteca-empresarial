@@ -37,13 +37,20 @@ public class SuscripcionEntity {
     @Column(nullable = false)
     private LocalDate fechaFin;
 
-    /** ACTIVA, PAUSADA, CANCELADA (ya finalizada), VENCIDA. */
+    /** PENDIENTE_PAGO (creada, aún sin pago exitoso), ACTIVA, PAUSADA,
+     *  CANCELADA (el usuario canceló; conserva beneficios hasta fechaFin) o VENCIDA. */
     @Column(nullable = false, length = 20)
     @Builder.Default
     private String estado = "ACTIVA";
 
     @Column(nullable = false, precision = 12, scale = 2)
     private BigDecimal valorMensual;
+
+    /** Copia del descuento en salas del plan al momento de la compra (fracción entre 0 y 1).
+     *  Si el plan cambia después, esta suscripción conserva el valor con el que se compró. */
+    @Column(nullable = false, precision = 5, scale = 4)
+    @Builder.Default
+    private BigDecimal descuentoSalas = BigDecimal.ZERO;
 
     @Column(nullable = false)
     @Builder.Default

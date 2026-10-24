@@ -2,6 +2,9 @@ package persistanceLayer.repository;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import persistanceLayer.entity.EjemplarEntity;
 
 import java.util.List;
@@ -27,4 +30,20 @@ public interface EjemplarRepository extends JpaRepository<EjemplarEntity, Long> 
     long countByLibroIdAndSedeIdAndEstadoIgnoreCase(Long libroId, Long sedeId, String estado);
 
     boolean existsBySedeId(Long sedeId);
+
+    /** Ejemplares DISPONIBLES del libro, en sedes en operacion de una ciudad distinta a la indicada. */
+    @Query("""
+            SELECT e FROM EjemplarEntity e
+            WHERE e.libro.id = :libroId
+              AND e.estado = 'DISPONIBLE'
+              AND e.sede.enOperacion = true
+              AND LOWER(e.sede.ciudad) <> LOWER(:ciudad)
+            ORDER BY e.id
+            """)
+    List<EjemplarEntity> findDisponiblesEnOtraCiudad(@Param("libroId") Long libroId, @Param("ciudad") String ciudad);
+
+    /** Cambia el estado de forma atomica solo si esta en el estado esperado; devuelve 0 si no lo estaba. */
+    @Modifying(flushAutomatically = true, clearAutomatically = true)
+    @Query("UPDATE EjemplarEntity e SET e.estado = :nuevo WHERE e.id = :id AND e.estado = :esperado")
+    int cambiarEstadoSiEs(@Param("id") Long id, @Param("esperado") String esperado, @Param("nuevo") String nuevo);
 }

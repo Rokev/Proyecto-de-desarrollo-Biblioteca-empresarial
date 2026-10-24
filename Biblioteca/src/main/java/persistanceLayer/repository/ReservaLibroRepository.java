@@ -23,8 +23,8 @@ public interface ReservaLibroRepository extends JpaRepository<ReservaLibroEntity
 
     Optional<ReservaLibroEntity> findFirstByLibroIdAndSedeIdAndEstadoIgnoreCaseOrderByFechaReservaAsc(Long libroId, Long sedeId, String estado);
 
-    boolean existsByUsuarioIdAndLibroIdAndEstadoIn(Long usuarioId, Long libroId, Collection<String> estados);
-
+    boolean existsByUsuarioIdAndLibroIdAndEstadoIn(Long usuarioId, Long libroId, Collection<String> estados); 
+    
     @Modifying
     @Query("UPDATE ReservaLibroEntity r SET r.estado = 'EXPIRADA' WHERE r.estado = 'NOTIFICADA' AND r.fechaLimiteRetiro < :ahora")
     int expirarVencidas(@Param("ahora") LocalDateTime ahora);

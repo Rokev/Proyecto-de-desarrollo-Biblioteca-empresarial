@@ -10,6 +10,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import persistanceLayer.dao.EventoDAO;
 import persistanceLayer.dao.SedeDAO;
+import persistanceLayer.dao.InscripcionEventoDAO;
 
 import java.util.List;
 
@@ -23,6 +24,7 @@ public class EventoServiceImpl implements EventoService {
 
     private final EventoDAO eventoDAO;
     private final SedeDAO sedeDAO;
+    private final InscripcionEventoDAO inscripcionEventoDAO;
 
     @Override
     public EventoDTO crearEvento(EventoDTO eventoDTO) {
@@ -32,6 +34,9 @@ public class EventoServiceImpl implements EventoService {
 
         if (eventoDTO.getEstado() == null || eventoDTO.getEstado().isBlank()) {
             eventoDTO.setEstado(ESTADO_INICIAL);
+        }
+        if (eventoDTO.getExclusivo() == null) {
+            eventoDTO.setExclusivo(false);
         }
 
         EventoDTO guardado = eventoDAO.save(eventoDTO);
@@ -54,12 +59,17 @@ public class EventoServiceImpl implements EventoService {
 
     @Override
     public EventoDTO actualizarEvento(Long id, EventoDTO eventoDTO) {
-        if (!eventoDAO.existsById(id)) {
-            throw new ResourceNotFoundException("Evento no encontrado con ID: " + id);
-        }
+        EventoDTO actual = eventoDAO.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Evento no encontrado con ID: " + id));
 
         validarEvento(eventoDTO);
 
+        if (eventoDTO.getExclusivo() != null
+                && !eventoDTO.getExclusivo().equals(actual.getExclusivo())
+                && !inscripcionEventoDAO.findByEventoIdAndEstadoIgnoreCase(id, "ACTIVA").isEmpty()) {
+            throw new BusinessValidationException(
+                    "No se puede cambiar la exclusividad de un evento con inscripciones activas");
+        }
         EventoDTO actualizado = eventoDAO.update(id, eventoDTO)
                 .orElseThrow(() -> new ResourceNotFoundException("Evento no encontrado con ID: " + id));
         log.info("Evento actualizado ID: {}", id);

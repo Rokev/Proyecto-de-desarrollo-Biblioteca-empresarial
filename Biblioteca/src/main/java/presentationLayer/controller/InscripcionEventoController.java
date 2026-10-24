@@ -27,6 +27,7 @@ import org.springframework.web.bind.annotation.RestController;
 import presentationLayer.advice.ApiError;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/v1/inscripciones-evento")
@@ -42,7 +43,7 @@ public class InscripcionEventoController {
     @ApiResponses({
             @ApiResponse(responseCode = "201", description = "Inscripcion a evento creada exitosamente",
                     content = @Content(mediaType = "application/json", schema = @Schema(implementation = InscripcionEventoDTO.class))),
-            @ApiResponse(responseCode = "400", description = "Datos invalidos, usuario ya inscrito o evento no programado / sin cupos suficientes",
+            @ApiResponse(responseCode = "400", description = "Datos invalidos, usuario ya inscrito o evento no programado / sin cupos suficientes, o evento exclusivo sin suscripcion vigente",
                     content = @Content(mediaType = "application/json", schema = @Schema(implementation = ApiError.class))),
             @ApiResponse(responseCode = "404", description = "Evento o usuario no encontrado",
                     content = @Content(mediaType = "application/json", schema = @Schema(implementation = ApiError.class))),
@@ -116,4 +117,16 @@ public class InscripcionEventoController {
         inscripcionEventoService.eliminarInscripcionEvento(id);
         return ResponseEntity.noContent().build();
     }
+
+    @PostMapping("/depurar-sin-suscripcion")
+    @Operation(summary = "Cancelar inscripciones exclusivas sin suscripcion vigente (administrativo)",
+            description = "Cancela las inscripciones a eventos exclusivos futuros de usuarios sin suscripcion vigente y libera sus cupos. "
+                    + "Tambien se ejecuta automaticamente cada noche.")
+    @ApiResponse(responseCode = "200", description = "Cantidad de inscripciones canceladas")
+    public ResponseEntity<Map<String, Integer>> depurarSinSuscripcion() {
+        log.info("POST /api/v1/inscripciones-evento/depurar-sin-suscripcion");
+        int canceladas = inscripcionEventoService.cancelarInscripcionesExclusivasSinSuscripcion();
+        return ResponseEntity.ok(Map.of("inscripcionesCanceladas", canceladas));
+    }    
+
 }

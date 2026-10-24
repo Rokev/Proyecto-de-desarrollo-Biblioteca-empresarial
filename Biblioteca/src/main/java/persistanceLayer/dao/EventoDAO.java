@@ -50,6 +50,9 @@ public class EventoDAO {
             if (dto.getEstado() != null) {
                 existente.setEstado(dto.getEstado());
             }
+            if (dto.getExclusivo() != null) {
+                existente.setExclusivo(dto.getExclusivo());
+            }
             existente.setSede(referenciaSede(dto.getSedeId()));
             return mapper.eventoToDto(eventoRepository.save(existente));
         });

@@ -6,6 +6,7 @@ import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
+import jakarta.validation.constraints.DecimalMax;
 import java.math.BigDecimal;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -40,6 +41,12 @@ public class PlanSuscripcionDTO {
     @Min(value = 1, message = "El campo duracionMeses debe ser al menos 1")
     @Schema(description = "Vigencia en meses", example = "1", requiredMode = Schema.RequiredMode.REQUIRED)
     private Integer duracionMeses;
+
+    @NotNull(message = "El campo descuentoSalas es obligatorio")
+    @DecimalMin(value = "0.0", message = "El campo descuentoSalas no puede ser negativo")
+    @DecimalMax(value = "1.0", message = "El campo descuentoSalas no puede superar 1.0 (100%)")
+    @Schema(description = "Descuento en salas de estudio como fraccion entre 0 y 1 (0.15 = 15%)", example = "0.15", requiredMode = Schema.RequiredMode.REQUIRED)
+    private BigDecimal descuentoSalas;
 
     @Schema(description = "Indica si el plan esta activo", example = "true")
     private Boolean activo;

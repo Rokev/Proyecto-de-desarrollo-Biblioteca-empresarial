@@ -38,11 +38,11 @@ public class ReservaSalaController {
     private final ReservaSalaService reservaSalaService;
 
     @PostMapping
-    @Operation(summary = "Crear una reserva de sala", description = "Registra una nueva reserva de una sala de estudio para un usuario")
+    @Operation(summary = "Crear una reserva de sala", description = "Registra una nueva reserva de una sala de estudio para un usuario, el valor base y el descuento por suscripcion los calcula el servidor")
     @ApiResponses({
             @ApiResponse(responseCode = "201", description = "Reserva de sala creada exitosamente",
                     content = @Content(mediaType = "application/json", schema = @Schema(implementation = ReservaSalaDTO.class))),
-            @ApiResponse(responseCode = "400", description = "Datos invalidos, fecha de inicio en el pasado, fechas inconsistentes, descuento mayor al valor base, sala inactiva o sala ya reservada en ese horario",
+            @ApiResponse(responseCode = "400", description = "Datos invalidos, fecha de inicio en el pasado, fechas inconsistentes, sala inactiva o sala ya reservada en ese horario",
                     content = @Content(mediaType = "application/json", schema = @Schema(implementation = ApiError.class))),
             @ApiResponse(responseCode = "404", description = "Usuario o sala de estudio no encontrada",
                     content = @Content(mediaType = "application/json", schema = @Schema(implementation = ApiError.class))),

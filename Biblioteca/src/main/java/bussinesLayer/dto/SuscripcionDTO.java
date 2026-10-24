@@ -29,7 +29,7 @@ public class SuscripcionDTO {
     private LocalDate fechaFin;
 
     @Size(max = 20, message = "El campo estado no puede superar los 20 caracteres")
-    @Schema(description = "ACTIVA, PAUSADA, CANCELADA, VENCIDA", example = "ACTIVA", maxLength = 20)
+    @Schema(description = "PENDIENTE_PAGO, ACTIVA, PAUSADA, CANCELADA, VENCIDA", example = "ACTIVA", maxLength = 20)
     private String estado;
 
     @NotNull(message = "El campo valorMensual es obligatorio")
@@ -37,6 +37,9 @@ public class SuscripcionDTO {
     @Schema(description = "Valor mensual", example = "30000.00", requiredMode = Schema.RequiredMode.REQUIRED)
     private BigDecimal valorMensual;
 
+    @Schema(description = "Descuento en salas copiado del plan al comprar (fraccion entre 0 y 1). Lo calcula el servidor.", example = "0.15", accessMode = Schema.AccessMode.READ_ONLY)
+    private BigDecimal descuentoSalas;
+    
     @Schema(description = "Renovacion automatica", example = "true")
     private Boolean renovacionAutomatica;
 

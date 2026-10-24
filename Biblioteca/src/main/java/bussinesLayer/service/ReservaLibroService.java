@@ -18,4 +18,12 @@ public interface ReservaLibroService {
     ReservaLibroDTO actualizarReservaLibro(Long id, ReservaLibroDTO reservaLibroDTO);
 
     void eliminarReservaLibro(Long id);
+
+    /** Avisa al primer usuario en espera (libro y sede) que su libro fue devuelto y va de regreso a esa sede. */
+    void avisarDevolucionEnCamino(Long libroId, Long sedeOrigenId, String nombreSedeActual);
+
+    /** Si hay una reserva EN_ESPERA para este ejemplar (libro y sede), se lo aparta, la pasa a NOTIFICADA
+     *  y avisa al usuario. Devuelve true si el ejemplar quedo asignado a una reserva. */
+    boolean asignarEjemplarAReservaEnEspera(Long ejemplarId);
+        
 }

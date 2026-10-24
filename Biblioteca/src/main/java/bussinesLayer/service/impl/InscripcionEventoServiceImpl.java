@@ -1,9 +1,11 @@
 package bussinesLayer.service.impl;
 
+import bussinesLayer.dto.EventoDTO;
 import bussinesLayer.dto.InscripcionEventoDTO;
 import bussinesLayer.exception.BusinessValidationException;
 import bussinesLayer.exception.ResourceNotFoundException;
 import bussinesLayer.service.InscripcionEventoService;
+import bussinesLayer.service.SuscripcionService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -13,7 +15,9 @@ import persistanceLayer.dao.InscripcionEventoDAO;
 import persistanceLayer.dao.UsuarioDAO;
 
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Service
 @Transactional
@@ -27,12 +31,14 @@ public class InscripcionEventoServiceImpl implements InscripcionEventoService {
     private final InscripcionEventoDAO inscripcionEventoDAO;
     private final EventoDAO eventoDAO;
     private final UsuarioDAO usuarioDAO;
+    private final SuscripcionService suscripcionService;
 
     @Override
     public InscripcionEventoDTO crearInscripcionEvento(InscripcionEventoDTO dto) {
         log.info("Creando inscripcion del usuario {} al evento {}", dto.getUsuarioId(), dto.getEventoId());
 
-        validarReferencias(dto);
+        EventoDTO evento = validarReferencias(dto);
+        exigirSuscripcionSiEsExclusivo(evento, dto.getUsuarioId());
 
         if (inscripcionEventoDAO.existsByEventoIdAndUsuarioId(dto.getEventoId(), dto.getUsuarioId())) {
             throw new BusinessValidationException("El usuario ya esta inscrito en este evento");
@@ -86,6 +92,11 @@ public class InscripcionEventoServiceImpl implements InscripcionEventoService {
                 dto.setFechaCancelacion(LocalDateTime.now());
             }
         } else if (!estabaActiva && reactivar) {
+            // Reactivar tambien exige suscripcion vigente si el evento es exclusivo.
+            EventoDTO evento = eventoDAO.findById(actual.getEventoId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Evento no encontrado con ID: " + actual.getEventoId()));
+            exigirSuscripcionSiEsExclusivo(evento, actual.getUsuarioId());
+
             if (eventoDAO.descontarCupos(actual.getEventoId(), actual.getCantidadCupos()) == 0) {
                 throw new BusinessValidationException(
                         "El evento no esta programado o no tiene cupos suficientes");
@@ -114,12 +125,47 @@ public class InscripcionEventoServiceImpl implements InscripcionEventoService {
         log.info("Inscripcion eliminada ID: {}", id);
     }
 
-    private void validarReferencias(InscripcionEventoDTO dto) {
-        if (!eventoDAO.existsById(dto.getEventoId())) {
-            throw new ResourceNotFoundException("Evento no encontrado con ID: " + dto.getEventoId());
+    /**
+     * RF-30: las inscripciones a eventos exclusivos no se mantienen si el usuario ya no tiene
+     * suscripcion vigente. Cancela las inscripciones a eventos exclusivos que aun no han empezado
+     * y libera los cupos. Una suscripcion cancelada pero con fechaFin por venir sigue siendo vigente.
+     */
+    @Override
+    public int cancelarInscripcionesExclusivasSinSuscripcion() {
+        List<InscripcionEventoDTO> candidatas =
+                inscripcionEventoDAO.findActivasEnEventosExclusivosFuturos(LocalDateTime.now());
+
+        Map<Long, Boolean> vigentePorUsuario = new HashMap<>();
+        int canceladas = 0;
+        for (InscripcionEventoDTO inscripcion : candidatas) {
+            boolean vigente = vigentePorUsuario.computeIfAbsent(
+                    inscripcion.getUsuarioId(), suscripcionService::tieneSuscripcionVigente);
+            if (vigente) {
+                continue;
+            }
+            eventoDAO.liberarCupos(inscripcion.getEventoId(), inscripcion.getCantidadCupos());
+            inscripcion.setEstado(ESTADO_CANCELADA);
+            inscripcion.setFechaCancelacion(LocalDateTime.now());
+            inscripcionEventoDAO.update(inscripcion.getId(), inscripcion);
+            canceladas++;
         }
+        log.info("Inscripciones a eventos exclusivos canceladas por falta de suscripcion vigente: {}", canceladas);
+        return canceladas;
+    }
+
+    private EventoDTO validarReferencias(InscripcionEventoDTO dto) {
+        EventoDTO evento = eventoDAO.findById(dto.getEventoId())
+                .orElseThrow(() -> new ResourceNotFoundException("Evento no encontrado con ID: " + dto.getEventoId()));
         if (!usuarioDAO.existsById(dto.getUsuarioId())) {
             throw new ResourceNotFoundException("Usuario no encontrado con ID: " + dto.getUsuarioId());
+        }
+        return evento;
+    }
+
+    private void exigirSuscripcionSiEsExclusivo(EventoDTO evento, Long usuarioId) {
+        if (Boolean.TRUE.equals(evento.getExclusivo()) && !suscripcionService.tieneSuscripcionVigente(usuarioId)) {
+            throw new BusinessValidationException("El evento es exclusivo para suscriptores y el usuario "
+                    + usuarioId + " no tiene una suscripcion vigente");
         }
     }
 }

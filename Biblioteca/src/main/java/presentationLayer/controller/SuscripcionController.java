@@ -2,6 +2,8 @@ package presentationLayer.controller;
 
 import bussinesLayer.dto.SuscripcionDTO;
 import bussinesLayer.service.SuscripcionService;
+import bussinesLayer.dto.CompraSuscripcionDTO;
+import org.springframework.web.bind.annotation.RequestParam;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.ArraySchema;
@@ -32,14 +34,14 @@ import java.util.List;
 @RequestMapping("/api/v1/suscripciones")
 @RequiredArgsConstructor
 @Slf4j
-@Tag(name = "Suscripciones", description = "Operaciones CRUD para la gestion de suscripciones de usuarios a un plan")
+@Tag(name = "Suscripciones", description = "Compra, cancelacion y consulta de vigencia de suscripciones, mas operaciones CRUD administrativas")
 public class SuscripcionController {
 
     private final SuscripcionService suscripcionService;
 
     @PostMapping
-    @Operation(summary = "Crear una suscripcion", description = "Registra una nueva suscripcion de un usuario a un plan")
-    @ApiResponses({
+    @Operation(summary = "Crear una suscripcion (administrativo)", description = "Alta administrativa sin pago. Para que un usuario compre una suscripcion use POST /api/v1/suscripciones/comprar")
+        @ApiResponses({
             @ApiResponse(responseCode = "201", description = "Suscripcion creada exitosamente",
                     content = @Content(mediaType = "application/json", schema = @Schema(implementation = SuscripcionDTO.class))),
             @ApiResponse(responseCode = "400", description = "Datos invalidos, fechas inconsistentes, plan inactivo o el usuario ya tiene una suscripcion activa",
@@ -56,6 +58,66 @@ public class SuscripcionController {
         SuscripcionDTO creada = suscripcionService.crearSuscripcion(suscripcionDTO);
         return ResponseEntity.status(HttpStatus.CREATED).body(creada);
     }
+
+    @PostMapping("/comprar")
+    @Operation(summary = "Comprar una suscripcion (RF-24)",
+            description = "Crea la suscripcion, registra el pago con el metodo de pago indicado y activa los beneficios en un solo paso. "
+                    + "Las fechas y el valor se calculan a partir del plan, y el descuento en salas se copia del plan.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "201", description = "Suscripcion comprada y activada",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = SuscripcionDTO.class))),
+            @ApiResponse(responseCode = "400", description = "Datos invalidos, plan inactivo, metodo de pago ajeno al usuario, compra pendiente o suscripcion vigente existente",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = ApiError.class))),
+            @ApiResponse(responseCode = "404", description = "Usuario o plan de suscripcion no encontrado",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = ApiError.class))),
+            @ApiResponse(responseCode = "500", description = "Error interno del servidor",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = ApiError.class)))
+    })
+    public ResponseEntity<SuscripcionDTO> comprarSuscripcion(
+            @Parameter(description = "Datos de la compra", required = true)
+            @Valid @RequestBody CompraSuscripcionDTO compra) {
+        log.info("POST /api/v1/suscripciones/comprar - usuarioId: {}, planId: {}", compra.getUsuarioId(), compra.getPlanId());
+        SuscripcionDTO comprada = suscripcionService.comprarSuscripcion(compra);
+        return ResponseEntity.status(HttpStatus.CREATED).body(comprada);
+    }
+
+    @PostMapping("/{id}/cancelar")
+    @Operation(summary = "Cancelar una suscripcion (RF-25)",
+            description = "Cancela la suscripcion y desactiva la renovacion automatica. "
+                    + "Los beneficios se mantienen hasta la fechaFin del periodo vigente.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Suscripcion cancelada; conserva beneficios hasta fechaFin",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = SuscripcionDTO.class))),
+            @ApiResponse(responseCode = "400", description = "La suscripcion no pertenece al usuario, ya esta cancelada, no esta activa o ya finalizo",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = ApiError.class))),
+            @ApiResponse(responseCode = "404", description = "Suscripcion no encontrada",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = ApiError.class)))
+    })
+    public ResponseEntity<SuscripcionDTO> cancelarSuscripcion(
+            @Parameter(description = "ID de la suscripcion a cancelar", required = true, example = "1")
+            @PathVariable Long id,
+            @Parameter(description = "ID del usuario dueño de la suscripcion", required = true, example = "1")
+            @RequestParam Long usuarioId) {
+        log.info("POST /api/v1/suscripciones/{}/cancelar - usuarioId: {}", id, usuarioId);
+        return ResponseEntity.ok(suscripcionService.cancelarSuscripcion(id, usuarioId));
+    }
+
+    @GetMapping("/usuario/{usuarioId}/vigente")
+    @Operation(summary = "Consultar la suscripcion vigente de un usuario (RF-35)",
+            description = "Devuelve la suscripcion ACTIVA, o CANCELADA con fechaFin aun por venir. Responde 404 si el usuario no tiene suscripcion vigente.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Suscripcion vigente encontrada",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = SuscripcionDTO.class))),
+            @ApiResponse(responseCode = "404", description = "Usuario inexistente o sin suscripcion vigente",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = ApiError.class)))
+    })
+    public ResponseEntity<SuscripcionDTO> obtenerVigente(
+            @Parameter(description = "ID del usuario", required = true, example = "1")
+            @PathVariable Long usuarioId) {
+        log.debug("GET /api/v1/suscripciones/usuario/{}/vigente", usuarioId);
+        return ResponseEntity.ok(suscripcionService.obtenerSuscripcionVigente(usuarioId));
+    }
+
 
     @GetMapping("/{id}")
     @Operation(summary = "Buscar suscripcion por ID", description = "Obtiene la informacion de una suscripcion especifica")

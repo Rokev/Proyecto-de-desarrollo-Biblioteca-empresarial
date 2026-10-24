@@ -12,6 +12,7 @@ import bussinesLayer.dto.MetodoPagoDTO;
 import bussinesLayer.dto.MultaDTO;
 import bussinesLayer.dto.NotificacionDTO;
 import bussinesLayer.dto.PagoDTO;
+import bussinesLayer.dto.PedidoInterciudadDTO;
 import bussinesLayer.dto.PlanSuscripcionDTO;
 import bussinesLayer.dto.PreguntaFrecuenteDTO;
 import bussinesLayer.dto.PrestamoDTO;
@@ -24,6 +25,7 @@ import bussinesLayer.dto.SedeDTO;
 import bussinesLayer.dto.SesionDTO;
 import bussinesLayer.dto.SuscripcionDTO;
 import bussinesLayer.dto.TokenRecuperacionDTO;
+import bussinesLayer.dto.TrasladoRetornoDTO;
 import bussinesLayer.dto.UsuarioDTO;
 import persistanceLayer.entity.AutorEntity;
 import persistanceLayer.entity.DevolucionEntity;
@@ -37,6 +39,7 @@ import persistanceLayer.entity.MetodoPagoEntity;
 import persistanceLayer.entity.MultaEntity;
 import persistanceLayer.entity.NotificacionEntity;
 import persistanceLayer.entity.PagoEntity;
+import persistanceLayer.entity.PedidoInterciudadEntity;
 import persistanceLayer.entity.PlanSuscripcionEntity;
 import persistanceLayer.entity.PreguntaFrecuente;
 import persistanceLayer.entity.PrestamoEntity;
@@ -49,6 +52,7 @@ import persistanceLayer.entity.SedeEntity;
 import persistanceLayer.entity.SesionEntity;
 import persistanceLayer.entity.SuscripcionEntity;
 import persistanceLayer.entity.TokenRecuperacionEntity;
+import persistanceLayer.entity.TrasladoRetornoEntity;
 import persistanceLayer.entity.UsuarioEntity;
 import org.mapstruct.Mapping;
 
@@ -96,6 +100,7 @@ public interface Mapper {
 	EventoDTO eventoToDto(EventoEntity entity);
 
 	@Mapping(target = "estado", source = "estado", defaultValue = "PROGRAMADO")
+	@Mapping(target = "exclusivo", source = "exclusivo", defaultValue = "false")	
 	@Mapping(target = "sede", ignore = true)
 	@Mapping(target = "inscripciones", ignore = true)
 	EventoEntity eventoToEntity(EventoDTO dto);
@@ -176,9 +181,28 @@ public interface Mapper {
 	@Mapping(target = "reservaSala", ignore = true)
 	PagoEntity pagoToEntity(PagoDTO dto);
 
+	@Mapping(target = "usuarioId", source = "usuario.id")
+	@Mapping(target = "ejemplarId", source = "ejemplar.id")
+	@Mapping(target = "libroId", source = "ejemplar.libro.id")
+	@Mapping(target = "libroTitulo", source = "ejemplar.libro.titulo")
+	@Mapping(target = "sedeOrigenId", source = "sedeOrigen.id")
+	@Mapping(target = "sedeOrigenNombre", source = "sedeOrigen.nombre")
+	@Mapping(target = "prestamoId", source = "prestamo.id")
+	@Mapping(target = "bibliotecarioId", source = "bibliotecario.id")
+	PedidoInterciudadDTO pedidoInterciudadToDto(PedidoInterciudadEntity entity);
+
+	@Mapping(target = "estado", source = "estado", defaultValue = "SOLICITADO")
+	@Mapping(target = "usuario", ignore = true)
+	@Mapping(target = "ejemplar", ignore = true)
+	@Mapping(target = "sedeOrigen", ignore = true)
+	@Mapping(target = "prestamo", ignore = true)
+	@Mapping(target = "bibliotecario", ignore = true)
+	PedidoInterciudadEntity pedidoInterciudadToEntity(PedidoInterciudadDTO dto);
+
 	PlanSuscripcionDTO planSuscripcionToDto(PlanSuscripcionEntity entity);
 
 	@Mapping(target = "activo", source = "activo", defaultValue = "true")
+	@Mapping(target = "descuentoSalas", source = "descuentoSalas", defaultValue = "0")   
 	@Mapping(target = "suscripciones", ignore = true)
 	PlanSuscripcionEntity planSuscripcionToEntity(PlanSuscripcionDTO dto);
 
@@ -275,6 +299,7 @@ public interface Mapper {
 	@Mapping(target = "estado", source = "estado", defaultValue = "ACTIVA")
 	@Mapping(target = "renovacionAutomatica", source = "renovacionAutomatica", defaultValue = "true")
 	@Mapping(target = "mesesConsecutivos", source = "mesesConsecutivos", defaultValue = "0")
+	@Mapping(target = "descuentoSalas", source = "descuentoSalas", defaultValue = "0")   
 	@Mapping(target = "usuario", ignore = true)
 	@Mapping(target = "plan", ignore = true)
 	@Mapping(target = "pagos", ignore = true)
@@ -286,6 +311,25 @@ public interface Mapper {
 	@Mapping(target = "usado", source = "usado", defaultValue = "false")
 	@Mapping(target = "usuario", ignore = true)
 	TokenRecuperacionEntity tokenRecuperacionToEntity(TokenRecuperacionDTO dto);
+
+	@Mapping(target = "ejemplarId", source = "ejemplar.id")
+	@Mapping(target = "libroId", source = "ejemplar.libro.id")
+	@Mapping(target = "libroTitulo", source = "ejemplar.libro.titulo")
+	@Mapping(target = "sedeActualId", source = "sedeActual.id")
+	@Mapping(target = "sedeActualNombre", source = "sedeActual.nombre")
+	@Mapping(target = "sedeDestinoId", source = "sedeDestino.id")
+	@Mapping(target = "sedeDestinoNombre", source = "sedeDestino.nombre")
+	@Mapping(target = "devolucionId", source = "devolucion.id")
+	@Mapping(target = "bibliotecarioId", source = "bibliotecarioRecepcion.id")
+	TrasladoRetornoDTO trasladoRetornoToDto(TrasladoRetornoEntity entity);
+
+	@Mapping(target = "estado", source = "estado", defaultValue = "EN_TRANSITO")
+	@Mapping(target = "ejemplar", ignore = true)
+	@Mapping(target = "sedeActual", ignore = true)
+	@Mapping(target = "sedeDestino", ignore = true)
+	@Mapping(target = "devolucion", ignore = true)
+	@Mapping(target = "bibliotecarioRecepcion", ignore = true)
+	TrasladoRetornoEntity trasladoRetornoToEntity(TrasladoRetornoDTO dto);
 
 	@Mapping(target = "rolId", source = "rol.id")
 	@Mapping(target = "sedeId", source = "sede.id")

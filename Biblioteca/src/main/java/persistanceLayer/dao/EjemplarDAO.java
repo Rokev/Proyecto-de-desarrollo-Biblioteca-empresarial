@@ -3,6 +3,7 @@ package persistanceLayer.dao;
 import bussinesLayer.dto.EjemplarDTO;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 import persistanceLayer.entity.EjemplarEntity;
 import persistanceLayer.entity.LibroEntity;
 import persistanceLayer.entity.SedeEntity;
@@ -98,6 +99,16 @@ public class EjemplarDAO {
     public boolean existsBySedeId(Long sedeId) {
         return ejemplarRepository.existsBySedeId(sedeId);
     }
+
+    public List<EjemplarDTO> findDisponiblesEnOtraCiudad(Long libroId, String ciudad) {
+        return ejemplarRepository.findDisponiblesEnOtraCiudad(libroId, ciudad).stream().map(mapper::ejemplarToDto).toList();
+    }
+
+    /** Cambia el estado solo si el ejemplar esta en el estado esperado. Devuelve 1 si lo cambio, 0 si no. */
+    @Transactional
+    public int cambiarEstadoSiEs(Long id, String estadoEsperado, String estadoNuevo) {
+        return ejemplarRepository.cambiarEstadoSiEs(id, estadoEsperado, estadoNuevo);
+    }    
 
     private LibroEntity referenciaLibro(Long idLibro) {
         if (idLibro == null) {

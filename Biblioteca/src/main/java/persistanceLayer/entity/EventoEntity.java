@@ -51,6 +51,11 @@ public class EventoEntity {
     @Builder.Default
     private String estado = "PROGRAMADO";
 
+        /** true si el evento es solo para suscriptores con suscripción vigente (RF-30). */
+    @Column(nullable = false)
+    @Builder.Default
+    private Boolean exclusivo = false;
+
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "sede_id", nullable = false)
     private SedeEntity sede;

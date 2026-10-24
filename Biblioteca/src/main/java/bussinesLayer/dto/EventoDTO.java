@@ -48,6 +48,9 @@ public class EventoDTO {
     @Schema(description = "PROGRAMADO, CANCELADO, FINALIZADO", example = "PROGRAMADO", maxLength = 20)
     private String estado;
 
+    @Schema(description = "true si el evento es exclusivo para suscriptores con suscripcion vigente (por defecto false)", example = "false")
+    private Boolean exclusivo;
+    
     @NotNull(message = "El campo sedeId es obligatorio")
     @Schema(description = "id de la sede", example = "1", requiredMode = Schema.RequiredMode.REQUIRED)
     private Long sedeId;

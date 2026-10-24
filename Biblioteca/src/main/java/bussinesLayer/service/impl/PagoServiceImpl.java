@@ -3,6 +3,7 @@ package bussinesLayer.service.impl;
 import bussinesLayer.dto.PagoDTO;
 import bussinesLayer.exception.BusinessValidationException;
 import bussinesLayer.exception.ResourceNotFoundException;
+import bussinesLayer.service.SuscripcionService;
 import bussinesLayer.service.PagoService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -15,6 +16,7 @@ import persistanceLayer.dao.ReservaSalaDAO;
 import persistanceLayer.dao.SuscripcionDAO;
 import persistanceLayer.dao.UsuarioDAO;
 
+
 import java.util.List;
 
 @Service
@@ -23,6 +25,7 @@ import java.util.List;
 @Slf4j
 public class PagoServiceImpl implements PagoService {
 
+    private final SuscripcionService suscripcionService;
     private static final String CONCEPTO_MULTA = "MULTA";
     private static final String CONCEPTO_SUSCRIPCION = "SUSCRIPCION";
     private static final String CONCEPTO_RESERVA_SALA = "RESERVA_SALA";
@@ -45,6 +48,7 @@ public class PagoServiceImpl implements PagoService {
         validarPago(pagoDTO);
 
         PagoDTO guardado = pagoDAO.save(pagoDTO);
+        activarSuscripcionSiCorresponde(guardado);
         log.info("Pago creado con ID: {}", guardado.getId());
         return guardado;
     }
@@ -76,8 +80,8 @@ public class PagoServiceImpl implements PagoService {
                 });
         validarPago(pagoDTO);
 
-        PagoDTO actualizado = pagoDAO.update(id, pagoDTO)
-                .orElseThrow(() -> new ResourceNotFoundException("Pago no encontrado con ID: " + id));
+        PagoDTO actualizado = pagoDAO.update(id, pagoDTO).orElseThrow(() -> new ResourceNotFoundException("Pago no encontrado con ID: " + id));
+        activarSuscripcionSiCorresponde(actualizado);
         log.info("Pago actualizado ID: {}", id);
         return actualizado;
     }
@@ -88,6 +92,18 @@ public class PagoServiceImpl implements PagoService {
             throw new ResourceNotFoundException("Pago no encontrado con ID: " + id);
         }
         log.info("Pago eliminado ID: {}", id);
+    }
+
+        /** Un pago EXITOSO de una suscripcion PENDIENTE_PAGO activa sus beneficios (RF-24). */
+    private void activarSuscripcionSiCorresponde(PagoDTO pago) {
+        if (!CONCEPTO_SUSCRIPCION.equalsIgnoreCase(pago.getConcepto())
+                || !"EXITOSO".equalsIgnoreCase(pago.getEstado())
+                || pago.getSuscripcionId() == null) {
+            return;
+        }
+        suscripcionDAO.findById(pago.getSuscripcionId())
+                .filter(s -> "PENDIENTE_PAGO".equalsIgnoreCase(s.getEstado()))
+                .ifPresent(s -> suscripcionService.activarSuscripcion(s.getId()));
     }
 
     private void validarPago(PagoDTO dto) {
@@ -121,8 +137,12 @@ public class PagoServiceImpl implements PagoService {
                 if (dto.getReservaSalaId() == null) {
                     throw new BusinessValidationException("El campo reservaSalaId es obligatorio para pagos de RESERVA_SALA");
                 }
-                if (!reservaSalaDAO.existsById(dto.getReservaSalaId())) {
-                    throw new ResourceNotFoundException("Reserva de sala no encontrada con ID: " + dto.getReservaSalaId());
+                var reserva = reservaSalaDAO.findById(dto.getReservaSalaId())
+                        .orElseThrow(() -> new ResourceNotFoundException(
+                                "Reserva de sala no encontrada con ID: " + dto.getReservaSalaId()));
+                if (dto.getMonto().compareTo(reserva.getValorTotal()) != 0) {
+                    throw new BusinessValidationException("El monto del pago (" + dto.getMonto()
+                            + ") no coincide con el valorTotal de la reserva (" + reserva.getValorTotal() + ")");
                 }
             }
             default -> throw new BusinessValidationException(

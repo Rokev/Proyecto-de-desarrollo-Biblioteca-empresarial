@@ -10,6 +10,7 @@ import persistanceLayer.mapper.Mapper;
 import persistanceLayer.repository.InscripcionEventoRepository;
 
 import java.util.List;
+import java.time.LocalDateTime;
 import java.util.Optional;
 
 /**
@@ -90,6 +91,10 @@ public class InscripcionEventoDAO {
     public List<InscripcionEventoDTO> findByUsuarioIdAndEstadoIgnoreCase(Long usuarioId, String estado) {
         return inscripcionEventoRepository.findByUsuarioIdAndEstadoIgnoreCase(usuarioId, estado).stream().map(mapper::inscripcionEventoToDto).toList();
     }
+
+    public List<InscripcionEventoDTO> findActivasEnEventosExclusivosFuturos(LocalDateTime ahora) {
+        return inscripcionEventoRepository.findActivasEnEventosExclusivosFuturos(ahora).stream().map(mapper::inscripcionEventoToDto).toList();
+    }    
 
     private EventoEntity referenciaEvento(Long idEvento) {
         if (idEvento == null) {

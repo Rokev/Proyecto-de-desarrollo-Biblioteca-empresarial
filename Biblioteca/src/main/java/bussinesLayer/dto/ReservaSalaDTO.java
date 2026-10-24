@@ -1,7 +1,6 @@
 package bussinesLayer.dto;
 
 import io.swagger.v3.oas.annotations.media.Schema;
-import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import java.math.BigDecimal;
@@ -30,22 +29,16 @@ public class ReservaSalaDTO {
     @Schema(description = "PENDIENTE_PAGO, CONFIRMADA, CANCELADA, FINALIZADA", example = "PENDIENTE_PAGO", maxLength = 20)
     private String estado;
 
-    @NotNull(message = "El campo valorBase es obligatorio")
-    @DecimalMin(value = "0.00", message = "El campo valorBase no puede ser negativo")
-    @Schema(description = "Valor base", example = "20000.00", requiredMode = Schema.RequiredMode.REQUIRED)
+    @Schema(description = "Valor base (horas x tarifa de la sala). Lo calcula el servidor.", example = "20000.00", accessMode = Schema.AccessMode.READ_ONLY)
     private BigDecimal valorBase;
 
-    @DecimalMin(value = "0.00", message = "El campo descuento no puede ser negativo")
-    @Schema(description = "Descuento por suscripcion", example = "0.00")
+    @Schema(description = "Descuento por suscripcion vigente. Lo calcula el servidor.", example = "3000.00", accessMode = Schema.AccessMode.READ_ONLY)
     private BigDecimal descuento;
 
-    @NotNull(message = "El campo valorTotal es obligatorio")
-    @DecimalMin(value = "0.00", message = "El campo valorTotal no puede ser negativo")
-    @Schema(description = "Valor total", example = "20000.00", requiredMode = Schema.RequiredMode.REQUIRED)
+    @Schema(description = "Valor total = valorBase - descuento. Lo calcula el servidor.", example = "17000.00", accessMode = Schema.AccessMode.READ_ONLY)
     private BigDecimal valorTotal;
 
-    @NotNull(message = "El campo fechaCreacion es obligatorio")
-    @Schema(description = "Fecha de creacion", example = "2026-10-17T10:00:00", requiredMode = Schema.RequiredMode.REQUIRED)
+    @Schema(description = "Fecha de creacion. La asigna el servidor.", example = "2026-10-17T10:00:00", accessMode = Schema.AccessMode.READ_ONLY)
     private LocalDateTime fechaCreacion;
 
     @Schema(description = "Fecha de cancelacion", example = "2026-10-19T10:00:00")

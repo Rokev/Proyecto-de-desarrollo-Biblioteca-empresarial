@@ -16,6 +16,10 @@ public interface InscripcionEventoService {
     List<InscripcionEventoDTO> obtenerTodasLasInscripcionesEvento();
 
     InscripcionEventoDTO actualizarInscripcionEvento(Long id, InscripcionEventoDTO inscripcionEventoDTO);
+    
+    /** Cancela las inscripciones a eventos exclusivos futuros de usuarios sin suscripcion vigente
+     *  y libera sus cupos. Devuelve cuantas cancelo. */
+    int cancelarInscripcionesExclusivasSinSuscripcion();
 
     void eliminarInscripcionEvento(Long id);
 }

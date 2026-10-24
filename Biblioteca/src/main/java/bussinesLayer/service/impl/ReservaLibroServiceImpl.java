@@ -13,6 +13,11 @@ import persistanceLayer.dao.LibroDAO;
 import persistanceLayer.dao.ReservaLibroDAO;
 import persistanceLayer.dao.SedeDAO;
 import persistanceLayer.dao.UsuarioDAO;
+import bussinesLayer.dto.EjemplarDTO;
+import bussinesLayer.dto.LibroDTO;
+import bussinesLayer.dto.NotificacionDTO;
+import persistanceLayer.dao.NotificacionDAO;
+import java.util.Optional;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -26,6 +31,9 @@ public class ReservaLibroServiceImpl implements ReservaLibroService {
     private static final String ESTADO_EN_ESPERA = "EN_ESPERA";
     private static final String ESTADO_NOTIFICADA = "NOTIFICADA";
     private static final String ESTADO_CANCELADA = "CANCELADA";
+    /** Dias que tiene el usuario para retirar el libro una vez notificado. */
+    private static final int DIAS_RETIRO_RESERVA = 2;
+    private final NotificacionDAO notificacionDAO;
 
     private final ReservaLibroDAO reservaLibroDAO;
     private final UsuarioDAO usuarioDAO;
@@ -95,6 +103,62 @@ public class ReservaLibroServiceImpl implements ReservaLibroService {
         log.info("Reserva de libro eliminada ID: {}", id);
     }
 
+    @Override
+    public void avisarDevolucionEnCamino(Long libroId, Long sedeOrigenId, String nombreSedeActual) {
+        reservaLibroDAO.findFirstByLibroIdAndSedeIdAndEstadoIgnoreCaseOrderByFechaReservaAsc(
+                libroId, sedeOrigenId, ESTADO_EN_ESPERA).ifPresent(reserva ->
+                notificar(reserva.getUsuarioId(), "LIBRO_PRONTO_DISPONIBLE", "Tu libro ya fue devuelto",
+                        "El libro \"" + tituloDe(libroId) + "\" que reservaste fue devuelto en " + nombreSedeActual
+                                + " y va de regreso a la sede donde lo reservaste. Te avisaremos cuando este disponible para retiro."));
+    }
+
+    @Override
+    public boolean asignarEjemplarAReservaEnEspera(Long ejemplarId) {
+        EjemplarDTO ejemplar = ejemplarDAO.findById(ejemplarId)
+                .orElseThrow(() -> new ResourceNotFoundException("Ejemplar no encontrado con ID: " + ejemplarId));
+
+        Optional<ReservaLibroDTO> siguiente = reservaLibroDAO
+                .findFirstByLibroIdAndSedeIdAndEstadoIgnoreCaseOrderByFechaReservaAsc(
+                        ejemplar.getLibroId(), ejemplar.getSedeId(), ESTADO_EN_ESPERA);
+        if (siguiente.isEmpty()) {
+            return false;
+        }
+        // Se aparta el ejemplar de forma atomica para que nadie mas lo tome.
+        if (ejemplarDAO.cambiarEstadoSiEs(ejemplarId, "DISPONIBLE", "RESERVADO") == 0) {
+            return false;
+        }
+
+        ReservaLibroDTO reserva = siguiente.get();
+        LocalDateTime ahora = LocalDateTime.now();
+        reserva.setEstado(ESTADO_NOTIFICADA);
+        reserva.setEjemplarId(ejemplarId);
+        reserva.setFechaNotificacion(ahora);
+        reserva.setFechaLimiteRetiro(ahora.plusDays(DIAS_RETIRO_RESERVA));
+        reservaLibroDAO.update(reserva.getId(), reserva);
+
+        notificar(reserva.getUsuarioId(), "LIBRO_DISPONIBLE", "Tu libro esta disponible",
+                "El libro \"" + tituloDe(ejemplar.getLibroId()) + "\" que reservaste ya esta disponible. Tienes hasta el "
+                        + reserva.getFechaLimiteRetiro() + " para retirarlo.");
+        log.info("Ejemplar {} asignado a la reserva {}", ejemplarId, reserva.getId());
+        return true;
+    }
+
+    private String tituloDe(Long libroId) {
+        return libroDAO.findById(libroId).map(LibroDTO::getTitulo).orElse("(libro " + libroId + ")");
+    }
+
+    private void notificar(Long usuarioId, String tipo, String titulo, String mensaje) {
+        NotificacionDTO notificacion = new NotificacionDTO();
+        notificacion.setTipo(tipo);
+        notificacion.setTitulo(titulo);
+        notificacion.setMensaje(mensaje);
+        notificacion.setCanal("APP");
+        notificacion.setFechaCreacion(LocalDateTime.now());
+        notificacion.setLeida(false);
+        notificacion.setUsuarioId(usuarioId);
+        notificacionDAO.save(notificacion);
+    }
+
     private void validarReferencias(ReservaLibroDTO dto) {
         if (!usuarioDAO.existsById(dto.getUsuarioId())) {
             throw new ResourceNotFoundException("Usuario no encontrado con ID: " + dto.getUsuarioId());
@@ -109,4 +173,6 @@ public class ReservaLibroServiceImpl implements ReservaLibroService {
             throw new ResourceNotFoundException("Ejemplar no encontrado con ID: " + dto.getEjemplarId());
         }
     }
+
+    
 }

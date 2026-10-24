@@ -1,6 +1,8 @@
 package presentationLayer.controller;
 
 import bussinesLayer.dto.DevolucionDTO;
+import bussinesLayer.dto.SedeDTO;
+import bussinesLayer.dto.SolicitudDevolucionDTO;
 import bussinesLayer.service.DevolucionService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -21,6 +23,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -116,4 +119,56 @@ public class DevolucionController {
         devolucionService.eliminarDevolucion(id);
         return ResponseEntity.noContent().build();
     }
+
+    @GetMapping("/sede-sugerida")
+    @Operation(summary = "Sugerir la sede mas cercana para devolver",
+            description = "Devuelve la sede en operacion mas cercana a la ubicacion del usuario.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Sede sugerida",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = SedeDTO.class))),
+            @ApiResponse(responseCode = "404", description = "No hay sedes en operacion con coordenadas",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = ApiError.class)))
+    })
+    public ResponseEntity<SedeDTO> sugerirSede(
+            @Parameter(description = "Latitud del usuario", required = true, example = "6.2442") @RequestParam double latitud,
+            @Parameter(description = "Longitud del usuario", required = true, example = "-75.5658") @RequestParam double longitud) {
+        return ResponseEntity.ok(devolucionService.sugerirSedeCercana(latitud, longitud));
+    }
+
+    @PostMapping("/solicitar")
+    @Operation(summary = "Solicitar la devolucion de un libro en cualquier sede",
+            description = "Indique la sede, o su ubicacion para que el sistema elija la mas cercana. Devuelve el codigo QR que se presenta junto con el libro.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "201", description = "Devolucion solicitada (PENDIENTE)",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = DevolucionDTO.class))),
+            @ApiResponse(responseCode = "400", description = "Datos invalidos, prestamo ajeno o no devolvible, sede fuera de operacion o devolucion ya existente",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = ApiError.class))),
+            @ApiResponse(responseCode = "404", description = "Prestamo o sede no encontrada",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = ApiError.class)))
+    })
+    public ResponseEntity<DevolucionDTO> solicitar(
+            @Parameter(description = "Datos de la solicitud", required = true)
+            @Valid @RequestBody SolicitudDevolucionDTO solicitud) {
+        log.info("POST /api/v1/devoluciones/solicitar - prestamoId: {}", solicitud.getPrestamoId());
+        return ResponseEntity.status(HttpStatus.CREATED).body(devolucionService.solicitarDevolucion(solicitud));
+    }
+
+    @PostMapping("/confirmar")
+    @Operation(summary = "Confirmar la devolucion con el codigo QR (bibliotecario)",
+            description = "Cierra el prestamo. Si se devolvio en la sede de origen el ejemplar queda disponible; si no, queda en transito hacia su sede de origen y se avisa a quien lo tiene reservado.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Devolucion confirmada",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = DevolucionDTO.class))),
+            @ApiResponse(responseCode = "400", description = "La devolucion no esta PENDIENTE o el prestamo/ejemplar no esta en el estado esperado",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = ApiError.class))),
+            @ApiResponse(responseCode = "404", description = "Codigo QR o bibliotecario no encontrado",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = ApiError.class)))
+    })
+    public ResponseEntity<DevolucionDTO> confirmar(
+            @Parameter(description = "Codigo QR de la devolucion", required = true, example = "DEV-0b1f...") @RequestParam String codigoQr,
+            @Parameter(description = "ID del bibliotecario", required = true, example = "2") @RequestParam Long bibliotecarioId) {
+        log.info("POST /api/v1/devoluciones/confirmar - bibliotecarioId: {}", bibliotecarioId);
+        return ResponseEntity.ok(devolucionService.confirmarDevolucion(codigoQr, bibliotecarioId));
+    }
+
 }

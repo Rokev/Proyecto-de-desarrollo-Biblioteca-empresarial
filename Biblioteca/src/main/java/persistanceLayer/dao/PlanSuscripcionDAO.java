@@ -42,6 +42,9 @@ public class PlanSuscripcionDAO {
             existente.setBeneficios(dto.getBeneficios());
             existente.setPrecio(dto.getPrecio());
             existente.setDuracionMeses(dto.getDuracionMeses());
+            if (dto.getDescuentoSalas() != null) {
+                existente.setDescuentoSalas(dto.getDescuentoSalas());
+            }
             if (dto.getActivo() != null) {
                 existente.setActivo(dto.getActivo());
             }
