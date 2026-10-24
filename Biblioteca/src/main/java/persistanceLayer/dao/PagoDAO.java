@@ -9,6 +9,7 @@ import persistanceLayer.entity.PagoEntity;
 import persistanceLayer.entity.ReservaSalaEntity;
 import persistanceLayer.entity.SuscripcionEntity;
 import persistanceLayer.entity.UsuarioEntity;
+import persistanceLayer.entity.PedidoInterciudadEntity;
 import persistanceLayer.mapper.Mapper;
 import persistanceLayer.repository.PagoRepository;
 
@@ -33,6 +34,7 @@ public class PagoDAO {
         entity.setMulta(referenciaMulta(dto.getMultaId()));
         entity.setSuscripcion(referenciaSuscripcion(dto.getSuscripcionId()));
         entity.setReservaSala(referenciaReservaSala(dto.getReservaSalaId()));
+        entity.setPedidoInterciudad(referenciaPedidoInterciudad(dto.getPedidoInterciudadId()));
         PagoEntity guardado = pagoRepository.save(entity);
         return mapper.pagoToDto(guardado);
     }
@@ -57,6 +59,7 @@ public class PagoDAO {
             existente.setMulta(referenciaMulta(dto.getMultaId()));
             existente.setSuscripcion(referenciaSuscripcion(dto.getSuscripcionId()));
             existente.setReservaSala(referenciaReservaSala(dto.getReservaSalaId()));
+            existente.setPedidoInterciudad(referenciaPedidoInterciudad(dto.getPedidoInterciudadId()));
             return mapper.pagoToDto(pagoRepository.save(existente));
         });
     }
@@ -103,6 +106,19 @@ public class PagoDAO {
 
     public List<PagoDTO> findByEstadoIgnoreCase(String estado) {
         return pagoRepository.findByEstadoIgnoreCase(estado).stream().map(mapper::pagoToDto).toList();
+    }
+
+    public Optional<PagoDTO> findEnvioPagadoPorPedido(Long pedidoId) {
+        return pagoRepository.findEnviosPagadosPorPedido(pedidoId).stream().findFirst().map(mapper::pagoToDto);
+    }
+
+    private PedidoInterciudadEntity referenciaPedidoInterciudad(Long idPedido) {
+        if (idPedido == null) {
+            return null;
+        }
+        PedidoInterciudadEntity referencia = new PedidoInterciudadEntity();
+        referencia.setId(idPedido);
+        return referencia;
     }
 
     private UsuarioEntity referenciaUsuario(Long idUsuario) {

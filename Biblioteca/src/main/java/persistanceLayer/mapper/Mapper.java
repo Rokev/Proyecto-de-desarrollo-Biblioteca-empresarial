@@ -110,6 +110,7 @@ public interface Mapper {
 	@Mapping(target = "multaId", source = "multa.id")
 	@Mapping(target = "suscripcionId", source = "suscripcion.id")
 	@Mapping(target = "reservaSalaId", source = "reservaSala.id")
+	@Mapping(target = "pedidoInterciudadId", source = "pedidoInterciudad.id")
 	PagoDTO pagoToDto(PagoEntity entity);
 
 	@Mapping(target = "usuario", ignore = true)
@@ -117,6 +118,7 @@ public interface Mapper {
 	@Mapping(target = "multa", ignore = true)
 	@Mapping(target = "suscripcion", ignore = true)
 	@Mapping(target = "reservaSala", ignore = true)
+	@Mapping(target = "pedidoInterciudad", ignore = true)  
 	PagoEntity pagoToEntity(PagoDTO dto);
 
 @Mapping(target = "usuarioId", source = "usuario.id")

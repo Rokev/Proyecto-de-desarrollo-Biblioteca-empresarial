@@ -63,4 +63,8 @@ public class PagoEntity {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "reserva_sala_id")
     private ReservaSalaEntity reservaSala;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "pedido_interciudad_id")
+    private PedidoInterciudadEntity pedidoInterciudad;
 }

@@ -15,6 +15,7 @@ import persistanceLayer.dao.*;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.Optional;
 import java.util.List;
 
 @Service
@@ -48,6 +49,7 @@ public class PedidoInterciudadServiceImpl implements PedidoInterciudadService {
     private final LibroDAO libroDAO;
     private final EjemplarDAO ejemplarDAO;
     private final SedeDAO sedeDAO;
+    private final PagoDAO pagoDAO;
     private final PrestamoDAO prestamoDAO;
     private final SancionDAO sancionDAO;
     private final MultaDAO multaDAO;
@@ -134,7 +136,15 @@ public class PedidoInterciudadServiceImpl implements PedidoInterciudadService {
 
         pedido.setEstado(ESTADO_CANCELADO);
         pedido.setFechaCancelacion(LocalDateTime.now());
-        return pedidoDAO.update(pedido.getId(), pedido).orElseThrow();
+        Optional<PagoDTO> reembolso = reembolsarEnvio(pedido);
+        PedidoInterciudadDTO cancelado = pedidoDAO.update(pedido.getId(), pedido).orElseThrow();
+
+        String detalleReembolso = reembolso
+                .map(p -> " Se reembolsó $" + p.getMonto() + " del envío (Ref: " + p.getReferencia() + ").")
+                .orElse("");
+        notificar(usuarioId, "PEDIDO_CANCELADO", "Pedido cancelado",
+                "El pedido #" + pedidoId + " fue cancelado." + detalleReembolso);
+        return cancelado;
     }
 
     // ------------------------------------------------------------ Consultas
@@ -166,6 +176,10 @@ public class PedidoInterciudadServiceImpl implements PedidoInterciudadService {
     public PedidoInterciudadDTO despacharPedido(Long pedidoId, Long bibliotecarioId, Long repartidorId) {
         PedidoInterciudadDTO pedido = buscarPedido(pedidoId);
         validarEstado(pedido, ESTADO_SOLICITADO);
+        if (pagoDAO.findEnvioPagadoPorPedido(pedidoId).isEmpty()) {
+            throw new BusinessValidationException(
+                    "El pedido #" + pedidoId + " no se puede despachar: el costo de envío aún no ha sido pagado");
+        }
 
         cambiarEstadoEjemplar(pedido.getEjemplarId(), EJEMPLAR_RESERVADO, EJEMPLAR_EN_TRANSITO);
         pedido.setEstado(ESTADO_EN_TRANSITO);
@@ -353,6 +367,17 @@ public class PedidoInterciudadServiceImpl implements PedidoInterciudadService {
         if (!estadoEsperado.equalsIgnoreCase(pedido.getEstado())) {
             throw new BusinessValidationException("El pedido #" + pedido.getId() + " no está en estado " + estadoEsperado + " (Estado actual: " + pedido.getEstado() + ")");
         }
+    }
+
+    /** Marca como REEMBOLSADO el pago de envío aprobado del pedido (RF-29). Vacío si el pedido no se había pagado. */
+    private Optional<PagoDTO> reembolsarEnvio(PedidoInterciudadDTO pedido) {
+        Optional<PagoDTO> pagoOpt = pagoDAO.findEnvioPagadoPorPedido(pedido.getId());
+        pagoOpt.ifPresent(pago -> {
+            pago.setEstado("REEMBOLSADO");
+            pagoDAO.update(pago.getId(), pago);
+            log.info("Reembolso del envío del pedido {}: pago {} por {}", pedido.getId(), pago.getReferencia(), pago.getMonto());
+        });
+        return pagoOpt;
     }
 
     private void notificar(Long usuarioId, String tipo, String titulo, String mensaje) {

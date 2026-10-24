@@ -42,4 +42,7 @@ public class SolicitudPagoDTO {
 
     @Schema(description = "ID de la reserva de sala a pagar (Obligatorio si el concepto es RESERVA_SALA)", example = "1")
     private Long reservaSalaId;
+
+    @Schema(description = "ID del pedido interciudad a pagar (Obligatorio si el concepto es ENVIO_INTERCIUDAD)", example = "1")
+    private Long pedidoInterciudadId;
 }

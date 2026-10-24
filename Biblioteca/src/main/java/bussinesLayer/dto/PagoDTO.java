@@ -60,4 +60,6 @@ public class PagoDTO {
     @Schema(description = "id de la reserva de sala (solo si el concepto es RESERVA_SALA)", example = "1")
     private Long reservaSalaId;
 
+    @Schema(description = "id del pedido interciudad (solo si el concepto es ENVIO_INTERCIUDAD)", example = "1")
+    private Long pedidoInterciudadId;
 }

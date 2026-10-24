@@ -14,6 +14,7 @@ import persistanceLayer.dao.*;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
+import java.math.BigDecimal;
 
 @Service
 @Transactional
@@ -38,6 +39,7 @@ public class PagoServiceImpl implements PagoService {
     private final SuscripcionDAO suscripcionDAO;
     private final ReservaSalaDAO reservaSalaDAO;
     private final NotificacionDAO notificacionDAO;
+    private final PedidoInterciudadDAO pedidoInterciudadDAO;
     private final SuscripcionService suscripcionService;
 
     // =========================================================================
@@ -114,6 +116,11 @@ public class PagoServiceImpl implements PagoService {
         if (!usuarioDAO.existsById(solicitud.getUsuarioId())) {
             throw new ResourceNotFoundException("Usuario no encontrado con ID: " + solicitud.getUsuarioId());
         }
+        if (CONCEPTO_ENVIO_INTERCIUDAD.equalsIgnoreCase(solicitud.getConcepto())) {
+            PedidoInterciudadDTO pedido = validarPagoEnvio(
+                    solicitud.getUsuarioId(), solicitud.getPedidoInterciudadId(), solicitud.getMonto());
+            exigirEnvioPendienteDePago(pedido);
+        }
 
         boolean esAprobado = esTarjetaAprobada(solicitud.getNumeroTarjeta());
         String estadoPago = esAprobado ? ESTADO_APROBADO : ESTADO_RECHAZADO;
@@ -133,6 +140,9 @@ public class PagoServiceImpl implements PagoService {
 
         if (solicitud.getMultaId() != null) pago.setMultaId(solicitud.getMultaId());
         if (solicitud.getReservaSalaId() != null) pago.setReservaSalaId(solicitud.getReservaSalaId());
+        if (CONCEPTO_ENVIO_INTERCIUDAD.equalsIgnoreCase(solicitud.getConcepto())) {
+            pago.setPedidoInterciudadId(solicitud.getPedidoInterciudadId());
+        }
 
         PagoDTO pagoGuardado = pagoDAO.save(pago);
 
@@ -253,13 +263,39 @@ public class PagoServiceImpl implements PagoService {
                             + ") no coincide con el valorTotal de la reserva (" + reserva.getValorTotal() + ")");
                 }
             }
-            case CONCEPTO_ENVIO_INTERCIUDAD -> {
-                // Validación para envío interciudad
-            }
+            case CONCEPTO_ENVIO_INTERCIUDAD ->
+                    validarPagoEnvio(dto.getUsuarioId(), dto.getPedidoInterciudadId(), dto.getMonto());
             default -> throw new BusinessValidationException(
                     "Concepto inválido: " + dto.getConcepto() + ". Valores permitidos: MULTA, RECARGO, SUSCRIPCION, RESERVA_SALA, ENVIO_INTERCIUDAD");
         }
         dto.setConcepto(concepto);
+    }
+
+    private PedidoInterciudadDTO validarPagoEnvio(Long usuarioId, Long pedidoId, BigDecimal monto) {
+        if (pedidoId == null) {
+            throw new BusinessValidationException("El campo pedidoInterciudadId es obligatorio para pagos de ENVIO_INTERCIUDAD");
+        }
+        PedidoInterciudadDTO pedido = pedidoInterciudadDAO.findById(pedidoId)
+                .orElseThrow(() -> new ResourceNotFoundException("Pedido interciudad no encontrado con ID: " + pedidoId));
+        if (!pedido.getUsuarioId().equals(usuarioId)) {
+            throw new BusinessValidationException("El pedido " + pedidoId + " no pertenece al usuario " + usuarioId);
+        }
+        BigDecimal costoEnvio = BigDecimal.valueOf(pedido.getCostoEnvio());
+        if (monto.compareTo(costoEnvio) != 0) {
+            throw new BusinessValidationException("El monto del pago (" + monto
+                    + ") no coincide con el costo de envío del pedido (" + costoEnvio + ")");
+        }
+        return pedido;
+    }
+
+    private void exigirEnvioPendienteDePago(PedidoInterciudadDTO pedido) {
+        if (!"SOLICITADO".equalsIgnoreCase(pedido.getEstado())) {
+            throw new BusinessValidationException("Solo se puede pagar el envío de un pedido en estado SOLICITADO (estado actual: "
+                    + pedido.getEstado() + ")");
+        }
+        if (pagoDAO.findEnvioPagadoPorPedido(pedido.getId()).isPresent()) {
+            throw new BusinessValidationException("El envío del pedido " + pedido.getId() + " ya fue pagado");
+        }
     }
 
     private boolean esTarjetaAprobada(String numeroTarjeta) {
