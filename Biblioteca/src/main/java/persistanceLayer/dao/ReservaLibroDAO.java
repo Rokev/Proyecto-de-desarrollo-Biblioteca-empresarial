@@ -12,6 +12,7 @@ import persistanceLayer.mapper.Mapper;
 import persistanceLayer.repository.ReservaLibroRepository;
 
 
+import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
@@ -88,6 +89,10 @@ public class ReservaLibroDAO {
 
     public Optional<ReservaLibroDTO> findFirstByLibroIdAndSedeIdAndEstadoIgnoreCaseOrderByFechaReservaAsc(Long libroId, Long sedeId, String estado) {
         return reservaLibroRepository.findFirstByLibroIdAndSedeIdAndEstadoIgnoreCaseOrderByFechaReservaAsc(libroId, sedeId, estado).map(mapper::reservaLibroToDto);
+    }
+
+    public List<ReservaLibroDTO> findByEstadoIgnoreCaseAndFechaLimiteRetiroBefore(String estado, LocalDateTime fecha) {
+        return reservaLibroRepository.findByEstadoIgnoreCaseAndFechaLimiteRetiroBefore(estado, fecha).stream().map(mapper::reservaLibroToDto).toList();
     }
 
     public boolean existsByUsuarioIdAndLibroIdAndEstadoIn(Long usuarioId, Long libroId, Collection<String> estados) {

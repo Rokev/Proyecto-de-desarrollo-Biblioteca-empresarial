@@ -78,6 +78,10 @@ public class SancionDAO {
         return sancionRepository.existsByUsuarioIdAndTipoIgnoreCaseAndEstadoIgnoreCase(usuarioId, tipo, estado);
     }
 
+    public List<SancionDTO> findByTipoIgnoreCaseAndEstadoIgnoreCase(String tipo, String estado) {
+        return sancionRepository.findByTipoIgnoreCaseAndEstadoIgnoreCase(tipo, estado).stream().map(mapper::sancionToDto).toList();
+    }
+
     public List<SancionDTO> findByPrestamoId(Long prestamoId) {
         return sancionRepository.findByPrestamoId(prestamoId).stream().map(mapper::sancionToDto).toList();
     }
