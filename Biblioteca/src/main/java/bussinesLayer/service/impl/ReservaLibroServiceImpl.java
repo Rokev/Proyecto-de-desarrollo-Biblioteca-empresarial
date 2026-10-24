@@ -4,6 +4,7 @@ import bussinesLayer.dto.ReservaLibroDTO;
 import bussinesLayer.exception.BusinessValidationException;
 import bussinesLayer.exception.ResourceNotFoundException;
 import bussinesLayer.service.ReservaLibroService;
+import bussinesLayer.service.ValidadorUsuarioService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -40,10 +41,14 @@ public class ReservaLibroServiceImpl implements ReservaLibroService {
     private final LibroDAO libroDAO;
     private final SedeDAO sedeDAO;
     private final EjemplarDAO ejemplarDAO;
+    private final ValidadorUsuarioService validadorUsuarioService;
 
     @Override
     public ReservaLibroDTO crearReservaLibro(ReservaLibroDTO dto) {
         log.info("Creando reserva del libro {} para el usuario {}", dto.getLibroId(), dto.getUsuarioId());
+
+        // Validar multas y sanciones
+        validadorUsuarioService.validarUsuarioHabilitadoParaOperaciones(dto.getUsuarioId());
 
         validarReferencias(dto);
 

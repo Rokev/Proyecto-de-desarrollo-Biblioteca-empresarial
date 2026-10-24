@@ -5,6 +5,7 @@ import bussinesLayer.dto.PrestamoDTO;
 import bussinesLayer.exception.BusinessValidationException;
 import bussinesLayer.exception.ResourceNotFoundException;
 import bussinesLayer.service.PrestamoService;
+import bussinesLayer.service.ValidadorUsuarioService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -47,10 +48,14 @@ public class PrestamoServiceImpl implements PrestamoService {
     private final EjemplarDAO ejemplarDAO;
     private final SedeDAO sedeDAO;
     private final SancionDAO sancionDAO;
+    private final ValidadorUsuarioService validadorUsuarioService;
 
     @Override
     public PrestamoDTO crearPrestamo(PrestamoDTO dto) {
         log.info("Creando prestamo del ejemplar {} para el usuario {}", dto.getEjemplarId(), dto.getUsuarioId());
+
+        // 1. Validar que el usuario no tenga sanciones activas ni multas pendientes 
+        validadorUsuarioService.validarUsuarioHabilitadoParaOperaciones(dto.getUsuarioId());
 
         if (!usuarioDAO.existsById(dto.getUsuarioId())) {
             throw new ResourceNotFoundException("Usuario no encontrado con ID: " + dto.getUsuarioId());
@@ -61,10 +66,6 @@ public class PrestamoServiceImpl implements PrestamoService {
         EjemplarDTO ejemplar = ejemplarDAO.findById(dto.getEjemplarId())
                 .orElseThrow(() -> new ResourceNotFoundException("Ejemplar no encontrado con ID: " + dto.getEjemplarId()));
 
-        if (sancionDAO.existsByUsuarioIdAndTipoIgnoreCaseAndEstadoIgnoreCase(
-                dto.getUsuarioId(), "BLOQUEO_PRESTAMOS", "ACTIVA")) {
-            throw new BusinessValidationException("El usuario tiene un bloqueo de prestamos activo");
-        }
         if (prestamoDAO.countByUsuarioIdAndEstadoIn(dto.getUsuarioId(), ESTADOS_VIGENTES) >= MAX_PRESTAMOS_VIGENTES) {
             throw new BusinessValidationException(
                     "El usuario alcanzo el maximo de " + MAX_PRESTAMOS_VIGENTES + " prestamos vigentes");

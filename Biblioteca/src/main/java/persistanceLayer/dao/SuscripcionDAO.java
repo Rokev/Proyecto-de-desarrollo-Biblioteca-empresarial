@@ -105,6 +105,13 @@ public class SuscripcionDAO {
         return suscripcionRepository.findByEstadoIgnoreCaseAndFechaFinBefore(estado, fecha).stream().map(mapper::suscripcionToDto).toList();
     }
 
+public Optional<SuscripcionDTO> findByUsuarioIdAndEstado(Long usuarioId, String estado) {
+        return suscripcionRepository.findByUsuarioId(usuarioId).stream()
+                .filter(s -> estado.equalsIgnoreCase(s.getEstado()))
+                .findFirst()
+                .map(mapper::suscripcionToDto);
+    }
+
     private UsuarioEntity referenciaUsuario(Long idUsuario) {
         if (idUsuario == null) {
             return null;

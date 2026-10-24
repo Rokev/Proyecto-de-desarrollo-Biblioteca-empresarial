@@ -1,21 +1,22 @@
 package bussinesLayer.service;
 
+import bussinesLayer.dto.ComprobantePagoDTO;
 import bussinesLayer.dto.PagoDTO;
+import bussinesLayer.dto.SolicitudPagoDTO;
 
 import java.util.List;
 
-/**
- * Logica de negocio para la gestion de pagos de multas, suscripciones y reservas de sala.
- */
 public interface PagoService {
 
+    // --- MÉTODOS CRUD EXISTENTES ---
     PagoDTO crearPago(PagoDTO pagoDTO);
-
     PagoDTO obtenerPagoPorId(Long id);
-
     List<PagoDTO> obtenerTodosLosPagos();
-
     PagoDTO actualizarPago(Long id, PagoDTO pagoDTO);
-
     void eliminarPago(Long id);
+
+    // --- MÉTODOS DE PASARELA DE PAGO SIMULADO (RF-14, RF-15) ---
+    ComprobantePagoDTO procesarPagoSimulado(SolicitudPagoDTO solicitud);
+    ComprobantePagoDTO obtenerComprobantePorId(Long id);
+    List<ComprobantePagoDTO> obtenerPagosPorUsuario(Long usuarioId);
 }

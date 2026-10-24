@@ -5,6 +5,7 @@ import bussinesLayer.dto.SalaEstudioDTO;
 import bussinesLayer.dto.SuscripcionDTO;
 import bussinesLayer.exception.BusinessValidationException;
 import bussinesLayer.exception.ResourceNotFoundException;
+import bussinesLayer.service.ValidadorUsuarioService;
 import bussinesLayer.service.ReservaSalaService;
 import bussinesLayer.service.SuscripcionService;
 import lombok.RequiredArgsConstructor;
@@ -35,10 +36,14 @@ class ReservaSalaServiceImpl implements ReservaSalaService {
     private final SalaEstudioDAO salaEstudioDAO;
     private final UsuarioDAO usuarioDAO;
     private final SuscripcionService suscripcionService;
+    private final ValidadorUsuarioService validadorUsuarioService;
 
     @Override
     public ReservaSalaDTO crearReservaSala(ReservaSalaDTO dto) {
         log.info("Creando reserva de la sala {} para el usuario {}", dto.getSalaId(), dto.getUsuarioId());
+
+        // Validar multas y sanciones
+        validadorUsuarioService.validarUsuarioHabilitadoParaOperaciones(dto.getUsuarioId());
 
         validarReferenciasYFechas(dto);
 
