@@ -115,6 +115,14 @@ public class PrestamoDAO {
         return prestamoRepository.findByEstadoIgnoreCaseAndFechaVencimientoBefore(estado, fecha).stream().map(mapper::prestamoToDto).toList();
     }
 
+
+public List<PrestamoDTO> findByEstadoAndFechaVencimiento(String estado, LocalDate fechaVencimiento) {
+    return prestamoRepository.findByEstadoIgnoreCaseAndFechaVencimiento(estado, fechaVencimiento)
+            .stream()
+            .map(mapper::prestamoToDto)
+            .toList();
+}
+
     @Transactional
     public int marcarVencidos(LocalDate hoy) {
         return prestamoRepository.marcarVencidos(hoy);

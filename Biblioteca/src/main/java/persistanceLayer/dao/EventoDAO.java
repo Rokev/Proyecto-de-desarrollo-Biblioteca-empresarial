@@ -82,6 +82,14 @@ public class EventoDAO {
         return eventoRepository.findByFechaInicioGreaterThanEqualAndEstadoIgnoreCaseOrderByFechaInicioAsc(desde, estado).stream().map(mapper::eventoToDto).toList();
     }
 
+
+    public List<EventoDTO> findByEstadoAndFechaInicioBetween(String estado, LocalDateTime inicio, LocalDateTime fin) {
+        return eventoRepository.findByEstadoIgnoreCaseAndFechaInicioBetween(estado, inicio, fin)
+                .stream()
+                .map(mapper::eventoToDto)
+                .toList();
+    }
+
     @Transactional
     public int descontarCupos(Long id, int cantidad) {
         return eventoRepository.descontarCupos(id, cantidad);

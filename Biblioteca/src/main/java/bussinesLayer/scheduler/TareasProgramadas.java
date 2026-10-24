@@ -8,7 +8,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
-/** Mantenimiento diario: deja ordenados los estados que dependen del paso del tiempo. */
+/** Mantenimiento diario y envío de recordatorios automáticos. */
 @Component
 @RequiredArgsConstructor
 @Slf4j
@@ -41,11 +41,20 @@ public class TareasProgramadas {
         } catch (Exception e) {
             log.error("Error al actualizar multas por mora", e);
         }
+        try {
+            automatizacionService.enviarRecordatoriosPrestamosProximos();
+        } catch (Exception e) {
+            log.error("Error al enviar recordatorios de prestamos proximos", e);
+        }
+        try {
+            automatizacionService.enviarRecordatoriosEventosProximos();
+        } catch (Exception e) {
+            log.error("Error al enviar recordatorios de eventos proximos", e);
+        }
     }
 
     /**
-     * Cada hora (minuto 10): los plazos de retiro se miden en horas, esperar al dia siguiente
-     * dejaria el libro bloqueado hasta 24 h de mas para quien sigue en la lista de espera.
+     * Cada hora (minuto 10): los plazos de retiro se miden en horas.
      */
     @Scheduled(cron = "0 10 * * * *", zone = "America/Bogota")
     public void expirarPlazosDeRetiro() {
@@ -63,6 +72,11 @@ public class TareasProgramadas {
             automatizacionService.levantarSancionesPorDevolucion();
         } catch (Exception e) {
             log.error("Error al levantar sanciones por devolucion", e);
+        }
+        try {
+            automatizacionService.enviarRecordatoriosSalasProximas();
+        } catch (Exception e) {
+            log.error("Error al enviar recordatorios de reservas de salas", e);
         }
     }
 

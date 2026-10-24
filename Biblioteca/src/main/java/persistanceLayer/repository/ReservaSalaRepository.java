@@ -19,6 +19,8 @@ public interface ReservaSalaRepository extends JpaRepository<ReservaSalaEntity, 
 
     List<ReservaSalaEntity> findByEstadoIgnoreCase(String estado);
 
+    List<ReservaSalaEntity> findByEstadoInAndFechaInicioBetween(Collection<String> estados, LocalDateTime inicio, LocalDateTime fin);
+
     boolean existsBySalaIdAndEstadoInAndFechaFinAfter(Long salaId, Collection<String> estados, LocalDateTime ahora);
 
     /** Reservas vigentes de la sala que se cruzan con el rango [inicio, fin). */

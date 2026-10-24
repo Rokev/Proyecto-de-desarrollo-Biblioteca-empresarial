@@ -19,6 +19,8 @@ public interface EventoRepository extends JpaRepository<EventoEntity, Long> {
 
     List<EventoEntity> findByFechaInicioGreaterThanEqualAndEstadoIgnoreCaseOrderByFechaInicioAsc(LocalDateTime desde, String estado);
 
+    List<EventoEntity> findByEstadoIgnoreCaseAndFechaInicioBetween(String estado, LocalDateTime inicio, LocalDateTime fin);
+    
     /** Descuenta cupos de forma atómica; devuelve 0 si no alcanzan o el evento no está programado. */
     @Modifying
     @Query("UPDATE EventoEntity e SET e.cuposDisponibles = e.cuposDisponibles - :cantidad WHERE e.id = :id AND e.estado = 'PROGRAMADO' AND e.cuposDisponibles >= :cantidad")

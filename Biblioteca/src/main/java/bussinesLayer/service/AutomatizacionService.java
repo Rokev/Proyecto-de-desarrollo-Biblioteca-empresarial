@@ -23,4 +23,13 @@ public interface AutomatizacionService {
 
     /** Libera las salas: cancela reservas sin pago a tiempo y finaliza las confirmadas que ya terminaron. */
     int liberarReservasSalaVencidas();
+
+    /** Recordatorios de préstamos próximos a vencer (24 h y 48 h antes). */
+    int enviarRecordatoriosPrestamosProximos();
+
+    /** Recordatorios de eventos programados que inician en las próximas 24 horas. */
+    int enviarRecordatoriosEventosProximos();
+
+    /** Recordatorios de reservas de salas de estudio que inician en las próximas 2 horas. */
+    int enviarRecordatoriosSalasProximas();
 }

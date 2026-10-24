@@ -1,13 +1,6 @@
 package bussinesLayer.service.impl;
 
-import bussinesLayer.dto.EjemplarDTO;
-import bussinesLayer.dto.LibroDTO;
-import bussinesLayer.dto.MultaDTO;
-import bussinesLayer.dto.NotificacionDTO;
-import bussinesLayer.dto.PrestamoDTO;
-import bussinesLayer.dto.ReservaLibroDTO;
-import bussinesLayer.dto.ReservaSalaDTO;
-import bussinesLayer.dto.SancionDTO;
+import bussinesLayer.dto.*;
 import bussinesLayer.service.AutomatizacionService;
 import bussinesLayer.service.ReservaLibroService;
 import lombok.RequiredArgsConstructor;
@@ -16,14 +9,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.support.TransactionTemplate;
-import persistanceLayer.dao.EjemplarDAO;
-import persistanceLayer.dao.LibroDAO;
-import persistanceLayer.dao.MultaDAO;
-import persistanceLayer.dao.NotificacionDAO;
-import persistanceLayer.dao.PrestamoDAO;
-import persistanceLayer.dao.ReservaLibroDAO;
-import persistanceLayer.dao.ReservaSalaDAO;
-import persistanceLayer.dao.SancionDAO;
+import persistanceLayer.dao.*;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -33,10 +19,6 @@ import java.util.List;
 import java.util.Optional;
 import java.util.function.Supplier;
 
-/**
- * Esta clase NO es @Transactional a proposito: cada registro se procesa en su propia transaccion
- * (REQUIRES_NEW). Asi, si falla uno, los demas se guardan igual y el error queda en el log.
- */
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -73,16 +55,16 @@ public class AutomatizacionServiceImpl implements AutomatizacionService {
     private static final String MOTIVO_MORA = "Mora en la devolucion";
     private static final String MOTIVO_SANCION_MORA = "Retraso en la devolucion";
 
-    /** TODO RF-75/RF-76: pasar a configuracion del administrador cuando exista la entidad de politicas. */
     private static final BigDecimal MULTA_POR_DIA_MORA = new BigDecimal("2000.00");
-    /** Minutos que tiene el usuario para pagar una reserva de sala antes de que se libere. */
     private static final int MINUTOS_PAGO_RESERVA_SALA = 30;
-    /** Horas para retirar una solicitud de prestamo en sede (RF-76b). Igual a los 2 dias de las reservas. */
     private static final int HORAS_RETIRO_SOLICITUD = 48;
 
     private final PrestamoDAO prestamoDAO;
     private final ReservaLibroDAO reservaLibroDAO;
     private final ReservaSalaDAO reservaSalaDAO;
+    private final SalaEstudioDAO salaEstudioDAO;
+    private final EventoDAO eventoDAO;
+    private final InscripcionEventoDAO inscripcionEventoDAO;
     private final SancionDAO sancionDAO;
     private final EjemplarDAO ejemplarDAO;
     private final LibroDAO libroDAO;
@@ -109,7 +91,6 @@ public class AutomatizacionServiceImpl implements AutomatizacionService {
     }
 
     private boolean marcarVencidoYMultar(Long prestamoId) {
-        // Se vuelve a leer dentro de la transaccion: si otro proceso ya lo cambio, no se duplica la multa.
         PrestamoDTO prestamo = prestamoDAO.findById(prestamoId).orElse(null);
         if (prestamo == null || !PRESTAMO_ACTIVO.equalsIgnoreCase(prestamo.getEstado())) {
             return false;
@@ -118,7 +99,6 @@ public class AutomatizacionServiceImpl implements AutomatizacionService {
         prestamo.setEstado(PRESTAMO_VENCIDO);
         prestamoDAO.update(prestamo.getId(), prestamo);
 
-        // Multa del primer dia de retraso; luego crece con actualizarMultasPorMora().
         sincronizarMultaPorMora(prestamo);
 
         boolean yaTieneSancion = sancionDAO.findByPrestamoId(prestamo.getId()).stream()
@@ -128,7 +108,7 @@ public class AutomatizacionServiceImpl implements AutomatizacionService {
             sancion.setTipo(SANCION_BLOQUEO);
             sancion.setMotivo(MOTIVO_SANCION_MORA + " (prestamo #" + prestamo.getId() + ")");
             sancion.setFechaAplicacion(LocalDateTime.now());
-            sancion.setFechaFin(null); // indefinida: se levanta al devolver el libro
+            sancion.setFechaFin(null);
             sancion.setEstado(SANCION_ACTIVA);
             sancion.setUsuarioId(prestamo.getUsuarioId());
             sancion.setPrestamoId(prestamo.getId());
@@ -148,8 +128,6 @@ public class AutomatizacionServiceImpl implements AutomatizacionService {
     @Override
     public int cancelarSolicitudesNoRetiradas() {
         LocalDateTime limite = LocalDateTime.now().minusHours(HORAS_RETIRO_SOLICITUD);
-        // Solo retiro en sede: los pedidos interciudad (y a domicilio) no tienen retiro; sus fallos
-        // se manejan con las entregas fallidas (RF-84 / RF-55).
         List<PrestamoDTO> candidatos = prestamoDAO.findByEstadoIgnoreCase(PRESTAMO_SOLICITADO).stream()
                 .filter(p -> MODALIDAD_SEDE.equalsIgnoreCase(p.getModalidad()))
                 .filter(p -> p.getFechaSolicitud() != null && p.getFechaSolicitud().isBefore(limite))
@@ -211,7 +189,6 @@ public class AutomatizacionServiceImpl implements AutomatizacionService {
         }
 
         Long ejemplarId = reserva.getEjemplarId();
-        // Primero se marca EXPIRADA para que no vuelva a competir por el ejemplar al buscar al siguiente.
         reserva.setEstado(RESERVA_EXPIRADA);
         reservaLibroDAO.update(reserva.getId(), reserva);
 
@@ -244,11 +221,6 @@ public class AutomatizacionServiceImpl implements AutomatizacionService {
         return actualizadas;
     }
 
-    /**
-     * Deja la multa al dia: dias de retraso x tarifa diaria, descontando lo ya pagado. Si el usuario ya
-     * pago la anterior y sigue sin devolver, se crea una nueva por la diferencia.
-     * Devuelve true si creo o cambio una multa.
-     */
     private boolean sincronizarMultaPorMora(PrestamoDTO prestamo) {
         if (prestamo.getFechaVencimiento() == null) {
             return false;
@@ -372,13 +344,101 @@ public class AutomatizacionServiceImpl implements AutomatizacionService {
         return liberadas;
     }
 
+    // ------------------------------------------------ Seccion 3: RECORDATORIOS PREVENTIVOS
+
+    @Override
+    public int enviarRecordatoriosPrestamosProximos() {
+        LocalDate hoy = LocalDate.now();
+        LocalDate en24h = hoy.plusDays(1);
+        LocalDate en48h = hoy.plusDays(2);
+        int enviados = 0;
+
+        // Recordatorios 48 horas antes de vencer
+        List<PrestamoDTO> prestamos48h = prestamoDAO.findByEstadoAndFechaVencimiento(PRESTAMO_ACTIVO, en48h);
+        for (PrestamoDTO p : prestamos48h) {
+            if (enTransaccion(p.getId(), "enviar recordatorio prestamo 48h", () -> {
+                notificar(p.getUsuarioId(), "RECORDATORIO_PRESTAMO", "Tu préstamo vence en 2 días",
+                        "Recuerda que la fecha límite para devolver el libro \"" + tituloDeEjemplar(p.getEjemplarId())
+                                + "\" (Préstamo #" + p.getId() + ") es el " + p.getFechaVencimiento() + ".");
+                return true;
+            })) {
+                enviados++;
+            }
+        }
+
+        // Recordatorios 24 horas antes de vencer
+        List<PrestamoDTO> prestamos24h = prestamoDAO.findByEstadoAndFechaVencimiento(PRESTAMO_ACTIVO, en24h);
+        for (PrestamoDTO p : prestamos24h) {
+            if (enTransaccion(p.getId(), "enviar recordatorio prestamo 24h", () -> {
+                notificar(p.getUsuarioId(), "RECORDATORIO_PRESTAMO", "¡Atención! Tu préstamo vence mañana",
+                        "Mañana " + p.getFechaVencimiento() + " vence el plazo de devolución para el libro \""
+                                + tituloDeEjemplar(p.getEjemplarId()) + "\" (Préstamo #" + p.getId() + ").");
+                return true;
+            })) {
+                enviados++;
+            }
+        }
+
+        log.info("Recordatorios de prestamos enviados: {}", enviados);
+        return enviados;
+    }
+
+    @Override
+    public int enviarRecordatoriosEventosProximos() {
+        LocalDateTime ahora = LocalDateTime.now();
+        LocalDateTime dentro24h = ahora.plusHours(24);
+        int enviados = 0;
+
+        List<EventoDTO> eventos = eventoDAO.findByEstadoAndFechaInicioBetween("PROGRAMADO", ahora, dentro24h);
+        for (EventoDTO evento : eventos) {
+            List<InscripcionEventoDTO> inscripciones = inscripcionEventoDAO
+                    .findByEventoIdAndEstadoIgnoreCase(evento.getId(), "ACTIVA");
+            for (InscripcionEventoDTO inscripcion : inscripciones) {
+                if (enTransaccion(inscripcion.getId(), "enviar recordatorio evento", () -> {
+                    notificar(inscripcion.getUsuarioId(), "RECORDATORIO_EVENTO",
+                            "Recordatorio de Evento: " + evento.getTitulo(),
+                            "Te recordamos que el evento '" + evento.getTitulo() + "' iniciará el "
+                                    + evento.getFechaInicio().toLocalDate() + " a las " + evento.getFechaInicio().toLocalTime() + ".");
+                    return true;
+                })) {
+                    enviados++;
+                }
+            }
+        }
+
+        log.info("Recordatorios de eventos enviados: {}", enviados);
+        return enviados;
+    }
+
+    @Override
+    public int enviarRecordatoriosSalasProximas() {
+        LocalDateTime ahora = LocalDateTime.now();
+        LocalDateTime dentro2h = ahora.plusHours(2);
+        int enviados = 0;
+
+        List<ReservaSalaDTO> reservas = reservaSalaDAO.findByEstadoInAndFechaInicioBetween(
+                List.of(SALA_CONFIRMADA, SALA_PENDIENTE_PAGO), ahora, dentro2h);
+
+        for (ReservaSalaDTO r : reservas) {
+            if (enTransaccion(r.getId(), "enviar recordatorio sala", () -> {
+                String nombreSala = salaEstudioDAO.findById(r.getSalaId())
+                        .map(SalaEstudioDTO::getNombre)
+                        .orElse("Sala #" + r.getSalaId());
+                notificar(r.getUsuarioId(), "RECORDATORIO_RESERVA_SALA", "Tu reserva de sala iniciará pronto",
+                        "Tu reserva en la " + nombreSala + " está programada para hoy a las "
+                                + r.getFechaInicio().toLocalTime() + ".");
+                return true;
+            })) {
+                enviados++;
+            }
+        }
+
+        log.info("Recordatorios de reservas de salas enviados: {}", enviados);
+        return enviados;
+    }
+
     // -------------------------------------------------------------- privados
 
-    /**
-     * Devuelve el ejemplar a DISPONIBLE y se lo ofrece al primero de la lista de espera.
-     * Si nadie espera, queda DISPONIBLE. {@code asignarEjemplarAReservaEnEspera} ya lo aparta
-     * (RESERVADO), pasa la reserva a NOTIFICADA con su nuevo plazo y avisa al usuario.
-     */
     private void liberarEjemplarYReasignar(Long ejemplarId, String estadoActual) {
         if (ejemplarDAO.cambiarEstadoSiEs(ejemplarId, estadoActual, EJEMPLAR_DISPONIBLE) == 0) {
             log.warn("Ejemplar {} no estaba en estado {}; no se libera ni se reasigna", ejemplarId, estadoActual);
@@ -388,7 +448,6 @@ public class AutomatizacionServiceImpl implements AutomatizacionService {
         log.info("Ejemplar {} liberado (reasignado a la lista de espera: {})", ejemplarId, reasignado);
     }
 
-    /** Ejecuta la accion en una transaccion nueva; si falla, solo se pierde ese registro. */
     private boolean enTransaccion(Long id, String accion, Supplier<Boolean> trabajo) {
         TransactionTemplate template = new TransactionTemplate(transactionManager);
         template.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);

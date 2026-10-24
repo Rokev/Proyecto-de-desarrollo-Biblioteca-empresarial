@@ -85,6 +85,13 @@ public class ReservaSalaDAO {
         return reservaSalaRepository.findByEstadoIgnoreCase(estado).stream().map(mapper::reservaSalaToDto).toList();
     }
 
+    public List<ReservaSalaDTO> findByEstadoInAndFechaInicioBetween(Collection<String> estados, LocalDateTime inicio, LocalDateTime fin) {
+        return reservaSalaRepository.findByEstadoInAndFechaInicioBetween(estados, inicio, fin)
+                .stream()
+                .map(mapper::reservaSalaToDto)
+                .toList();
+    }
+
     public boolean existsBySalaIdAndEstadoInAndFechaFinAfter(Long salaId, Collection<String> estados, LocalDateTime ahora) {
         return reservaSalaRepository.existsBySalaIdAndEstadoInAndFechaFinAfter(salaId, estados, ahora);
     }

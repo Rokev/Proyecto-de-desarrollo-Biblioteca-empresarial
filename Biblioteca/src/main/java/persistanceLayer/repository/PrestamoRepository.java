@@ -32,6 +32,8 @@ public interface PrestamoRepository extends JpaRepository<PrestamoEntity, Long> 
 
     List<PrestamoEntity> findByEstadoIgnoreCaseAndFechaVencimientoBefore(String estado, LocalDate fecha);
 
+    List<PrestamoEntity> findByEstadoIgnoreCaseAndFechaVencimiento(String estado, LocalDate fechaVencimiento);
+
     @Modifying
     @Query("UPDATE PrestamoEntity p SET p.estado = 'VENCIDO' WHERE p.estado = 'ACTIVO' AND p.fechaVencimiento < :hoy")
     int marcarVencidos(@Param("hoy") LocalDate hoy);
