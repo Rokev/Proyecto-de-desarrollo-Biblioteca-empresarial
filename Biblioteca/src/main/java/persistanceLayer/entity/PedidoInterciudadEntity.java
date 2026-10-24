@@ -6,13 +6,9 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
-/**
- * Pedido de un libro de otra ciudad para entrega a domicilio.
- * Solo lo piden usuarios con suscripcion vigente. Va vinculado a un {@link PrestamoEntity}
- * desde que se solicita; el plazo de devolucion empieza cuando se registra la entrega.
- */
 @Entity
 @Table(name = "pedidos_interciudad")
 @Data
@@ -25,8 +21,7 @@ public class PedidoInterciudadEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    /** SOLICITADO, EN_TRANSITO, DISPONIBLE_PARA_RETIRO, RETIRADO, CANCELADO. */
-    @Column(nullable = false, length = 30)
+    @Column(nullable = false, length = 40)
     @Builder.Default
     private String estado = "SOLICITADO";
 
@@ -37,16 +32,22 @@ public class PedidoInterciudadEntity {
     private String direccionEntrega;
 
     @Column(nullable = false)
+    private LocalDate fechaRecepcion;
+
+    @Column(nullable = false, length = 50)
+    private String horaRecepcion;
+
+    @Column(nullable = false)
+    private Double costoEnvio;
+
+    @Column(nullable = false)
     private LocalDateTime fechaSolicitud;
 
     private LocalDateTime fechaTransito;
-
-    private LocalDateTime fechaDisponible;
-
-    /** Momento en que se registra la entrega / retiro del libro. */
-    private LocalDateTime fechaRetiro;
-
+    private LocalDateTime fechaEntrega;
     private LocalDateTime fechaCancelacion;
+    private LocalDateTime fechaLimiteRecogida;
+    private LocalDateTime fechaLimiteDevolucion;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "usuario_id", nullable = false)
@@ -56,16 +57,22 @@ public class PedidoInterciudadEntity {
     @JoinColumn(name = "ejemplar_id", nullable = false)
     private EjemplarEntity ejemplar;
 
-    /** Sede donde estaba el ejemplar al solicitarse (a ella debe volver al devolverse). */
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "sede_origen_id", nullable = false)
     private SedeEntity sedeOrigen;
+
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "sede_devolucion_id", nullable = false)
+    private SedeEntity sedeDevolucion;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "repartidor_id")
+    private UsuarioEntity repartidor;
 
     @OneToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "prestamo_id", nullable = false, unique = true)
     private PrestamoEntity prestamo;
 
-    /** Ultimo bibliotecario que cambio el estado del pedido. */
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "bibliotecario_id")
     private UsuarioEntity bibliotecario;

@@ -1,10 +1,6 @@
 package bussinesLayer.service.impl;
 
-import bussinesLayer.dto.EjemplarDTO;
-import bussinesLayer.dto.NotificacionDTO;
-import bussinesLayer.dto.PedidoInterciudadDTO;
-import bussinesLayer.dto.PrestamoDTO;
-import bussinesLayer.dto.SolicitudPedidoInterciudadDTO;
+import bussinesLayer.dto.*;
 import bussinesLayer.exception.BusinessValidationException;
 import bussinesLayer.exception.ResourceNotFoundException;
 import bussinesLayer.service.PedidoInterciudadService;
@@ -13,14 +9,9 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import persistanceLayer.dao.EjemplarDAO;
-import persistanceLayer.dao.LibroDAO;
-import persistanceLayer.dao.NotificacionDAO;
-import persistanceLayer.dao.PedidoInterciudadDAO;
-import persistanceLayer.dao.PrestamoDAO;
-import persistanceLayer.dao.SancionDAO;
-import persistanceLayer.dao.UsuarioDAO;
+import persistanceLayer.dao.*;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -31,93 +22,119 @@ import java.util.List;
 @Slf4j
 public class PedidoInterciudadServiceImpl implements PedidoInterciudadService {
 
-    private static final String PEDIDO_SOLICITADO = "SOLICITADO";
-    private static final String PEDIDO_EN_TRANSITO = "EN_TRANSITO";
-    private static final String PEDIDO_DISPONIBLE = "DISPONIBLE_PARA_RETIRO";
-    private static final String PEDIDO_RETIRADO = "RETIRADO";
-    private static final String PEDIDO_CANCELADO = "CANCELADO";
-    private static final List<String> ESTADOS_PEDIDO =
-            List.of(PEDIDO_SOLICITADO, PEDIDO_EN_TRANSITO, PEDIDO_DISPONIBLE, PEDIDO_RETIRADO, PEDIDO_CANCELADO);
+    private static final String ESTADO_SOLICITADO = "SOLICITADO";
+    private static final String ESTADO_EN_TRANSITO = "EN_TRANSITO";
+    private static final String ESTADO_ENTREGADO = "ENTREGADO";
+    private static final String ESTADO_NO_RECIBIDO = "NO_RECIBIDO";
+    private static final String ESTADO_EN_ESPERA_DE_RECOGIDA = "EN_ESPERA_DE_RECOGIDA";
+    private static final String ESTADO_DEVUELTO_PENDIENTE_TRASLADO = "DEVUELTO_PENDIENTE_TRASLADO";
+    private static final String ESTADO_EN_CAMINO_SEDE_ORIGEN = "EN_CAMINO_SEDE_ORIGEN";
+    private static final String ESTADO_CANCELADO = "CANCELADO";
+    private static final String ESTADO_CERRADO = "CERRADO";
 
     private static final String EJEMPLAR_DISPONIBLE = "DISPONIBLE";
     private static final String EJEMPLAR_RESERVADO = "RESERVADO";
     private static final String EJEMPLAR_EN_TRANSITO = "EN_TRANSITO";
     private static final String EJEMPLAR_PRESTADO = "PRESTADO";
 
-    private static final String PRESTAMO_SOLICITADO = "SOLICITADO";
-    private static final String PRESTAMO_ACTIVO = "ACTIVO";
-    private static final String PRESTAMO_CANCELADO = "CANCELADO";
-    private static final String MODALIDAD_INTERCIUDAD = "INTERCIUDAD";
-
-    /** Mismo plazo que PrestamoServiceImpl. El plazo extendido para suscriptores (RF-48) queda pendiente. */
-    private static final int DIAS_PRESTAMO = 14;
+    private static final int DIAS_MAXIMO_SOLICITUD = 7;
+    private static final int DIAS_PLAZO_RECOGIDA = 2; 
+    private static final int DIAS_PRESTAMO_INTERCIUDAD = 14; 
+    private static final double TARIFA_ENVIO_FIJA = 30000.00; 
+    private static final BigDecimal RECARGO_NO_RECIBIDO = new BigDecimal("15000.00"); 
 
     private final PedidoInterciudadDAO pedidoDAO;
     private final UsuarioDAO usuarioDAO;
     private final LibroDAO libroDAO;
     private final EjemplarDAO ejemplarDAO;
+    private final SedeDAO sedeDAO;
     private final PrestamoDAO prestamoDAO;
     private final SancionDAO sancionDAO;
+    private final MultaDAO multaDAO;
     private final NotificacionDAO notificacionDAO;
     private final SuscripcionService suscripcionService;
 
-    // ------------------------------------------------------------ RF-26 solicitar
+    // ------------------------------------------------------------Solicitar
 
     @Override
     public PedidoInterciudadDTO solicitarPedido(SolicitudPedidoInterciudadDTO solicitud) {
-        log.info("Pedido interciudad: usuario {}, libro {}, ciudad de entrega {}",
-                solicitud.getUsuarioId(), solicitud.getLibroId(), solicitud.getCiudadEntrega());
+        log.info("Solicitud pedido interciudad para usuario {} y libro {}", solicitud.getUsuarioId(), solicitud.getLibroId());
 
         if (!usuarioDAO.existsById(solicitud.getUsuarioId())) {
-            throw new ResourceNotFoundException("Usuario no encontrado con ID: " + solicitud.getUsuarioId());
+            throw new ResourceNotFoundException("Usuario no encontrado: " + solicitud.getUsuarioId());
         }
-        // RF-26 / RF-35: solo con suscripcion vigente.
-        suscripcionService.exigirSuscripcionVigente(solicitud.getUsuarioId());
+        suscripcionService.exigirSuscripcionVigente(solicitud.getUsuarioId()); 
 
-        if (!libroDAO.existsById(solicitud.getLibroId())) {
-            throw new ResourceNotFoundException("Libro no encontrado con ID: " + solicitud.getLibroId());
-        }
-        if (sancionDAO.existsByUsuarioIdAndTipoIgnoreCaseAndEstadoIgnoreCase(
-                solicitud.getUsuarioId(), "BLOQUEO_PRESTAMOS", "ACTIVA")) {
-            throw new BusinessValidationException("El usuario tiene un bloqueo de prestamos activo");
+        if (!sedeDAO.existsById(solicitud.getSedeDevolucionId())) {
+            throw new ResourceNotFoundException("Sede de devolución no encontrada: " + solicitud.getSedeDevolucionId());
         }
 
-        String ciudad = solicitud.getCiudadEntrega().trim();
-        String direccion = solicitud.getDireccionEntrega().trim();
+        LocalDate hoy = LocalDate.now();
+        if (solicitud.getFechaRecepcion().isAfter(hoy.plusDays(DIAS_MAXIMO_SOLICITUD))) {
+            throw new BusinessValidationException("La fecha de recepción no puede superar los 7 días a partir de hoy");
+        }
+
+        if (sancionDAO.existsByUsuarioIdAndTipoIgnoreCaseAndEstadoIgnoreCase(solicitud.getUsuarioId(), "BLOQUEO_PRESTAMOS", "ACTIVA")) {
+            throw new BusinessValidationException("El usuario posee sanciones activas que impiden realizar pedidos");
+        }
+
+        EjemplarDTO ejemplar = reservarEjemplarDeOtraCiudad(solicitud.getLibroId(), solicitud.getCiudadEntrega());
         LocalDateTime ahora = LocalDateTime.now();
 
-        // 1) Reservar un ejemplar de otra ciudad (cambio atomico: nadie mas puede tomar el mismo).
-        EjemplarDTO ejemplar = reservarEjemplarDeOtraCiudad(solicitud.getLibroId(), ciudad);
-
-        // 2) Prestamo vinculado. fechaVencimiento queda nula hasta registrar la entrega (RF-07).
+        // Crear Préstamo Vinculado
         PrestamoDTO prestamo = new PrestamoDTO();
         prestamo.setFechaSolicitud(ahora);
-        prestamo.setEstado(PRESTAMO_SOLICITADO);
-        prestamo.setModalidad(MODALIDAD_INTERCIUDAD);
-        prestamo.setDireccionEntrega(direccion);
-        prestamo.setVecesRenovado(0);
+        prestamo.setEstado("SOLICITADO");
+        prestamo.setModalidad("INTERCIUDAD");
+        prestamo.setDireccionEntrega(solicitud.getDireccionEntrega());
         prestamo.setUsuarioId(solicitud.getUsuarioId());
         prestamo.setEjemplarId(ejemplar.getId());
-        prestamo.setSedeRetiroId(ejemplar.getSedeId());
+        prestamo.setSedeRetiroId(solicitud.getSedeDevolucionId());
         PrestamoDTO prestamoGuardado = prestamoDAO.save(prestamo);
 
-        // 3) Pedido.
+        // Crear Pedido Interciudad
         PedidoInterciudadDTO pedido = new PedidoInterciudadDTO();
-        pedido.setEstado(PEDIDO_SOLICITADO);
-        pedido.setCiudadEntrega(ciudad);
-        pedido.setDireccionEntrega(direccion);
+        pedido.setEstado(ESTADO_SOLICITADO);
+        pedido.setCiudadEntrega(solicitud.getCiudadEntrega().trim());
+        pedido.setDireccionEntrega(solicitud.getDireccionEntrega().trim());
+        pedido.setFechaRecepcion(solicitud.getFechaRecepcion());
+        pedido.setHoraRecepcion(solicitud.getHoraRecepcion().trim());
+        pedido.setCostoEnvio(TARIFA_ENVIO_FIJA);
         pedido.setFechaSolicitud(ahora);
         pedido.setUsuarioId(solicitud.getUsuarioId());
         pedido.setEjemplarId(ejemplar.getId());
         pedido.setSedeOrigenId(ejemplar.getSedeId());
+        pedido.setSedeDevolucionId(solicitud.getSedeDevolucionId());
         pedido.setPrestamoId(prestamoGuardado.getId());
 
-        PedidoInterciudadDTO guardado = pedidoDAO.save(pedido);
-        log.info("Pedido interciudad creado con ID: {}", guardado.getId());
-        return guardado;
+        return pedidoDAO.save(pedido);
     }
 
-    // ------------------------------------------------------------consultar
+    // ------------------------------------------------------------ Cancelar
+
+    @Override
+    public PedidoInterciudadDTO cancelarPedido(Long pedidoId, Long usuarioId) {
+        PedidoInterciudadDTO pedido = buscarPedido(pedidoId);
+        if (!pedido.getUsuarioId().equals(usuarioId)) {
+            throw new BusinessValidationException("El pedido no pertenece al usuario especificado");
+        }
+        if (!ESTADO_SOLICITADO.equalsIgnoreCase(pedido.getEstado())) {
+            notificar(usuarioId, "CANCELACION_BLOQUEADA", "No se pudo cancelar el pedido",
+                    "El pedido #" + pedidoId + " ya no está en estado SOLICITADO y no se puede cancelar.");
+            throw new BusinessValidationException("Solo se pueden cancelar pedidos en estado SOLICITADO");
+        }
+
+        cambiarEstadoEjemplar(pedido.getEjemplarId(), EJEMPLAR_RESERVADO, EJEMPLAR_DISPONIBLE);
+        PrestamoDTO prestamo = prestamoDAO.findById(pedido.getPrestamoId()).orElseThrow();
+        prestamo.setEstado("CANCELADO");
+        prestamoDAO.update(prestamo.getId(), prestamo);
+
+        pedido.setEstado(ESTADO_CANCELADO);
+        pedido.setFechaCancelacion(LocalDateTime.now());
+        return pedidoDAO.update(pedido.getId(), pedido).orElseThrow();
+    }
+
+    // ------------------------------------------------------------ Consultas
 
     @Override
     @Transactional(readOnly = true)
@@ -128,124 +145,171 @@ public class PedidoInterciudadServiceImpl implements PedidoInterciudadService {
     @Override
     @Transactional(readOnly = true)
     public List<PedidoInterciudadDTO> obtenerPedidosDeUsuario(Long usuarioId, String estado) {
-        if (!usuarioDAO.existsById(usuarioId)) {
-            throw new ResourceNotFoundException("Usuario no encontrado con ID: " + usuarioId);
-        }
         if (estado == null || estado.isBlank()) {
             return pedidoDAO.findByUsuarioIdOrderByFechaSolicitudDesc(usuarioId);
         }
-        return pedidoDAO.findByUsuarioIdAndEstadoIgnoreCaseOrderByFechaSolicitudDesc(usuarioId, normalizarEstado(estado));
+        return pedidoDAO.findByUsuarioIdAndEstadoIgnoreCaseOrderByFechaSolicitudDesc(usuarioId, estado);
     }
 
     @Override
     @Transactional(readOnly = true)
-    public List<PedidoInterciudadDTO> obtenerPedidosPorEstado(String estado) {
-        return pedidoDAO.findByEstadoIgnoreCaseOrderByFechaSolicitudAsc(normalizarEstado(estado));
+    public List<PedidoInterciudadDTO> obtenerPedidosSedeOrigen(Long sedeOrigenId) {
+        return pedidoDAO.findBySedeOrigenAndEstados(sedeOrigenId, List.of(ESTADO_SOLICITADO, ESTADO_EN_CAMINO_SEDE_ORIGEN));
     }
 
-    // ------------------------------------------------------------  cancelar
-
-    /**
-     * noRollbackFor: si el pedido esta en transito se guarda la notificacion al usuario y despues
-     * se lanza la excepcion; sin esto, el rollback deshace tambien la notificacion.
-     */
-    @Override
-    @Transactional(noRollbackFor = BusinessValidationException.class)
-    public PedidoInterciudadDTO cancelarPedido(Long pedidoId, Long usuarioId) {
-        PedidoInterciudadDTO pedido = buscarPedido(pedidoId);
-
-        if (!pedido.getUsuarioId().equals(usuarioId)) {
-            throw new BusinessValidationException("El pedido no pertenece al usuario " + usuarioId);
-        }
-        if (PEDIDO_EN_TRANSITO.equalsIgnoreCase(pedido.getEstado())) {
-            notificar(usuarioId, "PEDIDO_CANCELACION_BLOQUEADA", "No se puede cancelar tu pedido",
-                    "Tu pedido #" + pedidoId + " ya esta en transito y no puede cancelarse.");
-            throw new BusinessValidationException("El pedido esta en transito y no puede cancelarse");
-        }
-        if (!PEDIDO_SOLICITADO.equalsIgnoreCase(pedido.getEstado())) {
-            throw new BusinessValidationException("Solo se puede cancelar un pedido en estado "
-                    + PEDIDO_SOLICITADO + " (estado actual: " + pedido.getEstado() + ")");
-        }
-
-        // El ejemplar vuelve a estar disponible y el prestamo vinculado se cancela.
-        cambiarEstadoEjemplar(pedido.getEjemplarId(), EJEMPLAR_RESERVADO, EJEMPLAR_DISPONIBLE);
-        PrestamoDTO prestamo = buscarPrestamo(pedido.getPrestamoId());
-        prestamo.setEstado(PRESTAMO_CANCELADO);
-        prestamoDAO.update(prestamo.getId(), prestamo);
-
-        pedido.setEstado(PEDIDO_CANCELADO);
-        pedido.setFechaCancelacion(LocalDateTime.now());
-        PedidoInterciudadDTO cancelado = guardar(pedido);
-        log.info("Pedido interciudad cancelado ID: {}", pedidoId);
-        return cancelado;
-    }
-
-    // ------------------------------------------- transiciones del bibliotecario
+    // ------------------------------------------------------------ Acciones Bibliotecario
 
     @Override
-    public PedidoInterciudadDTO marcarEnTransito(Long pedidoId, Long bibliotecarioId) {
-        verificarBibliotecario(bibliotecarioId);
+    public PedidoInterciudadDTO despacharPedido(Long pedidoId, Long bibliotecarioId, Long repartidorId) {
         PedidoInterciudadDTO pedido = buscarPedido(pedidoId);
-        exigirEstado(pedido, PEDIDO_SOLICITADO, PEDIDO_EN_TRANSITO);
+        validarEstado(pedido, ESTADO_SOLICITADO);
 
         cambiarEstadoEjemplar(pedido.getEjemplarId(), EJEMPLAR_RESERVADO, EJEMPLAR_EN_TRANSITO);
-
-        pedido.setEstado(PEDIDO_EN_TRANSITO);
+        pedido.setEstado(ESTADO_EN_TRANSITO);
         pedido.setFechaTransito(LocalDateTime.now());
         pedido.setBibliotecarioId(bibliotecarioId);
-        PedidoInterciudadDTO actualizado = guardar(pedido);
+        pedido.setRepartidorId(repartidorId);
 
         notificar(pedido.getUsuarioId(), "PEDIDO_EN_TRANSITO", "Tu pedido va en camino",
-                "Tu pedido #" + pedidoId + " ya esta en transito hacia " + pedido.getCiudadEntrega() + ".");
-        return actualizado;
+                "El pedido #" + pedidoId + " se encuentra en tránsito a la dirección indicada.");
+        return pedidoDAO.update(pedido.getId(), pedido).orElseThrow();
     }
 
     @Override
-    public PedidoInterciudadDTO marcarDisponibleParaRetiro(Long pedidoId, Long bibliotecarioId) {
-        verificarBibliotecario(bibliotecarioId);
+    public PedidoInterciudadDTO registrarDevolucionEnSede(Long pedidoId, Long bibliotecarioId, Long sedeId) { 
         PedidoInterciudadDTO pedido = buscarPedido(pedidoId);
-        exigirEstado(pedido, PEDIDO_EN_TRANSITO, PEDIDO_DISPONIBLE);
+        if (!pedido.getSedeDevolucionId().equals(sedeId)) {
+            throw new BusinessValidationException("El pedido debe devolverse en la sede de devolución elegida: " + pedido.getSedeDevolucionNombre());
+        }
 
-        // El ejemplar sigue EN_TRANSITO hasta que se registra la entrega.
-        pedido.setEstado(PEDIDO_DISPONIBLE);
-        pedido.setFechaDisponible(LocalDateTime.now());
+        pedido.setEstado(ESTADO_DEVUELTO_PENDIENTE_TRASLADO);
         pedido.setBibliotecarioId(bibliotecarioId);
-        PedidoInterciudadDTO actualizado = guardar(pedido);
 
-        notificar(pedido.getUsuarioId(), "PEDIDO_DISPONIBLE", "Tu pedido esta disponible",
-                "Tu pedido #" + pedidoId + " llego a " + pedido.getCiudadEntrega()
-                        + " y esta disponible para su entrega.");
-        return actualizado;
-    }
-
-    @Override
-    public PedidoInterciudadDTO marcarRetirado(Long pedidoId, Long bibliotecarioId) {
-        verificarBibliotecario(bibliotecarioId);
-        PedidoInterciudadDTO pedido = buscarPedido(pedidoId);
-        exigirEstado(pedido, PEDIDO_DISPONIBLE, PEDIDO_RETIRADO);
-
-        cambiarEstadoEjemplar(pedido.getEjemplarId(), EJEMPLAR_EN_TRANSITO, EJEMPLAR_PRESTADO);
-
-        // RF-07: el plazo de devolucion empieza al registrar la entrega.
-        LocalDateTime ahora = LocalDateTime.now();
-        PrestamoDTO prestamo = buscarPrestamo(pedido.getPrestamoId());
-        prestamo.setEstado(PRESTAMO_ACTIVO);
-        prestamo.setFechaEntrega(ahora);
-        prestamo.setFechaVencimiento(LocalDate.now().plusDays(DIAS_PRESTAMO));
+        PrestamoDTO prestamo = prestamoDAO.findById(pedido.getPrestamoId()).orElseThrow();
+        prestamo.setEstado("DEVUELTO");
         prestamoDAO.update(prestamo.getId(), prestamo);
 
-        pedido.setEstado(PEDIDO_RETIRADO);
-        pedido.setFechaRetiro(ahora);
-        pedido.setBibliotecarioId(bibliotecarioId);
-        PedidoInterciudadDTO actualizado = guardar(pedido);
-
-        notificar(pedido.getUsuarioId(), "PEDIDO_ENTREGADO", "Tu libro fue entregado",
-                "Registramos la entrega de tu pedido #" + pedidoId + ". Fecha limite de devolucion: "
-                        + prestamo.getFechaVencimiento() + ".");
-        return actualizado;
+        notificar(pedido.getUsuarioId(), "LIBRO_DEVUELTO", "Devolución registrada",
+                "Se registró la devolución exitosa del pedido #" + pedidoId + " en la sede elegida.");
+        return pedidoDAO.update(pedido.getId(), pedido).orElseThrow();
     }
 
-    // -------------------------------------------------------------- privados
+    @Override
+    public PedidoInterciudadDTO registrarRecepcionNoRecibido(Long pedidoId, Long bibliotecarioId) { 
+        PedidoInterciudadDTO pedido = buscarPedido(pedidoId);
+        validarEstado(pedido, ESTADO_NO_RECIBIDO);
+
+        LocalDateTime ahora = LocalDateTime.now();
+        pedido.setEstado(ESTADO_EN_ESPERA_DE_RECOGIDA);
+        pedido.setFechaLimiteRecogida(ahora.plusDays(DIAS_PLAZO_RECOGIDA));
+        pedido.setBibliotecarioId(bibliotecarioId);
+
+        notificar(pedido.getUsuarioId(), "EN_ESPERA_DE_RECOGIDA", "Tu libro está en la sede de devolución",
+                "Puedes recoger tu pedido #" + pedidoId + " en la sede de devolución antes de: " + pedido.getFechaLimiteRecogida());
+        return pedidoDAO.update(pedido.getId(), pedido).orElseThrow();
+    }
+
+    @Override
+    public PedidoInterciudadDTO registrarEntregaEnSede(Long pedidoId, Long bibliotecarioId) { 
+        PedidoInterciudadDTO pedido = buscarPedido(pedidoId);
+        validarEstado(pedido, ESTADO_EN_ESPERA_DE_RECOGIDA);
+
+        LocalDateTime ahora = LocalDateTime.now();
+        cambiarEstadoEjemplar(pedido.getEjemplarId(), EJEMPLAR_EN_TRANSITO, EJEMPLAR_PRESTADO);
+
+        PrestamoDTO prestamo = prestamoDAO.findById(pedido.getPrestamoId()).orElseThrow();
+        prestamo.setEstado("ACTIVO");
+        prestamo.setFechaEntrega(ahora);
+        prestamo.setFechaVencimiento(LocalDate.now().plusDays(DIAS_PRESTAMO_INTERCIUDAD));
+        prestamoDAO.update(prestamo.getId(), prestamo);
+
+        pedido.setEstado(ESTADO_ENTREGADO);
+        pedido.setFechaEntrega(ahora);
+        pedido.setFechaLimiteDevolucion(ahora.plusDays(DIAS_PRESTAMO_INTERCIUDAD));
+        pedido.setBibliotecarioId(bibliotecarioId);
+
+        return pedidoDAO.update(pedido.getId(), pedido).orElseThrow();
+    }
+
+    @Override
+    public PedidoInterciudadDTO registrarRecepcionEnSedeOrigen(Long pedidoId, Long bibliotecarioId) { 
+        PedidoInterciudadDTO pedido = buscarPedido(pedidoId);
+        cambiarEstadoEjemplar(pedido.getEjemplarId(), EJEMPLAR_EN_TRANSITO, EJEMPLAR_DISPONIBLE);
+
+        pedido.setEstado(ESTADO_CERRADO);
+        pedido.setBibliotecarioId(bibliotecarioId);
+        return pedidoDAO.update(pedido.getId(), pedido).orElseThrow();
+    }
+
+    // ------------------------------------------------------------ Acciones Repartidor
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<PedidoInterciudadDTO> obtenerAsignacionesRepartidor(Long repartidorId) { 
+        return pedidoDAO.findByRepartidorIdAndEstados(repartidorId, List.of(ESTADO_EN_TRANSITO, ESTADO_DEVUELTO_PENDIENTE_TRASLADO, ESTADO_EN_CAMINO_SEDE_ORIGEN));
+    }
+
+    @Override
+    public PedidoInterciudadDTO confirmarEntregaDomicilio(Long pedidoId, Long repartidorId) { 
+        PedidoInterciudadDTO pedido = buscarPedido(pedidoId);
+        validarEstado(pedido, ESTADO_EN_TRANSITO);
+
+        LocalDateTime ahora = LocalDateTime.now();
+        cambiarEstadoEjemplar(pedido.getEjemplarId(), EJEMPLAR_EN_TRANSITO, EJEMPLAR_PRESTADO);
+
+        PrestamoDTO prestamo = prestamoDAO.findById(pedido.getPrestamoId()).orElseThrow();
+        prestamo.setEstado("ACTIVO");
+        prestamo.setFechaEntrega(ahora);
+        prestamo.setFechaVencimiento(LocalDate.now().plusDays(DIAS_PRESTAMO_INTERCIUDAD));
+        prestamoDAO.update(prestamo.getId(), prestamo);
+
+        pedido.setEstado(ESTADO_ENTREGADO);
+        pedido.setFechaEntrega(ahora);
+        pedido.setFechaLimiteDevolucion(ahora.plusDays(DIAS_PRESTAMO_INTERCIUDAD));
+        pedido.setRepartidorId(repartidorId);
+
+        notificar(pedido.getUsuarioId(), "ENTREGA_CONFIRMADA", "Pedido entregado con éxito",
+                "Tu pedido #" + pedidoId + " ha sido entregado a domicilio. Debes devolverlo en la sede: " + pedido.getSedeDevolucionNombre());
+        return pedidoDAO.update(pedido.getId(), pedido).orElseThrow();
+    }
+
+    @Override
+    public PedidoInterciudadDTO registrarUsuarioNoRecibio(Long pedidoId, Long repartidorId) { 
+        PedidoInterciudadDTO pedido = buscarPedido(pedidoId);
+        validarEstado(pedido, ESTADO_EN_TRANSITO);
+
+        pedido.setEstado(ESTADO_NO_RECIBIDO);
+        pedido.setRepartidorId(repartidorId);
+
+        // Generar recargo por intento de entrega fallido
+        MultaDTO recargo = new MultaDTO();
+        recargo.setMonto(RECARGO_NO_RECIBIDO);
+        recargo.setMotivo("Recargo por no recibir pedido interciudad en la fecha y hora indicadas (Pedido #" + pedidoId + ")");
+        recargo.setFechaGeneracion(LocalDateTime.now());
+        recargo.setEstado("PENDIENTE");
+        recargo.setUsuarioId(pedido.getUsuarioId());
+        recargo.setPrestamoId(pedido.getPrestamoId());
+        multaDAO.save(recargo);
+
+        notificar(pedido.getUsuarioId(), "PEDIDO_NO_RECIBIDO", "Intento de entrega no completado",
+                "No fue posible entregar el pedido #" + pedidoId + ". El paquete se trasladará a la sede de devolución ("
+                        + pedido.getSedeDevolucionNombre() + "). Se aplicó un recargo de $" + RECARGO_NO_RECIBIDO);
+
+        return pedidoDAO.update(pedido.getId(), pedido).orElseThrow();
+    }
+
+    @Override
+    public PedidoInterciudadDTO iniciarTrasladoRetorno(Long pedidoId, Long repartidorId) {
+        PedidoInterciudadDTO pedido = buscarPedido(pedidoId);
+        validarEstado(pedido, ESTADO_DEVUELTO_PENDIENTE_TRASLADO);
+
+        pedido.setEstado(ESTADO_EN_CAMINO_SEDE_ORIGEN);
+        pedido.setRepartidorId(repartidorId);
+
+        return pedidoDAO.update(pedido.getId(), pedido).orElseThrow();
+    }
+
+    // ------------------------------------------------------------ Métodos Auxiliares
 
     private EjemplarDTO reservarEjemplarDeOtraCiudad(Long libroId, String ciudadEntrega) {
         for (EjemplarDTO candidato : ejemplarDAO.findDisponiblesEnOtraCiudad(libroId, ciudadEntrega)) {
@@ -253,54 +317,23 @@ public class PedidoInterciudadServiceImpl implements PedidoInterciudadService {
                 return candidato;
             }
         }
-        throw new BusinessValidationException(
-                "No hay ejemplares disponibles de este libro en ciudades distintas a " + ciudadEntrega);
+        throw new BusinessValidationException("No hay ejemplares disponibles en ciudades distintas a " + ciudadEntrega);
     }
 
     private void cambiarEstadoEjemplar(Long ejemplarId, String esperado, String nuevo) {
         if (ejemplarDAO.cambiarEstadoSiEs(ejemplarId, esperado, nuevo) == 0) {
-            throw new BusinessValidationException(
-                    "El ejemplar del pedido no esta en el estado esperado (" + esperado + ")");
+            throw new BusinessValidationException("El ejemplar " + ejemplarId + " no estaba en estado " + esperado);
         }
     }
 
     private PedidoInterciudadDTO buscarPedido(Long id) {
-        return pedidoDAO.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Pedido interciudad no encontrado con ID: " + id));
+        return pedidoDAO.findById(id).orElseThrow(() -> new ResourceNotFoundException("Pedido interciudad no encontrado con ID: " + id));
     }
 
-    private PrestamoDTO buscarPrestamo(Long id) {
-        return prestamoDAO.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Prestamo no encontrado con ID: " + id));
-    }
-
-    private PedidoInterciudadDTO guardar(PedidoInterciudadDTO pedido) {
-        return pedidoDAO.update(pedido.getId(), pedido)
-                .orElseThrow(() -> new ResourceNotFoundException(
-                        "Pedido interciudad no encontrado con ID: " + pedido.getId()));
-    }
-
-    private void verificarBibliotecario(Long bibliotecarioId) {
-        // Por ahora solo se comprueba que exista; la validacion del rol llegara con la seguridad.
-        if (!usuarioDAO.existsById(bibliotecarioId)) {
-            throw new ResourceNotFoundException("Bibliotecario no encontrado con ID: " + bibliotecarioId);
+    private void validarEstado(PedidoInterciudadDTO pedido, String estadoEsperado) {
+        if (!estadoEsperado.equalsIgnoreCase(pedido.getEstado())) {
+            throw new BusinessValidationException("El pedido #" + pedido.getId() + " no está en estado " + estadoEsperado + " (Estado actual: " + pedido.getEstado() + ")");
         }
-    }
-
-    private void exigirEstado(PedidoInterciudadDTO pedido, String esperado, String destino) {
-        if (!esperado.equalsIgnoreCase(pedido.getEstado())) {
-            throw new BusinessValidationException("El pedido debe estar en estado " + esperado
-                    + " para pasar a " + destino + " (estado actual: " + pedido.getEstado() + ")");
-        }
-    }
-
-    private String normalizarEstado(String estado) {
-        String normalizado = estado == null ? "" : estado.trim().toUpperCase();
-        if (!ESTADOS_PEDIDO.contains(normalizado)) {
-            throw new BusinessValidationException(
-                    "Estado invalido: " + estado + ". Valores permitidos: " + String.join(", ", ESTADOS_PEDIDO));
-        }
-        return normalizado;
     }
 
     private void notificar(Long usuarioId, String tipo, String titulo, String mensaje) {

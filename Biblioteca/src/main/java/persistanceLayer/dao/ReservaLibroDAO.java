@@ -3,7 +3,6 @@ package persistanceLayer.dao;
 import bussinesLayer.dto.ReservaLibroDTO;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
-import org.springframework.transaction.annotation.Transactional;
 import persistanceLayer.entity.EjemplarEntity;
 import persistanceLayer.entity.LibroEntity;
 import persistanceLayer.entity.ReservaLibroEntity;
@@ -12,7 +11,7 @@ import persistanceLayer.entity.UsuarioEntity;
 import persistanceLayer.mapper.Mapper;
 import persistanceLayer.repository.ReservaLibroRepository;
 
-import java.time.LocalDateTime;
+
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;

@@ -92,9 +92,5 @@ public class PrestamoEntity {
     @Builder.Default
     private List<SancionEntity> sanciones = new ArrayList<>();
 
-    @ToString.Exclude
-    @EqualsAndHashCode.Exclude
-    @OneToMany(mappedBy = "prestamo", fetch = FetchType.LAZY)
-    @Builder.Default
-    private List<JustificacionRetrasoEntity> justificaciones = new ArrayList<>();
+
 }

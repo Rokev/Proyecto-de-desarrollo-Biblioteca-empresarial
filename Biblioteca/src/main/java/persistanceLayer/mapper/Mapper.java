@@ -6,7 +6,6 @@ import bussinesLayer.dto.EjemplarDTO;
 import bussinesLayer.dto.EventoDTO;
 import bussinesLayer.dto.GeneroDTO;
 import bussinesLayer.dto.InscripcionEventoDTO;
-import bussinesLayer.dto.JustificacionRetrasoDTO;
 import bussinesLayer.dto.LibroDTO;
 import bussinesLayer.dto.MetodoPagoDTO;
 import bussinesLayer.dto.MultaDTO;
@@ -33,7 +32,6 @@ import persistanceLayer.entity.EjemplarEntity;
 import persistanceLayer.entity.EventoEntity;
 import persistanceLayer.entity.GeneroEntity;
 import persistanceLayer.entity.InscripcionEventoEntity;
-import persistanceLayer.entity.JustificacionRetrasoEntity;
 import persistanceLayer.entity.LibroEntity;
 import persistanceLayer.entity.MetodoPagoEntity;
 import persistanceLayer.entity.MultaEntity;
@@ -120,16 +118,6 @@ public interface Mapper {
 	@Mapping(target = "usuario", ignore = true)
 	InscripcionEventoEntity inscripcionEventoToEntity(InscripcionEventoDTO dto);
 
-	@Mapping(target = "prestamoId", source = "prestamo.id")
-	@Mapping(target = "usuarioId", source = "usuario.id")
-	@Mapping(target = "bibliotecarioId", source = "bibliotecario.id")
-	JustificacionRetrasoDTO justificacionRetrasoToDto(JustificacionRetrasoEntity entity);
-
-	@Mapping(target = "estado", source = "estado", defaultValue = "PENDIENTE")
-	@Mapping(target = "prestamo", ignore = true)
-	@Mapping(target = "usuario", ignore = true)
-	@Mapping(target = "bibliotecario", ignore = true)
-	JustificacionRetrasoEntity justificacionRetrasoToEntity(JustificacionRetrasoDTO dto);
 
 	@Mapping(target = "generoId", source = "genero.id")
 	@Mapping(target = "autoresIds", source = "autores")
@@ -181,12 +169,16 @@ public interface Mapper {
 	@Mapping(target = "reservaSala", ignore = true)
 	PagoEntity pagoToEntity(PagoDTO dto);
 
-	@Mapping(target = "usuarioId", source = "usuario.id")
+@Mapping(target = "usuarioId", source = "usuario.id")
 	@Mapping(target = "ejemplarId", source = "ejemplar.id")
 	@Mapping(target = "libroId", source = "ejemplar.libro.id")
 	@Mapping(target = "libroTitulo", source = "ejemplar.libro.titulo")
 	@Mapping(target = "sedeOrigenId", source = "sedeOrigen.id")
 	@Mapping(target = "sedeOrigenNombre", source = "sedeOrigen.nombre")
+	@Mapping(target = "sedeDevolucionId", source = "sedeDevolucion.id")
+	@Mapping(target = "sedeDevolucionNombre", source = "sedeDevolucion.nombre")
+	@Mapping(target = "repartidorId", source = "repartidor.id")
+	@Mapping(target = "repartidorNombre", source = "repartidor.nombreUsuario")
 	@Mapping(target = "prestamoId", source = "prestamo.id")
 	@Mapping(target = "bibliotecarioId", source = "bibliotecario.id")
 	PedidoInterciudadDTO pedidoInterciudadToDto(PedidoInterciudadEntity entity);
@@ -195,6 +187,8 @@ public interface Mapper {
 	@Mapping(target = "usuario", ignore = true)
 	@Mapping(target = "ejemplar", ignore = true)
 	@Mapping(target = "sedeOrigen", ignore = true)
+	@Mapping(target = "sedeDevolucion", ignore = true)
+	@Mapping(target = "repartidor", ignore = true)
 	@Mapping(target = "prestamo", ignore = true)
 	@Mapping(target = "bibliotecario", ignore = true)
 	PedidoInterciudadEntity pedidoInterciudadToEntity(PedidoInterciudadDTO dto);
@@ -225,7 +219,6 @@ public interface Mapper {
 	@Mapping(target = "devolucion", ignore = true)
 	@Mapping(target = "multas", ignore = true)
 	@Mapping(target = "sanciones", ignore = true)
-	@Mapping(target = "justificaciones", ignore = true)
 	PrestamoEntity prestamoToEntity(PrestamoDTO dto);
 
 	@Mapping(target = "usuarioId", source = "usuario.id")

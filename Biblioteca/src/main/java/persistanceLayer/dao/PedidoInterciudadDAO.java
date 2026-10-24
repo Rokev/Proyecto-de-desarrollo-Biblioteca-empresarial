@@ -12,12 +12,10 @@ import persistanceLayer.entity.UsuarioEntity;
 import persistanceLayer.mapper.Mapper;
 import persistanceLayer.repository.PedidoInterciudadRepository;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
-/**
- * Acceso a datos de PedidoInterciudad: recibe y devuelve DTOs, la capa de negocio nunca ve la entidad.
- */
 @Repository
 @RequiredArgsConstructor
 public class PedidoInterciudadDAO {
@@ -32,10 +30,12 @@ public class PedidoInterciudadDAO {
         entity.setUsuario(referenciaUsuario(dto.getUsuarioId()));
         entity.setEjemplar(referenciaEjemplar(dto.getEjemplarId()));
         entity.setSedeOrigen(referenciaSede(dto.getSedeOrigenId()));
+        entity.setSedeDevolucion(referenciaSede(dto.getSedeDevolucionId()));
+        entity.setRepartidor(referenciaUsuario(dto.getRepartidorId()));
         entity.setPrestamo(referenciaPrestamo(dto.getPrestamoId()));
         entity.setBibliotecario(referenciaUsuario(dto.getBibliotecarioId()));
+
         PedidoInterciudadEntity guardado = pedidoRepository.save(entity);
-        // Las relaciones son referencias solo con id: se recarga para devolver el DTO completo.
         entityManager.flush();
         entityManager.refresh(guardado);
         return mapper.pedidoInterciudadToDto(guardado);
@@ -45,18 +45,21 @@ public class PedidoInterciudadDAO {
         return pedidoRepository.findById(id).map(mapper::pedidoInterciudadToDto);
     }
 
-    /** Solo actualiza lo que cambia durante la vida del pedido: estado, fechas y bibliotecario. */
     public Optional<PedidoInterciudadDTO> update(Long id, PedidoInterciudadDTO dto) {
         return pedidoRepository.findById(id).map(existente -> {
-            if (dto.getEstado() != null) {
-                existente.setEstado(dto.getEstado());
-            }
+            if (dto.getEstado() != null) existente.setEstado(dto.getEstado());
             existente.setFechaTransito(dto.getFechaTransito());
-            existente.setFechaDisponible(dto.getFechaDisponible());
-            existente.setFechaRetiro(dto.getFechaRetiro());
+            existente.setFechaEntrega(dto.getFechaEntrega());
             existente.setFechaCancelacion(dto.getFechaCancelacion());
+            existente.setFechaLimiteRecogida(dto.getFechaLimiteRecogida());
+            existente.setFechaLimiteDevolucion(dto.getFechaLimiteDevolucion());
+            existente.setRepartidor(referenciaUsuario(dto.getRepartidorId()));
             existente.setBibliotecario(referenciaUsuario(dto.getBibliotecarioId()));
-            return mapper.pedidoInterciudadToDto(pedidoRepository.save(existente));
+            
+            PedidoInterciudadEntity actualizado = pedidoRepository.save(existente);
+            entityManager.flush();
+            entityManager.refresh(actualizado);
+            return mapper.pedidoInterciudadToDto(actualizado);
         });
     }
 
@@ -72,39 +75,43 @@ public class PedidoInterciudadDAO {
         return pedidoRepository.findByEstadoIgnoreCaseOrderByFechaSolicitudAsc(estado).stream().map(mapper::pedidoInterciudadToDto).toList();
     }
 
+    public List<PedidoInterciudadDTO> findByRepartidorIdAndEstados(Long repartidorId, Collection<String> estados) {
+        return pedidoRepository.findByRepartidorIdAndEstadoInOrderByFechaSolicitudAsc(repartidorId, estados).stream().map(mapper::pedidoInterciudadToDto).toList();
+    }
+
+    public List<PedidoInterciudadDTO> findBySedeOrigenAndEstados(Long sedeOrigenId, Collection<String> estados) {
+        return pedidoRepository.findBySedeOrigenIdAndEstadoInOrderByFechaSolicitudAsc(sedeOrigenId, estados).stream().map(mapper::pedidoInterciudadToDto).toList();
+    }
+
+    public List<PedidoInterciudadDTO> findBySedeDevolucionAndEstados(Long sedeDevolucionId, Collection<String> estados) {
+        return pedidoRepository.findBySedeDevolucionIdAndEstadoInOrderByFechaSolicitudAsc(sedeDevolucionId, estados).stream().map(mapper::pedidoInterciudadToDto).toList();
+    }
+
     private UsuarioEntity referenciaUsuario(Long id) {
-        if (id == null) {
-            return null;
-        }
-        UsuarioEntity referencia = new UsuarioEntity();
-        referencia.setId(id);
-        return referencia;
+        if (id == null) return null;
+        UsuarioEntity ref = new UsuarioEntity();
+        ref.setId(id);
+        return ref;
     }
 
     private EjemplarEntity referenciaEjemplar(Long id) {
-        if (id == null) {
-            return null;
-        }
-        EjemplarEntity referencia = new EjemplarEntity();
-        referencia.setId(id);
-        return referencia;
+        if (id == null) return null;
+        EjemplarEntity ref = new EjemplarEntity();
+        ref.setId(id);
+        return ref;
     }
 
     private SedeEntity referenciaSede(Long id) {
-        if (id == null) {
-            return null;
-        }
-        SedeEntity referencia = new SedeEntity();
-        referencia.setId(id);
-        return referencia;
+        if (id == null) return null;
+        SedeEntity ref = new SedeEntity();
+        ref.setId(id);
+        return ref;
     }
 
     private PrestamoEntity referenciaPrestamo(Long id) {
-        if (id == null) {
-            return null;
-        }
-        PrestamoEntity referencia = new PrestamoEntity();
-        referencia.setId(id);
-        return referencia;
+        if (id == null) return null;
+        PrestamoEntity ref = new PrestamoEntity();
+        ref.setId(id);
+        return ref;
     }
 }
