@@ -68,11 +68,26 @@ jacoco{
 	toolVersion = "0.8.15"
 }
 
+tasks.register('pruebasUnitarias', Test) {
+	description = 'Ejecuta solo las pruebas unitarias (no levanta Spring ni MySQL)'
+	group = 'verification'
+	testClassesDirs = sourceSets.test.output.classesDirs
+	classpath = sourceSets.test.runtimeClasspath
+	useJUnitPlatform()
+	filter {
+		includeTestsMatching 'bussinesLayer.*'
+	}
+}
 jacocoTestReport {
-	dependsOn test 
+
+	dependsOn pruebasUnitarias
+
+
+	executionData.setFrom(layout.buildDirectory.file("jacoco/pruebasUnitarias.exec"))
+
 	reports {
-		xml.required = true // necesario para ...
-		html.required = true // reporte navegable
+		xml.required = true
+		html.required = true
 	}
 	finalizedBy jacocoTestCoverageVerification
 }
@@ -86,14 +101,4 @@ jacocoTestCoverageVerification {
 				}
 			}
 		}
-}
-tasks.register('pruebasUnitarias', Test) {
-	description = 'Ejecuta solo las pruebas unitarias (no levanta Spring ni MySQL)'
-	group = 'verification'
-	testClassesDirs = sourceSets.test.output.classesDirs
-	classpath = sourceSets.test.runtimeClasspath
-	useJUnitPlatform()
-	filter {
-		includeTestsMatching 'bussinesLayer.*'
-	}
 }
