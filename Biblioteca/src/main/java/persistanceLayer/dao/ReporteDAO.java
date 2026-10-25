@@ -12,7 +12,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Consultas de solo lectura que alimentan los reportes (RF-78).
+ * Consultas de solo lectura que alimentan los reportes ( 78).
  * Cada método devuelve filas "planas" (Object[]) ya filtradas por rango de fechas y, cuando aplica, por sede;
  * el servicio se encarga de darles formato. {@code desde} es inclusivo y {@code hasta} exclusivo; ambos opcionales.
  * Los filtros se arman dinámicamente solo si vienen informados (los nombres de entidad y campo son constantes

@@ -25,12 +25,12 @@ import java.time.LocalDate;
 import java.util.Arrays;
 import java.util.List;
 
-/** RF-78: el administrador genera reportes y los exporta en PDF y CSV. */
+/**  78: el administrador genera reportes y los exporta en PDF y CSV. */
 @RestController
 @RequestMapping("/api/v1/reportes")
 @RequiredArgsConstructor
 @Slf4j
-@Tag(name = "Reportes", description = "Reportes de uso, préstamos, reservas, eventos, suscripciones y pedidos interciudad, exportables en PDF y CSV (RF-78)")
+@Tag(name = "Reportes", description = "Reportes de uso, préstamos, reservas, eventos, suscripciones y pedidos interciudad, exportables en PDF y CSV ( 78)")
 public class ReporteController {
 
     private final ReporteService reporteService;

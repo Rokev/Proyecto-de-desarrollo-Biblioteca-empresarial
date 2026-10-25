@@ -9,7 +9,7 @@ import lombok.NoArgsConstructor;
 import java.time.LocalDateTime;
 
 /**
- * Registro del log de auditoría (RF-79). Cada fila es una acción relevante hecha en el sistema.
+ * Registro del log de auditoría ( 79). Cada fila es una acción relevante hecha en el sistema.
  * El usuario se guarda como id + nombre (sin llave foránea) para que el registro se conserve
  * aunque la cuenta se desactive o se modifique después. Los registros nunca se editan ni se borran.
  */

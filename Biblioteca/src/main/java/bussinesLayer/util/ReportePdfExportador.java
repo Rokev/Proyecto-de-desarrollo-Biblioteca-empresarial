@@ -21,7 +21,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
 
-/** Exporta un reporte a PDF (RF-78) con OpenPDF: A4 horizontal, encabezado, resumen y tabla. */
+/** Exporta un reporte a PDF ( 78) con OpenPDF: A4 horizontal, encabezado, resumen y tabla. */
 @Component
 public class ReportePdfExportador {
 

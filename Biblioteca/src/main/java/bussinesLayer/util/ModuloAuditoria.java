@@ -2,7 +2,7 @@ package bussinesLayer.util;
 
 import java.util.List;
 
-/** Módulos del sistema que aparecen en el log de auditoría (RF-79). */
+/** Módulos del sistema que aparecen en el log de auditoría ( 79). */
 public final class ModuloAuditoria {
 
     public static final String USUARIOS = "USUARIOS";

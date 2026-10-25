@@ -2,7 +2,7 @@ package bussinesLayer.util;
 
 import java.util.List;
 
-/** Tipos de acción que se registran en el log de auditoría (RF-79). */
+/** Tipos de acción que se registran en el log de auditoría ( 79). */
 public final class AccionAuditoria {
 
     public static final String CREAR = "CREAR";

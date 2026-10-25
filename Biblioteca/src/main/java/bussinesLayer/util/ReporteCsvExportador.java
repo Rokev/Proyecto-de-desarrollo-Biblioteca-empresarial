@@ -9,7 +9,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Exporta un reporte a CSV (RF-78). UTF-8 con BOM para que Excel respete las tildes,
+ * Exporta un reporte a CSV ( 78). UTF-8 con BOM para que Excel respete las tildes,
  * campos entre comillas cuando hace falta y protección contra inyección de fórmulas.
  */
 @Component

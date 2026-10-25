@@ -6,7 +6,7 @@ import bussinesLayer.dto.ReporteDTO;
 import java.time.LocalDate;
 
 /**
- * Lógica de negocio de los reportes del administrador (RF-78): uso, préstamos, reservas, eventos,
+ * Lógica de negocio de los reportes del administrador ( 78): uso, préstamos, reservas, eventos,
  * suscripciones y pedidos interciudad, exportables en PDF y CSV.
  */
 public interface ReporteService {
