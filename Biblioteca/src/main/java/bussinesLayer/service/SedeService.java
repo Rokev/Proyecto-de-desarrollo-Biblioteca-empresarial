@@ -18,4 +18,7 @@ public interface SedeService {
     SedeDTO actualizarSede(Long id, SedeDTO sedeDTO);
 
     void eliminarSede(Long id);
+
+    /**solo las sedes en operacion. */
+    List<SedeDTO> obtenerSedesActivas();
 }

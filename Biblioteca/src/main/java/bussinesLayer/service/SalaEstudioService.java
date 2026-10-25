@@ -1,4 +1,6 @@
 package bussinesLayer.service;
+import java.time.LocalDateTime;
+import bussinesLayer.dto.DisponibilidadSalasDTO;
 
 import bussinesLayer.dto.SalaEstudioDTO;
 
@@ -18,4 +20,7 @@ public interface SalaEstudioService {
     SalaEstudioDTO actualizarSalaEstudio(Long id, SalaEstudioDTO salaEstudioDTO);
 
     void eliminarSalaEstudio(Long id);
+
+    /**si la sede tiene salas, cuantas estan libres y el estado de cada una en el rango. */
+    DisponibilidadSalasDTO consultarDisponibilidadDeSede(Long sedeId, LocalDateTime inicio, LocalDateTime fin);
 }

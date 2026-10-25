@@ -97,4 +97,10 @@ public class SedeServiceImpl implements SedeService {
             throw new BusinessValidationException("Debe indicar latitud y longitud juntas o ninguna");
         }
     }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<SedeDTO> obtenerSedesActivas() {
+        return sedeDAO.findByEnOperacionTrue();
+    }
 }

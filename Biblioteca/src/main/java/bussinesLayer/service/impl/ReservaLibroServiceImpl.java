@@ -1,4 +1,5 @@
 package bussinesLayer.service.impl;
+import bussinesLayer.dto.ReservaLibroDetalleDTO;
 
 import bussinesLayer.dto.ReservaLibroDTO;
 import bussinesLayer.exception.BusinessValidationException;
@@ -56,7 +57,7 @@ public class ReservaLibroServiceImpl implements ReservaLibroService {
                 dto.getUsuarioId(), dto.getLibroId(), List.of(ESTADO_EN_ESPERA, ESTADO_NOTIFICADA))) {
             throw new BusinessValidationException("El usuario ya tiene una reserva vigente para este libro");
         }
-        //solo se reservan libros sin stock en la sede; si hay ejemplares, se debe pedir el prestamo.
+        // RF-08: solo se reservan libros sin stock en la sede; si hay ejemplares, se debe pedir el prestamo.
         if (ejemplarDAO.countByLibroIdAndSedeIdAndEstadoIgnoreCase(dto.getLibroId(), dto.getSedeId(), "DISPONIBLE") > 0) {
             throw new BusinessValidationException(
                     "El libro tiene ejemplares disponibles en la sede; solicite el prestamo en lugar de reservarlo");
@@ -103,7 +104,7 @@ public class ReservaLibroServiceImpl implements ReservaLibroService {
         ReservaLibroDTO actualizada = reservaLibroDAO.update(id, dto)
                 .orElseThrow(() -> new ResourceNotFoundException("Reserva de libro no encontrada con ID: " + id));
         if (cancelando) {
-            //  el ejemplar apartado vuelve a estar disponible y pasa al siguiente en la fila.
+            // RF-09: el ejemplar apartado vuelve a estar disponible y pasa al siguiente en la fila.
             liberarEjemplarDeReserva(actual);
         }
         log.info("Reserva de libro actualizada ID: {}", id);
@@ -208,4 +209,36 @@ public class ReservaLibroServiceImpl implements ReservaLibroService {
     }
 
     
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<ReservaLibroDetalleDTO> obtenerReservasDeUsuario(Long usuarioId, String estado) {
+        if (!usuarioDAO.existsById(usuarioId)) {
+            throw new ResourceNotFoundException("Usuario no encontrado con ID: " + usuarioId);
+        }
+        List<ReservaLibroDTO> reservas = (estado == null || estado.isBlank())
+                ? reservaLibroDAO.findByUsuarioIdOrderByFechaReservaDesc(usuarioId)
+                : reservaLibroDAO.findByUsuarioIdAndEstadoIgnoreCase(usuarioId, estado);
+        return reservas.stream().map(this::aDetalle).toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<ReservaLibroDetalleDTO> obtenerReservasDeSede(Long sedeId, String estado, Long usuarioId, Long libroId) {
+        if (!sedeDAO.existsById(sedeId)) {
+            throw new ResourceNotFoundException("Sede no encontrada con ID: " + sedeId);
+        }
+        return reservaLibroDAO.findBySedeIdOrderByFechaReservaDesc(sedeId).stream()
+                .filter(r -> estado == null || estado.isBlank() || estado.equalsIgnoreCase(r.getEstado()))
+                .filter(r -> usuarioId == null || usuarioId.equals(r.getUsuarioId()))
+                .filter(r -> libroId == null || libroId.equals(r.getLibroId()))
+                .map(this::aDetalle)
+                .toList();
+    }
+
+    private ReservaLibroDetalleDTO aDetalle(ReservaLibroDTO r) {
+        String sede = sedeDAO.findById(r.getSedeId()).map(s -> s.getNombre()).orElse(null);
+        return new ReservaLibroDetalleDTO(r.getId(), r.getEstado(), r.getUsuarioId(), r.getLibroId(),
+                tituloDe(r.getLibroId()), r.getSedeId(), sede, r.getFechaReserva(), r.getFechaLimiteRetiro());
+    }
 }

@@ -1,4 +1,5 @@
 package bussinesLayer.service;
+import bussinesLayer.dto.AsistenteEventoDTO;
 
 import bussinesLayer.dto.InscripcionEventoDTO;
 
@@ -22,4 +23,7 @@ public interface InscripcionEventoService {
     int cancelarInscripcionesExclusivasSinSuscripcion();
 
     void eliminarInscripcionEvento(Long id);
+
+    /** asistentes de un evento; estado null devuelve los ACTIVOS, TODAS devuelve todos. */
+    List<AsistenteEventoDTO> obtenerAsistentesDeEvento(Long eventoId, String estado);
 }

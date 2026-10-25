@@ -138,4 +138,8 @@ public class ReservaLibroDAO {
         referencia.setId(idEjemplar);
         return referencia;
     }
+
+    public List<ReservaLibroDTO> findBySedeIdOrderByFechaReservaDesc(Long sedeId) {
+        return reservaLibroRepository.findBySedeIdOrderByFechaReservaDesc(sedeId).stream().map(mapper::reservaLibroToDto).toList();
+    }
 }

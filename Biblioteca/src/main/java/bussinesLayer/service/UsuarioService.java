@@ -18,4 +18,7 @@ public interface UsuarioService {
     UsuarioDTO actualizarUsuario(Long id, UsuarioDTO usuarioDTO);
 
     void eliminarUsuario(Long id);
+
+    /**filtra por rol, sede, estado y suscripcion vigente; los filtros nulos se ignoran. */
+    List<UsuarioDTO> filtrarUsuarios(String rol, Long sedeId, Boolean activo, Boolean conSuscripcion);
 }

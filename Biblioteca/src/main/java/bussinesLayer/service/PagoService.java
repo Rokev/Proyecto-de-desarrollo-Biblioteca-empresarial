@@ -1,4 +1,5 @@
 package bussinesLayer.service;
+import java.time.LocalDate;
 
 import bussinesLayer.dto.ComprobantePagoDTO;
 import bussinesLayer.dto.PagoDTO;
@@ -25,4 +26,7 @@ public interface PagoService {
     ComprobantePagoDTO obtenerComprobantePorId(Long id);
     
     List<ComprobantePagoDTO> obtenerPagosPorUsuario(Long usuarioId);
+
+    /**pagos y reembolsos filtrables por concepto, estado, rango de fechas y usuario. */
+    List<PagoDTO> filtrarPagos(String concepto, String estado, LocalDate desde, LocalDate hasta, Long usuarioId);
 }

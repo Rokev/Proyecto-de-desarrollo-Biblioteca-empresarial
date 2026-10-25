@@ -1,4 +1,5 @@
 package bussinesLayer.service;
+import java.time.LocalDate;
 
 import bussinesLayer.dto.EventoDTO;
 
@@ -18,4 +19,7 @@ public interface EventoService {
     EventoDTO actualizarEvento(Long id, EventoDTO eventoDTO);
 
     void eliminarEvento(Long id);
+
+    /** eventos proximos no cancelados, filtrables por sede, fecha y tipo (exclusivo o general). */
+    List<EventoDTO> buscarEventosProximos(Long sedeId, LocalDate fecha, Boolean exclusivo);
 }

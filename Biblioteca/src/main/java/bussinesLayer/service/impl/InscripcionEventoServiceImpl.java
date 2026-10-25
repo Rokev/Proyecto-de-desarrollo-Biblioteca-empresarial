@@ -1,4 +1,6 @@
 package bussinesLayer.service.impl;
+import bussinesLayer.dto.UsuarioDTO;
+import bussinesLayer.dto.AsistenteEventoDTO;
 
 import bussinesLayer.dto.EventoDTO;
 import bussinesLayer.dto.InscripcionEventoDTO;
@@ -167,5 +169,26 @@ public class InscripcionEventoServiceImpl implements InscripcionEventoService {
             throw new BusinessValidationException("El evento es exclusivo para suscriptores y el usuario "
                     + usuarioId + " no tiene una suscripcion vigente");
         }
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<AsistenteEventoDTO> obtenerAsistentesDeEvento(Long eventoId, String estado) {
+        if (!eventoDAO.existsById(eventoId)) {
+            throw new ResourceNotFoundException("Evento no encontrado con ID: " + eventoId);
+        }
+        List<InscripcionEventoDTO> inscripciones;
+        if (estado != null && "TODAS".equalsIgnoreCase(estado)) {
+            inscripciones = inscripcionEventoDAO.findByEventoId(eventoId);
+        } else {
+            String filtro = (estado == null || estado.isBlank()) ? ESTADO_ACTIVA : estado;
+            inscripciones = inscripcionEventoDAO.findByEventoIdAndEstadoIgnoreCase(eventoId, filtro);
+        }
+        return inscripciones.stream().map(i -> {
+            UsuarioDTO u = usuarioDAO.findById(i.getUsuarioId()).orElse(null);
+            String nombre = u == null ? null : (u.getNombre() + " " + u.getApellido()).trim();
+            return new AsistenteEventoDTO(i.getId(), i.getUsuarioId(), nombre, u == null ? null : u.getCorreo(),
+                    i.getCantidadCupos(), i.getEstado(), i.getFechaInscripcion());
+        }).toList();
     }
 }

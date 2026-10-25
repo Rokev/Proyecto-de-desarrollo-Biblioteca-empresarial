@@ -1,4 +1,5 @@
 package bussinesLayer.service.impl;
+import bussinesLayer.dto.DisponibilidadSalasDTO;
 
 import bussinesLayer.dto.SalaEstudioDTO;
 import bussinesLayer.exception.BusinessValidationException;
@@ -80,7 +81,7 @@ public class SalaEstudioServiceImpl implements SalaEstudioService {
         if (!salaEstudioDAO.existsById(id)) {
             throw new ResourceNotFoundException("Sala de estudio no encontrada con ID: " + id);
         }
-        //solo se elimina si no tiene reservas activas (pendientes de pago o confirmadas que no han terminado).
+        // RF-50: solo se elimina si no tiene reservas activas (pendientes de pago o confirmadas que no han terminado).
         if (reservaSalaDAO.existsBySalaIdAndEstadoInAndFechaFinAfter(
                 id, List.of("PENDIENTE_PAGO", "CONFIRMADA"), LocalDateTime.now())) {
             throw new BusinessValidationException("No se puede eliminar la sala porque tiene reservas activas");
@@ -102,5 +103,24 @@ public class SalaEstudioServiceImpl implements SalaEstudioService {
         if (dto.getCapacidad() < 1) {
             throw new BusinessValidationException("La capacidad debe ser al menos 1");
         }
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public DisponibilidadSalasDTO consultarDisponibilidadDeSede(Long sedeId, LocalDateTime inicio, LocalDateTime fin) {
+        if (!sedeDAO.existsById(sedeId)) {
+            throw new ResourceNotFoundException("Sede no encontrada con ID: " + sedeId);
+        }
+        LocalDateTime desde = inicio != null ? inicio : LocalDateTime.now();
+        LocalDateTime hasta = fin != null ? fin : desde.plusHours(1);
+        if (!hasta.isAfter(desde)) {
+            throw new BusinessValidationException("El fin debe ser posterior al inicio");
+        }
+        List<DisponibilidadSalasDTO.SalaDisponibilidad> salas = salaEstudioDAO.findBySedeIdAndActivaTrue(sedeId).stream()
+                .map(s -> new DisponibilidadSalasDTO.SalaDisponibilidad(s.getId(), s.getNombre(), s.getCapacidad(),
+                        s.getTarifaPorHora(), !reservaSalaDAO.existeSolape(s.getId(), desde, hasta)))
+                .toList();
+        int libres = (int) salas.stream().filter(DisponibilidadSalasDTO.SalaDisponibilidad::isDisponible).count();
+        return new DisponibilidadSalasDTO(sedeId, !salas.isEmpty(), salas.size(), libres, desde, hasta, salas);
     }
 }
