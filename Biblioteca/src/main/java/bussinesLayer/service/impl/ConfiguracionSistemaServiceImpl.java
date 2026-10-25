@@ -36,7 +36,7 @@ public class ConfiguracionSistemaServiceImpl implements ConfiguracionSistemaServ
     private final PoliticaMultaDAO politicaMultaDAO;
     private final PlazoSistemaDAO plazoSistemaDAO;
 
-    // ------------------------------------------------------------------ RF-74
+    // ------------------------------------------------------------------  74
 
     @Override
     @Transactional(readOnly = true)
@@ -81,7 +81,7 @@ public class ConfiguracionSistemaServiceImpl implements ConfiguracionSistemaServ
         return guardada;
     }
 
-    // ------------------------------------------------------------------ RF-75
+    // ------------------------------------------------------------------  75
 
     @Override
     @Transactional(readOnly = true)
@@ -111,7 +111,7 @@ public class ConfiguracionSistemaServiceImpl implements ConfiguracionSistemaServ
         return guardada;
     }
 
-    // ------------------------------------------------------------------ RF-76
+    // ------------------------------------------------------------------  76
 
     @Override
     @Transactional(readOnly = true)

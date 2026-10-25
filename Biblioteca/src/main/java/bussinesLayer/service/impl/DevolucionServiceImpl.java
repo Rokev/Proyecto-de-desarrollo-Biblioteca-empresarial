@@ -299,7 +299,7 @@ public class DevolucionServiceImpl implements DevolucionService {
         return confirmada;
     }
 
-    // ------------------------------------------------ RF-41: libro dañado o perdido
+    // ------------------------------------------------  41: libro dañado o perdido
 
     @Override
     public ResultadoDanioPerdidaDTO registrarDanioOPerdida(Long prestamoId, String tipo, Long bibliotecarioId,

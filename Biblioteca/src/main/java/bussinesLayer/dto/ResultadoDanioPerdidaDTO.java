@@ -8,7 +8,7 @@ import lombok.NoArgsConstructor;
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-@Schema(description = "Resultado de registrar un libro devuelto como dañado o perdido (RF-41)")
+@Schema(description = "Resultado de registrar un libro devuelto como dañado o perdido ( 41)")
 public class ResultadoDanioPerdidaDTO {
 
     @Schema(description = "id del préstamo que se cerró", example = "1")
@@ -20,6 +20,6 @@ public class ResultadoDanioPerdidaDTO {
     @Schema(description = "Nuevo estado del ejemplar: DANADO o PERDIDO (ya no cuenta como disponible)", example = "DANADO")
     private String estadoEjemplar;
 
-    @Schema(description = "Multa generada al usuario con el monto configurado (RF-75) o el indicado por el bibliotecario")
+    @Schema(description = "Multa generada al usuario con el monto configurado ( 75) o el indicado por el bibliotecario")
     private MultaDTO multa;
 }

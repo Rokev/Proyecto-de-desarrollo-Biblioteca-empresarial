@@ -19,9 +19,9 @@ public interface PlanSuscripcionService {
 
     void eliminarPlanSuscripcion(Long id);
 
-    /** RF-72: impide nuevas compras del plan sin afectar las suscripciones vigentes. */
+    /**  72: impide nuevas compras del plan sin afectar las suscripciones vigentes. */
     PlanSuscripcionDTO desactivarPlan(Long id);
 
-    /** RF-73: vuelve a permitir nuevas compras del plan. */
+    /**  73: vuelve a permitir nuevas compras del plan. */
     PlanSuscripcionDTO reactivarPlan(Long id);
 }

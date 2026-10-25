@@ -13,26 +13,26 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * Configuración de políticas de sanción (RF-74), multas (RF-75) y plazos (RF-76).
+ * Configuración de políticas de sanción ( 74), multas ( 75) y plazos ( 76).
  * El resto de servicios consultan aquí los valores en lugar de tenerlos escritos en el código.
  */
 public interface ConfiguracionSistemaService {
 
-    // ---------------- RF-74: sanciones (administración)
+    // ----------------  74: sanciones (administración)
     List<PoliticaSancionDTO> listarPoliticasSancion();
 
     PoliticaSancionDTO obtenerPoliticaSancion(String infraccion);
 
     PoliticaSancionDTO actualizarPoliticaSancion(String infraccion, PoliticaSancionDTO dto);
 
-    // ---------------- RF-75: multas (administración)
+    // ----------------  75: multas (administración)
     List<PoliticaMultaDTO> listarPoliticasMulta();
 
     PoliticaMultaDTO obtenerPoliticaMulta(String concepto);
 
     PoliticaMultaDTO actualizarPoliticaMulta(String concepto, PoliticaMultaDTO dto);
 
-    // ---------------- RF-76: plazos (administración)
+    // ----------------  76: plazos (administración)
     List<PlazoSistemaDTO> listarPlazos();
 
     PlazoSistemaDTO obtenerPlazo(String clave);

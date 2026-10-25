@@ -3,18 +3,18 @@ package bussinesLayer.util;
 import java.util.List;
 
 /**
- * Infracciones que pueden generar una sanción (RF-74), con la política por defecto
+ * Infracciones que pueden generar una sanción ( 74), con la política por defecto
  * que se carga la primera vez que arranca el sistema.
  */
 public enum InfraccionSancion {
 
     /** Préstamo vencido. Sin duración = la sanción dura hasta que el usuario devuelva el libro. */
     MORA_DEVOLUCION("Retraso en la devolucion de un libro", TipoSancion.BLOQUEO_PRESTAMOS, null, true),
-    /** Pedido interciudad no recogido en la sede de devolución a tiempo (RF-76 c). */
+    /** Pedido interciudad no recogido en la sede de devolución a tiempo ( 76 c). */
     PEDIDO_NO_RECOGIDO("No recoger a tiempo un pedido interciudad", TipoSancion.BLOQUEO_PRESTAMOS, 7, true),
-    /** Libro devuelto dañado (RF-41). Por defecto no genera sanción, solo multa. */
+    /** Libro devuelto dañado ( 41). Por defecto no genera sanción, solo multa. */
     LIBRO_DANADO("Devolver un libro dañado", TipoSancion.BLOQUEO_PRESTAMOS, 7, false),
-    /** Libro perdido (RF-41). Por defecto no genera sanción, solo multa. */
+    /** Libro perdido ( 41). Por defecto no genera sanción, solo multa. */
     LIBRO_PERDIDO("Perder un libro", TipoSancion.BLOQUEO_PRESTAMOS, 30, false);
 
     private final String descripcion;

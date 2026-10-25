@@ -8,7 +8,7 @@ import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
 
-/** Política de sanción (RF-74): qué restricción se aplica ante cada infracción y por cuánto tiempo. */
+/** Política de sanción ( 74): qué restricción se aplica ante cada infracción y por cuánto tiempo. */
 @Entity
 @Table(name = "politicas_sancion",
         uniqueConstraints = @UniqueConstraint(name = "uk_politica_sancion_infraccion", columnNames = "infraccion"))

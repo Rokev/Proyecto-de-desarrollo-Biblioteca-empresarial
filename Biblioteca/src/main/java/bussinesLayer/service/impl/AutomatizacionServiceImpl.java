@@ -61,7 +61,7 @@ public class AutomatizacionServiceImpl implements AutomatizacionService {
     private static final String MOTIVO_NO_RECOGIDO = "Pedido interciudad no recogido a tiempo";
     private static final String MOTIVO_SANCION_NO_RECOGIDO = "No recogio el pedido interciudad a tiempo";
 
-    /** Tipos de sancion configurables (RF-74) que el sistema levanta o finaliza automaticamente. */
+    /** Tipos de sancion configurables ( 74) que el sistema levanta o finaliza automaticamente. */
     private static final List<String> TIPOS_SANCION = InfraccionSancion.TipoSancion.TODOS;
     private static final int MINUTOS_PAGO_RESERVA_SALA = 30;
 
@@ -133,7 +133,7 @@ public class AutomatizacionServiceImpl implements AutomatizacionService {
 
         sincronizarMultaPorMora(prestamo);
 
-        // RF-74: la sancion (tipo, duracion o si aplica) la define la politica de MORA_DEVOLUCION.
+        //  74: la sancion (tipo, duracion o si aplica) la define la politica de MORA_DEVOLUCION.
         boolean yaTieneSancion = sancionDAO.findByPrestamoId(prestamo.getId()).stream()
                 .anyMatch(x -> x.getMotivo() != null && x.getMotivo().startsWith(MOTIVO_SANCION_MORA));
         Optional<SancionDTO> sancionNueva = yaTieneSancion ? Optional.empty()
@@ -141,7 +141,7 @@ public class AutomatizacionServiceImpl implements AutomatizacionService {
                         prestamo.getId(), MOTIVO_SANCION_MORA + " (prestamo #" + prestamo.getId() + ")");
         sancionNueva.ifPresent(sancionDAO::save);
 
-        // RF-75: monto por dia de retraso configurado por el administrador.
+        //  75: monto por dia de retraso configurado por el administrador.
         notificar(prestamo.getUsuarioId(), "PRESTAMO_VENCIDO", "Tu prestamo esta vencido",
                 "El prestamo de \"" + tituloDeEjemplar(prestamo.getEjemplarId()) + "\" vencio el "
                         + prestamo.getFechaVencimiento() + ". Se genero una multa de $"
@@ -444,7 +444,7 @@ public class AutomatizacionServiceImpl implements AutomatizacionService {
         multaDAO.save(multa);
 
         // 4) Sanción temporal: bloquea nuevos préstamos y pedidos hasta fechaFin.
-        // RF-74: tipo y duracion segun la politica de PEDIDO_NO_RECOGIDO (puede estar desactivada).
+        //  74: tipo y duracion segun la politica de PEDIDO_NO_RECOGIDO (puede estar desactivada).
         Optional<SancionDTO> sancion = configuracionService.construirSancion(InfraccionSancion.PEDIDO_NO_RECOGIDO,
                 pedido.getUsuarioId(), pedido.getPrestamoId(),
                 MOTIVO_SANCION_NO_RECOGIDO + " (pedido #" + pedido.getId() + ")");

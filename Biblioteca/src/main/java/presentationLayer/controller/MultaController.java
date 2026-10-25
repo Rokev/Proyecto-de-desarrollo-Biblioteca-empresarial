@@ -88,7 +88,7 @@ public class MultaController {
             @Parameter(description = "ID del usuario", required = true, example = "1") @RequestParam Long usuarioId,
             @Parameter(description = "ID del préstamo asociado (opcional)", example = "1") @RequestParam(required = false) Long prestamoId,
             @Parameter(description = "DANADO o PERDIDO", required = true, example = "DANADO") @RequestParam String tipo,
-            @Parameter(description = "Monto a cobrar (opcional: si se omite se usa el monto configurado, RF-75)", example = "45000.00") @RequestParam(required = false) BigDecimal monto,
+            @Parameter(description = "Monto a cobrar (opcional: si se omite se usa el monto configurado,  75)", example = "45000.00") @RequestParam(required = false) BigDecimal monto,
             @Parameter(description = "Motivo detallado", required = true, example = "Libro devuelto con la portada destruida") @RequestParam String motivo) {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(multaService.generarMultaPorDanioOPerdida(usuarioId, prestamoId, tipo, monto, motivo));

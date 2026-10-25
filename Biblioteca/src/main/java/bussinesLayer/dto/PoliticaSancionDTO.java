@@ -13,7 +13,7 @@ import java.time.LocalDateTime;
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-@Schema(description = "Política de sanción: restricción que se aplica al usuario ante una infracción (RF-74)")
+@Schema(description = "Política de sanción: restricción que se aplica al usuario ante una infracción ( 74)")
 public class PoliticaSancionDTO {
 
     @Schema(description = "id único de la política", example = "1", accessMode = Schema.AccessMode.READ_ONLY)

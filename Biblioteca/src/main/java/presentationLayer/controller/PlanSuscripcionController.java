@@ -117,7 +117,7 @@ public class PlanSuscripcionController {
     }
 
     @PostMapping("/{id}/desactivar")
-    @Operation(summary = "Desactivar plan de suscripcion", description = "Impide nuevas compras del plan; las suscripciones vigentes no se afectan (RF-72)")
+    @Operation(summary = "Desactivar plan de suscripcion", description = "Impide nuevas compras del plan; las suscripciones vigentes no se afectan ( 72)")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Operacion realizada exitosamente",
                     content = @Content(mediaType = "application/json", schema = @Schema(implementation = PlanSuscripcionDTO.class))),
@@ -132,7 +132,7 @@ public class PlanSuscripcionController {
     }
 
     @PostMapping("/{id}/reactivar")
-    @Operation(summary = "Reactivar plan de suscripcion", description = "Vuelve a permitir nuevas compras del plan (RF-73)")
+    @Operation(summary = "Reactivar plan de suscripcion", description = "Vuelve a permitir nuevas compras del plan ( 73)")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Operacion realizada exitosamente",
                     content = @Content(mediaType = "application/json", schema = @Schema(implementation = PlanSuscripcionDTO.class))),

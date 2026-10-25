@@ -70,7 +70,7 @@ public class EventoServiceImpl implements EventoService {
                 .orElseThrow(() -> new ResourceNotFoundException("Evento no encontrado con ID: " + id));
 
         validarEvento(eventoDTO);
-        // RF-45: el cupo maximo no puede quedar por debajo de los cupos ya reservados (inscripciones activas).
+        //  45: el cupo maximo no puede quedar por debajo de los cupos ya reservados (inscripciones activas).
         int reservados = inscripcionEventoDAO.findByEventoIdAndEstadoIgnoreCase(id, "ACTIVA").stream()
                 .mapToInt(i -> i.getCantidadCupos() == null ? 1 : i.getCantidadCupos())
                 .sum();
@@ -95,7 +95,7 @@ public class EventoServiceImpl implements EventoService {
 
     @Override
     public void eliminarEvento(Long id) {
-        // RF-47: eliminar y cancelar siguen la misma regla.
+        //  47: eliminar y cancelar siguen la misma regla.
         cancelarEvento(id);
         log.info("Evento eliminado ID: {}", id);
     }

@@ -124,7 +124,7 @@ public class MultaServiceImpl implements MultaService {
         if (prestamoId != null && !prestamoDAO.existsById(prestamoId)) {
             throw new ResourceNotFoundException("Préstamo no encontrado con ID: " + prestamoId);
         }
-        // RF-75: sin monto explicito se cobra el configurado por el administrador.
+        //  75: sin monto explicito se cobra el configurado por el administrador.
         if (monto == null) {
             monto = configuracionService.montoMulta(perdido ? ConceptoMulta.LIBRO_PERDIDO : ConceptoMulta.LIBRO_DANADO);
         }
@@ -142,7 +142,7 @@ public class MultaServiceImpl implements MultaService {
 
         MultaDTO guardada = multaDAO.save(multa);
 
-        // RF-74: sancion segun la politica de la infraccion (por defecto no aplica sancion en daño/perdida).
+        //  74: sancion segun la politica de la infraccion (por defecto no aplica sancion en daño/perdida).
         configuracionService.construirSancion(perdido ? InfraccionSancion.LIBRO_PERDIDO : InfraccionSancion.LIBRO_DANADO,
                 usuarioId, prestamoId, (perdido ? "Libro perdido" : "Libro dañado")
                         + (prestamoId != null ? " (prestamo #" + prestamoId + ")" : ""))

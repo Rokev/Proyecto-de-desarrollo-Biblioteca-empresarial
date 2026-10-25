@@ -1,6 +1,6 @@
 package bussinesLayer.util;
 
-/** Plazos configurables del sistema (RF-76), con su valor por defecto y rango permitido. */
+/** Plazos configurables del sistema ( 76), con su valor por defecto y rango permitido. */
 public enum ClavePlazo {
 
     DIAS_PRESTAMO("Dias de prestamo de un libro (retiro en sede)", "DIAS", 14, 1, 90),

@@ -13,7 +13,7 @@ import java.time.LocalDateTime;
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-@Schema(description = "Política de multa: monto configurado para un concepto económico (RF-75)")
+@Schema(description = "Política de multa: monto configurado para un concepto económico ( 75)")
 public class PoliticaMultaDTO {
 
     @Schema(description = "id único de la política", example = "1", accessMode = Schema.AccessMode.READ_ONLY)

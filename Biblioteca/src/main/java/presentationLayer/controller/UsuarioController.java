@@ -131,7 +131,7 @@ public class UsuarioController {
     }
 
     @PostMapping("/{id}/desactivar")
-    @Operation(summary = "Desactivar bibliotecario o repartidor", description = "Desactiva la cuenta sin borrar su historial (RF-60)")
+    @Operation(summary = "Desactivar bibliotecario o repartidor", description = "Desactiva la cuenta sin borrar su historial ( 60)")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Operacion realizada exitosamente",
                     content = @Content(mediaType = "application/json", schema = @Schema(implementation = UsuarioDTO.class))),
@@ -146,7 +146,7 @@ public class UsuarioController {
     }
 
     @PostMapping("/{id}/suspender")
-    @Operation(summary = "Suspender usuario", description = "Suspende la cuenta de un usuario y le notifica (RF-64)")
+    @Operation(summary = "Suspender usuario", description = "Suspende la cuenta de un usuario y le notifica ( 64)")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Operacion realizada exitosamente",
                     content = @Content(mediaType = "application/json", schema = @Schema(implementation = UsuarioDTO.class))),
@@ -161,7 +161,7 @@ public class UsuarioController {
     }
 
     @PostMapping("/{id}/reactivar")
-    @Operation(summary = "Reactivar cuenta", description = "Reactiva un usuario suspendido o un bibliotecario/repartidor desactivado, conserva su historial y le notifica (RF-65)")
+    @Operation(summary = "Reactivar cuenta", description = "Reactiva un usuario suspendido o un bibliotecario/repartidor desactivado, conserva su historial y le notifica ( 65)")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Operacion realizada exitosamente",
                     content = @Content(mediaType = "application/json", schema = @Schema(implementation = UsuarioDTO.class))),

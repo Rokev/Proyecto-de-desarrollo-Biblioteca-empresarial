@@ -13,7 +13,7 @@ import java.util.List;
 /**
  * Si la base de conocimiento esta vacia, carga unas preguntas basicas para que el chatbot responda desde el inicio.
  * Las respuestas usan variables ({DIAS_PRESTAMO}, {MULTA_MORA_POR_DIA}...) que el chatbot reemplaza con la
- * configuracion vigente (RF-74/75/76). En bases ya cargadas, convierte las respuestas originales (con numeros
+ * configuracion vigente ( 74/75/76). En bases ya cargadas, convierte las respuestas originales (con numeros
  * fijos) a su version con variables y agrega las preguntas nuevas; una respuesta editada a mano no se toca.
  */
 @Component

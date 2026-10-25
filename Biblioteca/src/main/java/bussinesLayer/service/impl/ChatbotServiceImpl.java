@@ -72,7 +72,7 @@ public class ChatbotServiceImpl implements ChatbotService {
 
         if (mejor != null && mejorPuntaje >= UMBRAL_COINCIDENCIA) {
             log.info("Chatbot: coincidencia {} ({})", mejor.getId(), mejorPuntaje);
-            // Las variables {DIAS_PRESTAMO}, {MULTA_MORA_POR_DIA}... se resuelven con la configuracion vigente (RF-74/75/76).
+            // Las variables {DIAS_PRESTAMO}, {MULTA_MORA_POR_DIA}... se resuelven con la configuracion vigente ( 74/75/76).
             return new ChatbotRespuestaDTO(VariablesConfiguracion.resolver(mejor.getRespuesta(), configuracionService),
                     mejor.getPregunta(), mejor.getCategoria(),
                     redondear(mejorPuntaje), List.of());
