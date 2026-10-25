@@ -90,7 +90,7 @@ jacocoTestCoverageVerification {
 tasks.register('pruebasUnitarias', Test) {
 	description = 'Ejecuta solo las pruebas unitarias (no levanta Spring ni MySQL)'
 	group = 'verification'
-	testClassesDirs = sourceSets.test.output.classesDirs	
+	testClassesDirs = sourceSets.test.output.classesDirs
 	classpath = sourceSets.test.runtimeClasspath
 	useJUnitPlatform()
 	filter {
