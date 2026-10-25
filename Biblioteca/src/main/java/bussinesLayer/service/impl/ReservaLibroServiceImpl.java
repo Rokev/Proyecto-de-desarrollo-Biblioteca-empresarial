@@ -57,7 +57,7 @@ public class ReservaLibroServiceImpl implements ReservaLibroService {
                 dto.getUsuarioId(), dto.getLibroId(), List.of(ESTADO_EN_ESPERA, ESTADO_NOTIFICADA))) {
             throw new BusinessValidationException("El usuario ya tiene una reserva vigente para este libro");
         }
-        // RF-08: solo se reservan libros sin stock en la sede; si hay ejemplares, se debe pedir el prestamo.
+        //  08: solo se reservan libros sin stock en la sede; si hay ejemplares, se debe pedir el prestamo.
         if (ejemplarDAO.countByLibroIdAndSedeIdAndEstadoIgnoreCase(dto.getLibroId(), dto.getSedeId(), "DISPONIBLE") > 0) {
             throw new BusinessValidationException(
                     "El libro tiene ejemplares disponibles en la sede; solicite el prestamo en lugar de reservarlo");
@@ -104,7 +104,7 @@ public class ReservaLibroServiceImpl implements ReservaLibroService {
         ReservaLibroDTO actualizada = reservaLibroDAO.update(id, dto)
                 .orElseThrow(() -> new ResourceNotFoundException("Reserva de libro no encontrada con ID: " + id));
         if (cancelando) {
-            // RF-09: el ejemplar apartado vuelve a estar disponible y pasa al siguiente en la fila.
+            //  09: el ejemplar apartado vuelve a estar disponible y pasa al siguiente en la fila.
             liberarEjemplarDeReserva(actual);
         }
         log.info("Reserva de libro actualizada ID: {}", id);

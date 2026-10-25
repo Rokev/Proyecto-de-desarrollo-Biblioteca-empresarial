@@ -1,4 +1,7 @@
 package bussinesLayer.service.impl;
+import java.util.Set;
+import persistanceLayer.dao.NotificacionDAO;
+import bussinesLayer.dto.NotificacionDTO;
 import bussinesLayer.service.SuscripcionService;
 
 import bussinesLayer.dto.UsuarioDTO;
@@ -26,6 +29,10 @@ public class UsuarioServiceImpl implements UsuarioService {
     private final RolDAO rolDAO;
     private final SedeDAO sedeDAO;
     private final SuscripcionService suscripcionService;
+    private final NotificacionDAO notificacionDAO;
+
+    private static final Set<String> ROLES_PERSONAL = Set.of("BIBLIOTECARIO", "REPARTIDOR");
+    private static final Set<String> ROLES_INTERNOS = Set.of("BIBLIOTECARIO", "REPARTIDOR", "ADMINISTRADOR", "ADMIN");
 
     @Override
     public UsuarioDTO crearUsuario(UsuarioDTO dto) {
@@ -126,5 +133,71 @@ public class UsuarioServiceImpl implements UsuarioService {
                 .filter(u -> conSuscripcion == null
                         || suscripcionService.tieneSuscripcionVigente(u.getId()) == conSuscripcion)
                 .toList();
+    }
+
+    @Override
+    public UsuarioDTO desactivarPersonal(Long id) {
+        UsuarioDTO usuario = buscarUsuario(id);
+        if (!ROLES_PERSONAL.contains(nombreRol(usuario))) {
+            throw new BusinessValidationException("Solo se pueden desactivar cuentas de bibliotecarios y repartidores");
+        }
+        if (!Boolean.TRUE.equals(usuario.getActivo())) {
+            throw new BusinessValidationException("La cuenta ya esta desactivada");
+        }
+        return cambiarEstadoCuenta(usuario, false);
+    }
+
+    @Override
+    public UsuarioDTO suspenderUsuario(Long id) {
+        UsuarioDTO usuario = buscarUsuario(id);
+        if (ROLES_INTERNOS.contains(nombreRol(usuario))) {
+            throw new BusinessValidationException(
+                    "Solo se pueden suspender cuentas de usuarios; para bibliotecarios y repartidores use desactivar");
+        }
+        if (!Boolean.TRUE.equals(usuario.getActivo())) {
+            throw new BusinessValidationException("La cuenta ya esta suspendida");
+        }
+        UsuarioDTO suspendido = cambiarEstadoCuenta(usuario, false);
+        notificar(id, "CUENTA_SUSPENDIDA", "Tu cuenta fue suspendida",
+                "Tu cuenta fue suspendida por la administracion. Comunicate con la biblioteca para mas informacion.");
+        return suspendido;
+    }
+
+    @Override
+    public UsuarioDTO reactivarCuenta(Long id) {
+        UsuarioDTO usuario = buscarUsuario(id);
+        if (Boolean.TRUE.equals(usuario.getActivo())) {
+            throw new BusinessValidationException("La cuenta ya esta activa");
+        }
+        UsuarioDTO reactivado = cambiarEstadoCuenta(usuario, true);
+        notificar(id, "CUENTA_REACTIVADA", "Tu cuenta fue reactivada", "Tu cuenta fue reactivada y ya puedes usarla de nuevo.");
+        return reactivado;
+    }
+
+    private UsuarioDTO buscarUsuario(Long id) {
+        return usuarioDAO.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Usuario no encontrado con ID: " + id));
+    }
+
+    private String nombreRol(UsuarioDTO usuario) {
+        return rolDAO.findById(usuario.getRolId()).map(r -> r.getNombre()).orElse("").trim().toUpperCase();
+    }
+
+    private UsuarioDTO cambiarEstadoCuenta(UsuarioDTO usuario, boolean activo) {
+        usuario.setActivo(activo);
+        return usuarioDAO.update(usuario.getId(), usuario)
+                .orElseThrow(() -> new ResourceNotFoundException("Usuario no encontrado con ID: " + usuario.getId()));
+    }
+
+    private void notificar(Long usuarioId, String tipo, String titulo, String mensaje) {
+        NotificacionDTO n = new NotificacionDTO();
+        n.setUsuarioId(usuarioId);
+        n.setTipo(tipo);
+        n.setTitulo(titulo);
+        n.setMensaje(mensaje);
+        n.setCanal("APP");
+        n.setFechaCreacion(LocalDateTime.now());
+        n.setLeida(false);
+        notificacionDAO.save(n);
     }
 }

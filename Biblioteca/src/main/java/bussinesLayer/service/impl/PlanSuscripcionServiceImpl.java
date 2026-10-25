@@ -76,4 +76,25 @@ public class PlanSuscripcionServiceImpl implements PlanSuscripcionService {
         }
         log.info("Plan de suscripcion eliminado ID: {}", id);
     }
+
+    @Override
+    public PlanSuscripcionDTO desactivarPlan(Long id) {
+        return cambiarEstadoPlan(id, false);
+    }
+
+    @Override
+    public PlanSuscripcionDTO reactivarPlan(Long id) {
+        return cambiarEstadoPlan(id, true);
+    }
+
+    private PlanSuscripcionDTO cambiarEstadoPlan(Long id, boolean activo) {
+        PlanSuscripcionDTO plan = planSuscripcionDAO.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Plan de suscripcion no encontrado con ID: " + id));
+        if (activo == Boolean.TRUE.equals(plan.getActivo())) {
+            throw new BusinessValidationException(activo ? "El plan ya esta activo" : "El plan ya esta desactivado");
+        }
+        plan.setActivo(activo);
+        return planSuscripcionDAO.update(id, plan)
+                .orElseThrow(() -> new ResourceNotFoundException("Plan de suscripcion no encontrado con ID: " + id));
+    }
 }

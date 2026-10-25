@@ -25,8 +25,10 @@ public class ValidadorUsuarioServiceImpl implements ValidadorUsuarioService {
 
     @Override
     public void validarUsuarioHabilitadoParaOperaciones(Long usuarioId) {
-        if (!usuarioDAO.existsById(usuarioId)) {
-            throw new ResourceNotFoundException("Usuario no encontrado con ID: " + usuarioId);
+        var usuario = usuarioDAO.findById(usuarioId)
+                .orElseThrow(() -> new ResourceNotFoundException("Usuario no encontrado con ID: " + usuarioId));
+        if (!Boolean.TRUE.equals(usuario.getActivo())) {
+            throw new BusinessValidationException("La cuenta del usuario esta suspendida o desactivada.");
         }
 
         // 1. Validar Sanciones Activas

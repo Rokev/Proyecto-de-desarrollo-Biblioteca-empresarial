@@ -81,7 +81,7 @@ public class SalaEstudioServiceImpl implements SalaEstudioService {
         if (!salaEstudioDAO.existsById(id)) {
             throw new ResourceNotFoundException("Sala de estudio no encontrada con ID: " + id);
         }
-        // RF-50: solo se elimina si no tiene reservas activas (pendientes de pago o confirmadas que no han terminado).
+        //  50: solo se elimina si no tiene reservas activas (pendientes de pago o confirmadas que no han terminado).
         if (reservaSalaDAO.existsBySalaIdAndEstadoInAndFechaFinAfter(
                 id, List.of("PENDIENTE_PAGO", "CONFIRMADA"), LocalDateTime.now())) {
             throw new BusinessValidationException("No se puede eliminar la sala porque tiene reservas activas");

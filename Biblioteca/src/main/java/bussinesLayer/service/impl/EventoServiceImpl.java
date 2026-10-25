@@ -1,4 +1,8 @@
 package bussinesLayer.service.impl;
+import java.util.Optional;
+import persistanceLayer.dao.NotificacionDAO;
+import bussinesLayer.dto.NotificacionDTO;
+import bussinesLayer.dto.InscripcionEventoDTO;
 import java.time.LocalDateTime;
 import java.time.LocalDate;
 
@@ -27,6 +31,7 @@ public class EventoServiceImpl implements EventoService {
     private final EventoDAO eventoDAO;
     private final SedeDAO sedeDAO;
     private final InscripcionEventoDAO inscripcionEventoDAO;
+    private final NotificacionDAO notificacionDAO;
 
     @Override
     public EventoDTO crearEvento(EventoDTO eventoDTO) {
@@ -90,9 +95,8 @@ public class EventoServiceImpl implements EventoService {
 
     @Override
     public void eliminarEvento(Long id) {
-        if (!eventoDAO.deleteById(id)) {
-            throw new ResourceNotFoundException("Evento no encontrado con ID: " + id);
-        }
+        // RF-47: eliminar y cancelar siguen la misma regla.
+        cancelarEvento(id);
         log.info("Evento eliminado ID: {}", id);
     }
 
@@ -117,5 +121,46 @@ public class EventoServiceImpl implements EventoService {
                 .filter(e -> fecha == null || fecha.equals(e.getFechaInicio().toLocalDate()))
                 .filter(e -> exclusivo == null || exclusivo.equals(Boolean.TRUE.equals(e.getExclusivo())))
                 .toList();
+    }
+
+    @Override
+    public Optional<EventoDTO> cancelarEvento(Long id) {
+        EventoDTO evento = eventoDAO.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Evento no encontrado con ID: " + id));
+        if (!ESTADO_INICIAL.equalsIgnoreCase(evento.getEstado())) {
+            throw new BusinessValidationException(
+                    "Solo se pueden cancelar eventos programados (estado actual: " + evento.getEstado() + ")");
+        }
+        List<InscripcionEventoDTO> inscripciones = inscripcionEventoDAO.findByEventoId(id);
+        if (inscripciones.isEmpty()) {
+            eventoDAO.deleteById(id);
+            log.info("Evento eliminado ID: {} (sin reservas)", id);
+            return Optional.empty();
+        }
+        LocalDateTime ahora = LocalDateTime.now();
+        for (InscripcionEventoDTO inscripcion : inscripciones) {
+            if (!"ACTIVA".equalsIgnoreCase(inscripcion.getEstado())) {
+                continue;
+            }
+            inscripcion.setEstado("CANCELADA");
+            inscripcion.setFechaCancelacion(ahora);
+            inscripcionEventoDAO.update(inscripcion.getId(), inscripcion);
+            NotificacionDTO n = new NotificacionDTO();
+            n.setUsuarioId(inscripcion.getUsuarioId());
+            n.setTipo("EVENTO_CANCELADO");
+            n.setTitulo("Evento cancelado");
+            n.setMensaje("El evento \"" + evento.getTitulo() + "\" programado para el " + evento.getFechaInicio()
+                    + " fue cancelado. Se liberaron tus " + inscripcion.getCantidadCupos() + " cupo(s).");
+            n.setCanal("APP");
+            n.setFechaCreacion(ahora);
+            n.setLeida(false);
+            notificacionDAO.save(n);
+        }
+        evento.setEstado("CANCELADO");
+        evento.setCuposDisponibles(evento.getCupoMaximo());
+        EventoDTO cancelado = eventoDAO.update(id, evento)
+                .orElseThrow(() -> new ResourceNotFoundException("Evento no encontrado con ID: " + id));
+        log.info("Evento cancelado ID: {}", id);
+        return Optional.of(cancelado);
     }
 }

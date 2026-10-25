@@ -1,4 +1,12 @@
 package bussinesLayer.service.impl;
+import java.util.ArrayList;
+import java.time.LocalDateTime;
+import persistanceLayer.dao.UsuarioDAO;
+import persistanceLayer.dao.PedidoInterciudadDAO;
+import persistanceLayer.dao.ReservaLibroDAO;
+import persistanceLayer.dao.PrestamoDAO;
+import persistanceLayer.dao.NotificacionDAO;
+import bussinesLayer.dto.NotificacionDTO;
 
 import bussinesLayer.dto.SedeDTO;
 import bussinesLayer.exception.BusinessValidationException;
@@ -21,6 +29,16 @@ public class SedeServiceImpl implements SedeService {
 
     private final SedeDAO sedeDAO;
     private final EjemplarDAO ejemplarDAO;
+    private final PrestamoDAO prestamoDAO;
+    private final ReservaLibroDAO reservaLibroDAO;
+    private final PedidoInterciudadDAO pedidoInterciudadDAO;
+    private final NotificacionDAO notificacionDAO;
+    private final UsuarioDAO usuarioDAO;
+
+    private static final List<String> PRESTAMOS_ACTIVOS = List.of("SOLICITADO", "ACTIVO", "VENCIDO");
+    private static final List<String> RESERVAS_PENDIENTES = List.of("EN_ESPERA", "NOTIFICADA");
+    private static final List<String> PEDIDOS_EN_CURSO = List.of("PENDIENTE_PAGO", "SOLICITADO", "EN_TRANSITO", "ENTREGADO",
+            "NO_RECIBIDO", "EN_ESPERA_DE_RECOGIDA", "DEVUELTO_PENDIENTE_TRASLADO", "EN_CAMINO_SEDE_ORIGEN");
 
     @Override
     public SedeDTO crearSede(SedeDTO sedeDTO) {
@@ -102,5 +120,67 @@ public class SedeServiceImpl implements SedeService {
     @Transactional(readOnly = true)
     public List<SedeDTO> obtenerSedesActivas() {
         return sedeDAO.findByEnOperacionTrue();
+    }
+
+    // noRollbackFor: la notificacion al administrador debe guardarse aunque la desactivacion se bloquee.
+    @Override
+    @Transactional(noRollbackFor = BusinessValidationException.class)
+    public SedeDTO desactivarSede(Long id, Long administradorId) {
+        SedeDTO sede = sedeDAO.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Sede no encontrada con ID: " + id));
+        if (!Boolean.TRUE.equals(sede.getEnOperacion())) {
+            throw new BusinessValidationException("La sede ya esta fuera de servicio");
+        }
+        List<String> impedimentos = new ArrayList<>();
+        long prestamos = prestamoDAO.findBySedeRetiroId(id).stream()
+                .filter(p -> PRESTAMOS_ACTIVOS.contains(p.getEstado().toUpperCase())).count();
+        if (prestamos > 0) {
+            impedimentos.add(prestamos + " prestamo(s) activo(s)");
+        }
+        long reservas = reservaLibroDAO.findBySedeIdOrderByFechaReservaDesc(id).stream()
+                .filter(r -> RESERVAS_PENDIENTES.contains(r.getEstado().toUpperCase())).count();
+        if (reservas > 0) {
+            impedimentos.add(reservas + " reserva(s) pendiente(s)");
+        }
+        long pedidos = pedidoInterciudadDAO.findBySedeOrigenAndEstados(id, PEDIDOS_EN_CURSO).size()
+                + pedidoInterciudadDAO.findBySedeDevolucionAndEstados(id, PEDIDOS_EN_CURSO).size();
+        if (pedidos > 0) {
+            impedimentos.add(pedidos + " pedido(s) interciudad en curso (como sede de origen o de devolucion)");
+        }
+        if (!impedimentos.isEmpty()) {
+            String mensaje = "No se puede desactivar la sede " + sede.getNombre() + " porque tiene "
+                    + String.join(", ", impedimentos);
+            if (administradorId != null && usuarioDAO.existsById(administradorId)) {
+                NotificacionDTO n = new NotificacionDTO();
+                n.setUsuarioId(administradorId);
+                n.setTipo("SEDE_DESACTIVACION_BLOQUEADA");
+                n.setTitulo("No se pudo desactivar la sede");
+                n.setMensaje(mensaje);
+                n.setCanal("APP");
+                n.setFechaCreacion(LocalDateTime.now());
+                n.setLeida(false);
+                notificacionDAO.save(n);
+            }
+            throw new BusinessValidationException(mensaje);
+        }
+        sede.setEnOperacion(false);
+        SedeDTO desactivada = sedeDAO.update(id, sede)
+                .orElseThrow(() -> new ResourceNotFoundException("Sede no encontrada con ID: " + id));
+        log.info("Sede desactivada ID: {}", id);
+        return desactivada;
+    }
+
+    @Override
+    public SedeDTO reactivarSede(Long id) {
+        SedeDTO sede = sedeDAO.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Sede no encontrada con ID: " + id));
+        if (Boolean.TRUE.equals(sede.getEnOperacion())) {
+            throw new BusinessValidationException("La sede ya esta activa");
+        }
+        sede.setEnOperacion(true);
+        SedeDTO reactivada = sedeDAO.update(id, sede)
+                .orElseThrow(() -> new ResourceNotFoundException("Sede no encontrada con ID: " + id));
+        log.info("Sede reactivada ID: {}", id);
+        return reactivada;
     }
 }
