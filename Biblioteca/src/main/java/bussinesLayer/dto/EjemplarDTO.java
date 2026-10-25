@@ -22,7 +22,7 @@ public class EjemplarDTO {
     private String codigoBarras;
 
     @Size(max = 20, message = "El campo estado no puede superar los 20 caracteres")
-    @Schema(description = "DISPONIBLE, RESERVADO, PRESTADO, EN_TRANSITO, DANADO", example = "DISPONIBLE", maxLength = 20)
+    @Schema(description = "DISPONIBLE, RESERVADO, PRESTADO, EN_TRANSITO, DANADO, PERDIDO", example = "DISPONIBLE", maxLength = 20)
     private String estado;
 
     @NotNull(message = "El campo libroId es obligatorio")

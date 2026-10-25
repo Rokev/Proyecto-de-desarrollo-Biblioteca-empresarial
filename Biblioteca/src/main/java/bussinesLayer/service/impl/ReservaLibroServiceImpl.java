@@ -4,8 +4,10 @@ import bussinesLayer.dto.ReservaLibroDetalleDTO;
 import bussinesLayer.dto.ReservaLibroDTO;
 import bussinesLayer.exception.BusinessValidationException;
 import bussinesLayer.exception.ResourceNotFoundException;
+import bussinesLayer.service.ConfiguracionSistemaService;
 import bussinesLayer.service.ReservaLibroService;
 import bussinesLayer.service.ValidadorUsuarioService;
+import bussinesLayer.util.ClavePlazo;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -34,7 +36,6 @@ public class ReservaLibroServiceImpl implements ReservaLibroService {
     private static final String ESTADO_NOTIFICADA = "NOTIFICADA";
     private static final String ESTADO_CANCELADA = "CANCELADA";
     /** Dias que tiene el usuario para retirar el libro una vez notificado. */
-    private static final int DIAS_RETIRO_RESERVA = 2;
     private final NotificacionDAO notificacionDAO;
 
     private final ReservaLibroDAO reservaLibroDAO;
@@ -43,6 +44,7 @@ public class ReservaLibroServiceImpl implements ReservaLibroService {
     private final SedeDAO sedeDAO;
     private final EjemplarDAO ejemplarDAO;
     private final ValidadorUsuarioService validadorUsuarioService;
+    private final ConfiguracionSistemaService configuracionService;
 
     @Override
     public ReservaLibroDTO crearReservaLibro(ReservaLibroDTO dto) {
@@ -152,7 +154,7 @@ public class ReservaLibroServiceImpl implements ReservaLibroService {
         reserva.setEstado(ESTADO_NOTIFICADA);
         reserva.setEjemplarId(ejemplarId);
         reserva.setFechaNotificacion(ahora);
-        reserva.setFechaLimiteRetiro(ahora.plusDays(DIAS_RETIRO_RESERVA));
+        reserva.setFechaLimiteRetiro(ahora.plusHours(configuracionService.plazo(ClavePlazo.HORAS_RETIRO_LIBRO)));
         reservaLibroDAO.update(reserva.getId(), reserva);
 
         notificar(reserva.getUsuarioId(), "LIBRO_DISPONIBLE", "Tu libro esta disponible",
