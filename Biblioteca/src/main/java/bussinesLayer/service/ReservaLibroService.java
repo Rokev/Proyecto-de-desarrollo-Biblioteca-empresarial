@@ -1,4 +1,5 @@
 package bussinesLayer.service;
+import bussinesLayer.dto.ReservaLibroDetalleDTO;
 
 import bussinesLayer.dto.ReservaLibroDTO;
 
@@ -26,4 +27,10 @@ public interface ReservaLibroService {
      *  y avisa al usuario. Devuelve true si el ejemplar quedo asignado a una reserva. */
     boolean asignarEjemplarAReservaEnEspera(Long ejemplarId);
         
+
+    /** reservas del usuario (libro, sede, estado y fecha limite de retiro). */
+    List<ReservaLibroDetalleDTO> obtenerReservasDeUsuario(Long usuarioId, String estado);
+
+    /** reservas de la sede, filtrables por estado, usuario y libro. */
+    List<ReservaLibroDetalleDTO> obtenerReservasDeSede(Long sedeId, String estado, Long usuarioId, Long libroId);
 }

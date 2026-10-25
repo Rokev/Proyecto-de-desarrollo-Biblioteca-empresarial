@@ -92,4 +92,16 @@ public class SancionServiceImpl implements SancionService {
             throw new BusinessValidationException("La fechaFin debe ser posterior a la fechaAplicacion");
         }
     }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<SancionDTO> obtenerSancionesDeUsuario(Long usuarioId, String estado) {
+        if (!usuarioDAO.existsById(usuarioId)) {
+            throw new ResourceNotFoundException("Usuario no encontrado con ID: " + usuarioId);
+        }
+        if (estado == null || estado.isBlank() || "TODAS".equalsIgnoreCase(estado)) {
+            return sancionDAO.findByUsuarioId(usuarioId);
+        }
+        return sancionDAO.findByUsuarioIdAndEstadoIgnoreCase(usuarioId, estado);
+    }
 }

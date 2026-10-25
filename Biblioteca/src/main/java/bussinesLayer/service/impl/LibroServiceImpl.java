@@ -31,9 +31,9 @@ public class LibroServiceImpl implements LibroService {
     private final PrestamoDAO prestamoDAO;
     private final ReservaLibroDAO reservaLibroDAO;
 
-    /** Prestamos que cuentan como activos */
+    /** Prestamos que cuentan como activos (RF-35). */
     private static final List<String> PRESTAMOS_ACTIVOS = List.of("SOLICITADO", "ACTIVO", "VENCIDO");
-    /** Reservas de libro que cuentan como pendientes. */
+    /** Reservas de libro que cuentan como pendientes (RF-35). */
     private static final List<String> RESERVAS_PENDIENTES = List.of("EN_ESPERA", "NOTIFICADA");
 
     @Override
@@ -119,5 +119,27 @@ public class LibroServiceImpl implements LibroService {
                 }
             }
         }
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<LibroDTO> buscarLibros(String titulo, String autor, String idioma, Integer anio, Long generoId,
+                                       Boolean disponible, Long sedeId) {
+        List<LibroDTO> encontrados = libroDAO.buscar(vacioANulo(titulo), vacioANulo(autor), vacioANulo(idioma), anio, generoId);
+        if (disponible == null) {
+            return encontrados;
+        }
+        return encontrados.stream()
+                .filter(libro -> hayEjemplarDisponible(libro.getId(), sedeId) == disponible)
+                .toList();
+    }
+
+    private boolean hayEjemplarDisponible(Long libroId, Long sedeId) {
+        return ejemplarDAO.findByLibroIdAndEstadoIgnoreCase(libroId, "DISPONIBLE").stream()
+                .anyMatch(e -> sedeId == null || sedeId.equals(e.getSedeId()));
+    }
+
+    private String vacioANulo(String valor) {
+        return valor == null || valor.isBlank() ? null : valor.trim();
     }
 }

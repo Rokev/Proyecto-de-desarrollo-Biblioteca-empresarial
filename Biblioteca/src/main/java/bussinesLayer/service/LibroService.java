@@ -18,4 +18,8 @@ public interface LibroService {
     LibroDTO actualizarLibro(Long id, LibroDTO libroDTO);
 
     void eliminarLibro(Long id);
+
+    /**busqueda con o sin filtros; disponible/sedeId filtran por ejemplares DISPONIBLES. */
+    List<LibroDTO> buscarLibros(String titulo, String autor, String idioma, Integer anio, Long generoId,
+                                Boolean disponible, Long sedeId);
 }

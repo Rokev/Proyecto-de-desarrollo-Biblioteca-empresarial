@@ -1,4 +1,5 @@
 package bussinesLayer.service.impl;
+import bussinesLayer.service.SuscripcionService;
 
 import bussinesLayer.dto.UsuarioDTO;
 import bussinesLayer.exception.BusinessValidationException;
@@ -24,6 +25,7 @@ public class UsuarioServiceImpl implements UsuarioService {
     private final UsuarioDAO usuarioDAO;
     private final RolDAO rolDAO;
     private final SedeDAO sedeDAO;
+    private final SuscripcionService suscripcionService;
 
     @Override
     public UsuarioDTO crearUsuario(UsuarioDTO dto) {
@@ -114,5 +116,15 @@ public class UsuarioServiceImpl implements UsuarioService {
         if (dto.getSedeId() != null && !sedeDAO.existsById(dto.getSedeId())) {
             throw new ResourceNotFoundException("Sede no encontrada con ID: " + dto.getSedeId());
         }
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<UsuarioDTO> filtrarUsuarios(String rol, Long sedeId, Boolean activo, Boolean conSuscripcion) {
+        String rolFiltro = (rol == null || rol.isBlank()) ? null : rol.trim();
+        return usuarioDAO.filtrar(rolFiltro, sedeId, activo).stream()
+                .filter(u -> conSuscripcion == null
+                        || suscripcionService.tieneSuscripcionVigente(u.getId()) == conSuscripcion)
+                .toList();
     }
 }

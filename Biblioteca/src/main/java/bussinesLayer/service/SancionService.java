@@ -18,4 +18,7 @@ public interface SancionService {
     SancionDTO actualizarSancion(Long id, SancionDTO sancionDTO);
 
     void eliminarSancion(Long id);
+
+    /**sanciones del usuario; estado null o TODAS devuelve todas. */
+    List<SancionDTO> obtenerSancionesDeUsuario(Long usuarioId, String estado);
 }

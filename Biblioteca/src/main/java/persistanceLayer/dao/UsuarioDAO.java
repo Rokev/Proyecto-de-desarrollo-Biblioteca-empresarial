@@ -142,4 +142,8 @@ public class UsuarioDAO {
         referencia.setId(idSede);
         return referencia;
     }
+
+    public List<UsuarioDTO> filtrar(String rol, Long sedeId, Boolean activo) {
+        return usuarioRepository.filtrar(rol, sedeId, activo).stream().map(mapper::usuarioToDto).toList();
+    }
 }

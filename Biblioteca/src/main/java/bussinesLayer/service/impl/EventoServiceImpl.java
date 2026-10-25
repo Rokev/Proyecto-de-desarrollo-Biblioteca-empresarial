@@ -1,4 +1,6 @@
 package bussinesLayer.service.impl;
+import java.time.LocalDateTime;
+import java.time.LocalDate;
 
 import bussinesLayer.dto.EventoDTO;
 import bussinesLayer.exception.BusinessValidationException;
@@ -63,7 +65,7 @@ public class EventoServiceImpl implements EventoService {
                 .orElseThrow(() -> new ResourceNotFoundException("Evento no encontrado con ID: " + id));
 
         validarEvento(eventoDTO);
-        //el cupo maximo no puede quedar por debajo de los cupos ya reservados (inscripciones activas).
+        // RF-45: el cupo maximo no puede quedar por debajo de los cupos ya reservados (inscripciones activas).
         int reservados = inscripcionEventoDAO.findByEventoIdAndEstadoIgnoreCase(id, "ACTIVA").stream()
                 .mapToInt(i -> i.getCantidadCupos() == null ? 1 : i.getCantidadCupos())
                 .sum();
@@ -104,5 +106,16 @@ public class EventoServiceImpl implements EventoService {
         if (!sedeDAO.existsById(dto.getSedeId())) {
             throw new ResourceNotFoundException("Sede no encontrada con ID: " + dto.getSedeId());
         }
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<EventoDTO> buscarEventosProximos(Long sedeId, LocalDate fecha, Boolean exclusivo) {
+        return eventoDAO.findByFechaInicioGreaterThanEqualAndEstadoIgnoreCaseOrderByFechaInicioAsc(
+                        LocalDateTime.now(), ESTADO_INICIAL).stream()
+                .filter(e -> sedeId == null || sedeId.equals(e.getSedeId()))
+                .filter(e -> fecha == null || fecha.equals(e.getFechaInicio().toLocalDate()))
+                .filter(e -> exclusivo == null || exclusivo.equals(Boolean.TRUE.equals(e.getExclusivo())))
+                .toList();
     }
 }

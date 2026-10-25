@@ -1,4 +1,6 @@
 package bussinesLayer.service.impl;
+import persistanceLayer.dao.LibroDAO;
+import bussinesLayer.dto.PrestamoDetalleDTO;
 
 import bussinesLayer.dto.EjemplarDTO;
 import bussinesLayer.dto.PrestamoDTO;
@@ -47,6 +49,7 @@ public class PrestamoServiceImpl implements PrestamoService {
     private final UsuarioDAO usuarioDAO;
     private final EjemplarDAO ejemplarDAO;
     private final SedeDAO sedeDAO;
+    private final LibroDAO libroDAO;
     private final SancionDAO sancionDAO;
     private final ValidadorUsuarioService validadorUsuarioService;
 
@@ -179,5 +182,44 @@ public class PrestamoServiceImpl implements PrestamoService {
     private void cambiarEstadoEjemplar(EjemplarDTO ejemplar, String nuevoEstado) {
         ejemplar.setEstado(nuevoEstado);
         ejemplarDAO.update(ejemplar.getId(), ejemplar);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<PrestamoDetalleDTO> obtenerPrestamosDeUsuario(Long usuarioId, String estado) {
+        if (!usuarioDAO.existsById(usuarioId)) {
+            throw new ResourceNotFoundException("Usuario no encontrado con ID: " + usuarioId);
+        }
+        List<PrestamoDTO> prestamos = (estado == null || estado.isBlank())
+                ? prestamoDAO.findByUsuarioIdOrderByFechaSolicitudDesc(usuarioId)
+                : prestamoDAO.findByUsuarioIdAndEstadoIgnoreCase(usuarioId, estado);
+        return prestamos.stream().map(this::aDetalle).toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<PrestamoDetalleDTO> obtenerPrestamosDeSede(Long sedeId, String estado, Long usuarioId, Long libroId) {
+        if (!sedeDAO.existsById(sedeId)) {
+            throw new ResourceNotFoundException("Sede no encontrada con ID: " + sedeId);
+        }
+        return prestamoDAO.findBySedeRetiroId(sedeId).stream()
+                .filter(p -> estado == null || estado.isBlank() || estado.equalsIgnoreCase(p.getEstado()))
+                .filter(p -> usuarioId == null || usuarioId.equals(p.getUsuarioId()))
+                .map(this::aDetalle)
+                .filter(d -> libroId == null || libroId.equals(d.getLibroId()))
+                .sorted(java.util.Comparator.comparing(PrestamoDetalleDTO::getFechaSolicitud,
+                        java.util.Comparator.nullsLast(java.util.Comparator.reverseOrder())))
+                .toList();
+    }
+
+    private PrestamoDetalleDTO aDetalle(PrestamoDTO p) {
+        EjemplarDTO ejemplar = ejemplarDAO.findById(p.getEjemplarId()).orElse(null);
+        Long libroId = ejemplar == null ? null : ejemplar.getLibroId();
+        String titulo = libroId == null ? null : libroDAO.findById(libroId).map(l -> l.getTitulo()).orElse(null);
+        String sede = p.getSedeRetiroId() == null ? null
+                : sedeDAO.findById(p.getSedeRetiroId()).map(s -> s.getNombre()).orElse(null);
+        return new PrestamoDetalleDTO(p.getId(), p.getEstado(), p.getModalidad(), p.getUsuarioId(), libroId, titulo,
+                p.getEjemplarId(), p.getSedeRetiroId(), sede, p.getFechaSolicitud(), p.getFechaEntrega(),
+                p.getFechaVencimiento(), p.getFechaDevolucion());
     }
 }

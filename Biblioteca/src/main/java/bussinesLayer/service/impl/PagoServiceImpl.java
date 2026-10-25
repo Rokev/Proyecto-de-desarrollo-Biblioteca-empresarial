@@ -1,4 +1,5 @@
 package bussinesLayer.service.impl;
+import java.time.LocalDate;
 
 import bussinesLayer.dto.*;
 import bussinesLayer.exception.BusinessValidationException;
@@ -406,7 +407,7 @@ public class PagoServiceImpl implements PagoService {
         }
     }
 
-    /** Solo estas tarjetas de prueba aprueban el pago. Cualquier otra se rechaza. */
+    /** Solo estas tarjetas de prueba aprueban el pago (RF-14). Cualquier otra se rechaza. */
     private boolean esTarjetaAprobada(String numeroTarjeta) {
         return TARJETAS_APROBADAS.contains(numeroTarjeta);
     }
@@ -443,5 +444,24 @@ public class PagoServiceImpl implements PagoService {
         notificacion.setLeida(false);
         notificacion.setUsuarioId(usuarioId);
         notificacionDAO.save(notificacion);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<PagoDTO> filtrarPagos(String concepto, String estado, LocalDate desde, LocalDate hasta, Long usuarioId) {
+        if (desde != null && hasta != null && hasta.isBefore(desde)) {
+            throw new BusinessValidationException("La fecha final no puede ser anterior a la inicial");
+        }
+        String conceptoNormalizado = "ENVIO".equalsIgnoreCase(concepto) ? CONCEPTO_ENVIO_INTERCIUDAD : concepto;
+        return pagoDAO.findAll().stream()
+                .filter(p -> conceptoNormalizado == null || conceptoNormalizado.isBlank()
+                        || conceptoNormalizado.equalsIgnoreCase(p.getConcepto()))
+                .filter(p -> estado == null || estado.isBlank() || estado.equalsIgnoreCase(p.getEstado()))
+                .filter(p -> usuarioId == null || usuarioId.equals(p.getUsuarioId()))
+                .filter(p -> desde == null || (p.getFechaPago() != null && !p.getFechaPago().toLocalDate().isBefore(desde)))
+                .filter(p -> hasta == null || (p.getFechaPago() != null && !p.getFechaPago().toLocalDate().isAfter(hasta)))
+                .sorted(java.util.Comparator.comparing(PagoDTO::getFechaPago,
+                        java.util.Comparator.nullsLast(java.util.Comparator.reverseOrder())))
+                .toList();
     }
 }
