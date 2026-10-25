@@ -63,6 +63,16 @@ public class EventoServiceImpl implements EventoService {
                 .orElseThrow(() -> new ResourceNotFoundException("Evento no encontrado con ID: " + id));
 
         validarEvento(eventoDTO);
+        //el cupo maximo no puede quedar por debajo de los cupos ya reservados (inscripciones activas).
+        int reservados = inscripcionEventoDAO.findByEventoIdAndEstadoIgnoreCase(id, "ACTIVA").stream()
+                .mapToInt(i -> i.getCantidadCupos() == null ? 1 : i.getCantidadCupos())
+                .sum();
+        if (eventoDTO.getCupoMaximo() < reservados) {
+            throw new BusinessValidationException("No se pueden reducir los cupos a " + eventoDTO.getCupoMaximo()
+                    + " porque el evento tiene " + reservados + " cupos reservados");
+        }
+        // Los cupos disponibles se recalculan; no se aceptan los enviados por el cliente.
+        eventoDTO.setCuposDisponibles(eventoDTO.getCupoMaximo() - reservados);
 
         if (eventoDTO.getExclusivo() != null
                 && !eventoDTO.getExclusivo().equals(actual.getExclusivo())

@@ -95,6 +95,10 @@ public class ReservaLibroDAO {
         return reservaLibroRepository.findByEstadoIgnoreCaseAndFechaLimiteRetiroBefore(estado, fecha).stream().map(mapper::reservaLibroToDto).toList();
     }
 
+    public boolean existsByLibroIdAndEstadoIn(Long libroId, Collection<String> estados) {
+        return reservaLibroRepository.existsByLibroIdAndEstadoIn(libroId, estados);
+    }
+
     public boolean existsByUsuarioIdAndLibroIdAndEstadoIn(Long usuarioId, Long libroId, Collection<String> estados) {
         return reservaLibroRepository.existsByUsuarioIdAndLibroIdAndEstadoIn(usuarioId, libroId, estados);
     }

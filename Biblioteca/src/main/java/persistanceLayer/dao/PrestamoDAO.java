@@ -99,6 +99,10 @@ public class PrestamoDAO {
         return prestamoRepository.findByEjemplarId(ejemplarId).stream().map(mapper::prestamoToDto).toList();
     }
 
+    public boolean existsByEjemplarLibroIdAndEstadoIn(Long libroId, Collection<String> estados) {
+        return prestamoRepository.existsByEjemplarLibroIdAndEstadoIn(libroId, estados);
+    }
+
     public boolean existsByEjemplarIdAndEstadoIn(Long ejemplarId, Collection<String> estados) {
         return prestamoRepository.existsByEjemplarIdAndEstadoIn(ejemplarId, estados);
     }

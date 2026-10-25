@@ -23,6 +23,8 @@ public interface ReservaLibroRepository extends JpaRepository<ReservaLibroEntity
 
     Optional<ReservaLibroEntity> findFirstByLibroIdAndSedeIdAndEstadoIgnoreCaseOrderByFechaReservaAsc(Long libroId, Long sedeId, String estado);
 
+    boolean existsByLibroIdAndEstadoIn(Long libroId, Collection<String> estados);
+
     boolean existsByUsuarioIdAndLibroIdAndEstadoIn(Long usuarioId, Long libroId, Collection<String> estados);
 
     List<ReservaLibroEntity> findByEstadoIgnoreCaseAndFechaLimiteRetiroBefore(String estado, LocalDateTime fecha);

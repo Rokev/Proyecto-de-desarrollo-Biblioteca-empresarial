@@ -8,9 +8,11 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import persistanceLayer.dao.ReservaSalaDAO;
 import persistanceLayer.dao.SalaEstudioDAO;
 import persistanceLayer.dao.SedeDAO;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
@@ -21,6 +23,7 @@ public class SalaEstudioServiceImpl implements SalaEstudioService {
 
     private final SalaEstudioDAO salaEstudioDAO;
     private final SedeDAO sedeDAO;
+    private final ReservaSalaDAO reservaSalaDAO;
 
     @Override
     public SalaEstudioDTO crearSalaEstudio(SalaEstudioDTO dto) {
@@ -74,6 +77,18 @@ public class SalaEstudioServiceImpl implements SalaEstudioService {
 
     @Override
     public void eliminarSalaEstudio(Long id) {
+        if (!salaEstudioDAO.existsById(id)) {
+            throw new ResourceNotFoundException("Sala de estudio no encontrada con ID: " + id);
+        }
+        //solo se elimina si no tiene reservas activas (pendientes de pago o confirmadas que no han terminado).
+        if (reservaSalaDAO.existsBySalaIdAndEstadoInAndFechaFinAfter(
+                id, List.of("PENDIENTE_PAGO", "CONFIRMADA"), LocalDateTime.now())) {
+            throw new BusinessValidationException("No se puede eliminar la sala porque tiene reservas activas");
+        }
+        if (!reservaSalaDAO.findBySalaId(id).isEmpty()) {
+            throw new BusinessValidationException(
+                    "No se puede eliminar la sala porque tiene historial de reservas; desactivela (activa=false) en su lugar");
+        }
         if (!salaEstudioDAO.deleteById(id)) {
             throw new ResourceNotFoundException("Sala de estudio no encontrada con ID: " + id);
         }

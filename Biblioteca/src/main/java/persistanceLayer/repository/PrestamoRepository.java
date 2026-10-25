@@ -24,6 +24,9 @@ public interface PrestamoRepository extends JpaRepository<PrestamoEntity, Long> 
 
     List<PrestamoEntity> findByEjemplarId(Long ejemplarId);
 
+    /** Hay prestamos en esos estados sobre algun ejemplar del libro. */
+    boolean existsByEjemplarLibroIdAndEstadoIn(Long libroId, Collection<String> estados);
+
     boolean existsByEjemplarIdAndEstadoIn(Long ejemplarId, Collection<String> estados);
 
     List<PrestamoEntity> findBySedeRetiroId(Long sedeRetiroId);

@@ -406,7 +406,7 @@ public class PagoServiceImpl implements PagoService {
         }
     }
 
-    /** Solo estas tarjetas de prueba aprueban el pago (RF-14). Cualquier otra se rechaza. */
+    /** Solo estas tarjetas de prueba aprueban el pago. Cualquier otra se rechaza. */
     private boolean esTarjetaAprobada(String numeroTarjeta) {
         return TARJETAS_APROBADAS.contains(numeroTarjeta);
     }
