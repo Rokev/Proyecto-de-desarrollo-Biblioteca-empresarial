@@ -1,6 +1,7 @@
 package presentationLayer.controller;
 
 import bussinesLayer.dto.DevolucionDTO;
+import bussinesLayer.dto.ResultadoDanioPerdidaDTO;
 import bussinesLayer.dto.SedeDTO;
 import bussinesLayer.dto.SolicitudDevolucionDTO;
 import bussinesLayer.service.DevolucionService;
@@ -29,6 +30,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import presentationLayer.advice.ApiError;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 @RestController
@@ -169,6 +171,28 @@ public class DevolucionController {
             @Parameter(description = "ID del bibliotecario", required = true, example = "2") @RequestParam Long bibliotecarioId) {
         log.info("POST /api/v1/devoluciones/confirmar - bibliotecarioId: {}", bibliotecarioId);
         return ResponseEntity.ok(devolucionService.confirmarDevolucion(codigoQr, bibliotecarioId));
+    }
+
+    @PostMapping("/danio-perdida")
+    @Operation(summary = "Registrar un libro devuelto como danado o perdido (bibliotecario, RF-41)",
+            description = "El ejemplar pasa a DANADO o PERDIDO y se descuenta del stock disponible, el prestamo se cierra, "
+                    + "se aplica la multa configurada (RF-75) y la sancion si su politica esta activa (RF-74), y se notifica al usuario.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Dano o perdida registrada",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = ResultadoDanioPerdidaDTO.class))),
+            @ApiResponse(responseCode = "400", description = "Tipo invalido, prestamo que no esta ACTIVO ni VENCIDO o ejemplar en otro estado",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = ApiError.class))),
+            @ApiResponse(responseCode = "404", description = "Prestamo, ejemplar o bibliotecario no encontrado",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = ApiError.class)))
+    })
+    public ResponseEntity<ResultadoDanioPerdidaDTO> registrarDanioPerdida(
+            @Parameter(description = "ID del prestamo del libro", required = true, example = "1") @RequestParam Long prestamoId,
+            @Parameter(description = "DANADO o PERDIDO", required = true, example = "DANADO") @RequestParam String tipo,
+            @Parameter(description = "ID del bibliotecario", required = true, example = "2") @RequestParam Long bibliotecarioId,
+            @Parameter(description = "Monto de la multa (opcional: si se omite se usa el configurado)", example = "30000.00") @RequestParam(required = false) BigDecimal monto,
+            @Parameter(description = "Observaciones (opcional)", example = "Portada rota y paginas mojadas") @RequestParam(required = false) String observaciones) {
+        log.info("POST /api/v1/devoluciones/danio-perdida - prestamoId: {}, tipo: {}", prestamoId, tipo);
+        return ResponseEntity.ok(devolucionService.registrarDanioOPerdida(prestamoId, tipo, bibliotecarioId, monto, observaciones));
     }
 
 }

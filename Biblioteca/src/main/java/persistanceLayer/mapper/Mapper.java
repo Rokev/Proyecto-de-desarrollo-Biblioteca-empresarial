@@ -48,7 +48,7 @@ public interface Mapper {
 	EventoDTO eventoToDto(EventoEntity entity);
 
 	@Mapping(target = "estado", source = "estado", defaultValue = "PROGRAMADO")
-	@Mapping(target = "exclusivo", source = "exclusivo", defaultValue = "false")	
+	@Mapping(target = "exclusivo", source = "exclusivo", defaultValue = "false")
 	@Mapping(target = "sede", ignore = true)
 	@Mapping(target = "inscripciones", ignore = true)
 	EventoEntity eventoToEntity(EventoDTO dto);
@@ -118,10 +118,10 @@ public interface Mapper {
 	@Mapping(target = "multa", ignore = true)
 	@Mapping(target = "suscripcion", ignore = true)
 	@Mapping(target = "reservaSala", ignore = true)
-	@Mapping(target = "pedidoInterciudad", ignore = true)  
+	@Mapping(target = "pedidoInterciudad", ignore = true)
 	PagoEntity pagoToEntity(PagoDTO dto);
 
-@Mapping(target = "usuarioId", source = "usuario.id")
+	@Mapping(target = "usuarioId", source = "usuario.id")
 	@Mapping(target = "ejemplarId", source = "ejemplar.id")
 	@Mapping(target = "libroId", source = "ejemplar.libro.id")
 	@Mapping(target = "libroTitulo", source = "ejemplar.libro.titulo")
@@ -148,7 +148,7 @@ public interface Mapper {
 	PlanSuscripcionDTO planSuscripcionToDto(PlanSuscripcionEntity entity);
 
 	@Mapping(target = "activo", source = "activo", defaultValue = "true")
-	@Mapping(target = "descuentoSalas", source = "descuentoSalas", defaultValue = "0")   
+	@Mapping(target = "descuentoSalas", source = "descuentoSalas", defaultValue = "0")
 	@Mapping(target = "suscripciones", ignore = true)
 	PlanSuscripcionEntity planSuscripcionToEntity(PlanSuscripcionDTO dto);
 
@@ -244,7 +244,7 @@ public interface Mapper {
 	@Mapping(target = "estado", source = "estado", defaultValue = "ACTIVA")
 	@Mapping(target = "renovacionAutomatica", source = "renovacionAutomatica", defaultValue = "true")
 	@Mapping(target = "mesesConsecutivos", source = "mesesConsecutivos", defaultValue = "0")
-	@Mapping(target = "descuentoSalas", source = "descuentoSalas", defaultValue = "0")   
+	@Mapping(target = "descuentoSalas", source = "descuentoSalas", defaultValue = "0")
 	@Mapping(target = "usuario", ignore = true)
 	@Mapping(target = "plan", ignore = true)
 	@Mapping(target = "pagos", ignore = true)
@@ -253,6 +253,18 @@ public interface Mapper {
 	TarifaEnvioDTO tarifaEnvioToDto(TarifaEnvioEntity entity);
 
 	TarifaEnvioEntity tarifaEnvioToEntity(TarifaEnvioDTO dto);
+
+	PoliticaSancionDTO politicaSancionToDto(PoliticaSancionEntity entity);
+
+	PoliticaSancionEntity politicaSancionToEntity(PoliticaSancionDTO dto);
+
+	PoliticaMultaDTO politicaMultaToDto(PoliticaMultaEntity entity);
+
+	PoliticaMultaEntity politicaMultaToEntity(PoliticaMultaDTO dto);
+
+	PlazoSistemaDTO plazoSistemaToDto(PlazoSistemaEntity entity);
+
+	PlazoSistemaEntity plazoSistemaToEntity(PlazoSistemaDTO dto);
 
 	@Mapping(target = "usuarioId", source = "usuario.id")
 	TokenRecuperacionDTO tokenRecuperacionToDto(TokenRecuperacionEntity entity);
