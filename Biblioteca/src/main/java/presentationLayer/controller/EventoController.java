@@ -1,4 +1,5 @@
 package presentationLayer.controller;
+import java.util.Optional;
 import org.springframework.format.annotation.DateTimeFormat;
 import java.time.LocalDate;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -129,5 +130,23 @@ public class EventoController {
             @Parameter(description = "Filtro por fecha de inicio (yyyy-MM-dd)") @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fecha,
             @Parameter(description = "true: solo exclusivos; false: solo generales") @RequestParam(required = false) Boolean exclusivo) {
         return ResponseEntity.ok(eventoService.buscarEventosProximos(sedeId, fecha, exclusivo));
+    }
+
+    @PostMapping("/{id}/cancelar")
+    @Operation(summary = "Cancelar o eliminar un evento", description = "Sin reservas, el evento se elimina sin notificar (204). Con reservas, libera los cupos, notifica a los asistentes y lo marca como CANCELADO (200)")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Evento cancelado",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = EventoDTO.class))),
+            @ApiResponse(responseCode = "204", description = "Evento sin reservas eliminado"),
+            @ApiResponse(responseCode = "400", description = "El evento no esta programado",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = ApiError.class))),
+            @ApiResponse(responseCode = "404", description = "Evento no encontrado",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = ApiError.class)))
+    })
+    public ResponseEntity<EventoDTO> cancelar(
+            @Parameter(description = "ID del evento", required = true, example = "1")
+            @PathVariable Long id) {
+        Optional<EventoDTO> resultado = eventoService.cancelarEvento(id);
+        return resultado.map(ResponseEntity::ok).orElseGet(() -> ResponseEntity.noContent().build());
     }
 }
