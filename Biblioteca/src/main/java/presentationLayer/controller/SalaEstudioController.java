@@ -1,4 +1,8 @@
 package presentationLayer.controller;
+import org.springframework.format.annotation.DateTimeFormat;
+import java.time.LocalDateTime;
+import bussinesLayer.dto.DisponibilidadSalasDTO;
+import org.springframework.web.bind.annotation.RequestParam;
 
 import bussinesLayer.dto.SalaEstudioDTO;
 import bussinesLayer.service.SalaEstudioService;
@@ -115,5 +119,20 @@ public class SalaEstudioController {
         log.info("DELETE /api/v1/salas-estudio/{}", id);
         salaEstudioService.eliminarSalaEstudio(id);
         return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/sede/{sedeId}/disponibilidad")
+    @Operation(summary = "Consultar disponibilidad de salas de una sede", description = "Indica si la sede tiene salas de estudio, cuantas estan libres y el estado de cada una en el rango (por defecto, desde ahora por una hora)")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Consulta realizada exitosamente",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = DisponibilidadSalasDTO.class))),
+            @ApiResponse(responseCode = "404", description = "Recurso no encontrado",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = ApiError.class)))
+    })
+    public ResponseEntity<DisponibilidadSalasDTO> disponibilidadPorSede(
+            @Parameter(description = "ID de la sede", example = "1") @PathVariable Long sedeId,
+            @Parameter(description = "Inicio del rango (yyyy-MM-dd'T'HH:mm)") @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime inicio,
+            @Parameter(description = "Fin del rango (yyyy-MM-dd'T'HH:mm)") @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime fin) {
+        return ResponseEntity.ok(salaEstudioService.consultarDisponibilidadDeSede(sedeId, inicio, fin));
     }
 }

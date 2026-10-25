@@ -1,4 +1,9 @@
 package presentationLayer.controller;
+import org.springframework.format.annotation.DateTimeFormat;
+import java.time.LocalDate;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.GetMapping;
 
 import bussinesLayer.dto.ComprobantePagoDTO;
 import bussinesLayer.dto.PagoDTO;
@@ -32,7 +37,7 @@ public class PagoController {
     private final PagoService pagoService;
 
     // =========================================================================
-    // PASARELA DE PAGO SIMULADO 
+    // PASARELA DE PAGO SIMULADO
     // =========================================================================
 
     @PostMapping("/procesar")
@@ -152,5 +157,18 @@ public class PagoController {
         log.info("DELETE /api/v1/pagos/{}", id);
         pagoService.eliminarPago(id);
         return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/filtrar")
+    @Operation(summary = "Consultar pagos y reembolsos", description = "Lista pagos con usuario, concepto, monto, estado y fecha, filtrables por concepto (SUSCRIPCION, ENVIO, MULTA, RECARGO, RESERVA_SALA), estado, fechas y usuario")
+    @ApiResponse(responseCode = "200", description = "Consulta realizada exitosamente",
+            content = @Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = PagoDTO.class))))
+    public ResponseEntity<List<PagoDTO>> filtrar(
+            @Parameter(description = "Concepto del pago") @RequestParam(required = false) String concepto,
+            @Parameter(description = "Estado: PENDIENTE, APROBADO, RECHAZADO o REEMBOLSADO") @RequestParam(required = false) String estado,
+            @Parameter(description = "Fecha inicial (yyyy-MM-dd)") @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate desde,
+            @Parameter(description = "Fecha final (yyyy-MM-dd)") @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate hasta,
+            @Parameter(description = "Filtro por usuario") @RequestParam(required = false) Long usuarioId) {
+        return ResponseEntity.ok(pagoService.filtrarPagos(concepto, estado, desde, hasta, usuarioId));
     }
 }

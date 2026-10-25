@@ -1,4 +1,6 @@
 package presentationLayer.controller;
+import bussinesLayer.dto.PrestamoDetalleDTO;
+import org.springframework.web.bind.annotation.RequestParam;
 
 import bussinesLayer.dto.PrestamoDTO;
 import bussinesLayer.service.PrestamoService;
@@ -115,5 +117,27 @@ public class PrestamoController {
         log.info("DELETE /api/v1/prestamos/{}", id);
         prestamoService.eliminarPrestamo(id);
         return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/usuario/{usuarioId}")
+    @Operation(summary = "Consultar prestamos de un usuario", description = "Lista los prestamos del usuario con libro, sede, estado y fecha limite de devolucion")
+    @ApiResponse(responseCode = "200", description = "Consulta realizada exitosamente",
+            content = @Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = PrestamoDetalleDTO.class))))
+    public ResponseEntity<List<PrestamoDetalleDTO>> obtenerPorUsuario(
+            @Parameter(description = "ID del usuario", example = "1") @PathVariable Long usuarioId,
+            @Parameter(description = "Filtro opcional por estado") @RequestParam(required = false) String estado) {
+        return ResponseEntity.ok(prestamoService.obtenerPrestamosDeUsuario(usuarioId, estado));
+    }
+
+    @GetMapping("/sede/{sedeId}")
+    @Operation(summary = "Consultar prestamos de una sede", description = "Lista los prestamos de la sede, filtrables por estado, usuario y libro")
+    @ApiResponse(responseCode = "200", description = "Consulta realizada exitosamente",
+            content = @Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = PrestamoDetalleDTO.class))))
+    public ResponseEntity<List<PrestamoDetalleDTO>> obtenerPorSede(
+            @Parameter(description = "ID de la sede", example = "1") @PathVariable Long sedeId,
+            @Parameter(description = "Filtro opcional por estado") @RequestParam(required = false) String estado,
+            @Parameter(description = "Filtro opcional por usuario") @RequestParam(required = false) Long usuarioId,
+            @Parameter(description = "Filtro opcional por libro") @RequestParam(required = false) Long libroId) {
+        return ResponseEntity.ok(prestamoService.obtenerPrestamosDeSede(sedeId, estado, usuarioId, libroId));
     }
 }

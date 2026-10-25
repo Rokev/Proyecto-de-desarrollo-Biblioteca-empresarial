@@ -1,4 +1,5 @@
 package presentationLayer.controller;
+import org.springframework.web.bind.annotation.RequestParam;
 
 import bussinesLayer.dto.UsuarioDTO;
 import bussinesLayer.service.UsuarioService;
@@ -115,5 +116,17 @@ public class UsuarioController {
         log.info("DELETE /api/v1/usuarios/{}", id);
         usuarioService.eliminarUsuario(id);
         return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/filtrar")
+    @Operation(summary = "Filtrar usuarios", description = "Lista usuarios, bibliotecarios y repartidores filtrando por rol, sede, estado (activo) y suscripcion vigente")
+    @ApiResponse(responseCode = "200", description = "Consulta realizada exitosamente",
+            content = @Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = UsuarioDTO.class))))
+    public ResponseEntity<List<UsuarioDTO>> filtrar(
+            @Parameter(description = "Nombre del rol (por ejemplo BIBLIOTECARIO o REPARTIDOR)") @RequestParam(required = false) String rol,
+            @Parameter(description = "ID de la sede") @RequestParam(required = false) Long sedeId,
+            @Parameter(description = "true: cuentas activas; false: inactivas o suspendidas") @RequestParam(required = false) Boolean activo,
+            @Parameter(description = "true: con suscripcion vigente; false: sin ella") @RequestParam(required = false) Boolean conSuscripcion) {
+        return ResponseEntity.ok(usuarioService.filtrarUsuarios(rol, sedeId, activo, conSuscripcion));
     }
 }

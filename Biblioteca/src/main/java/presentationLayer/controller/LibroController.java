@@ -1,4 +1,5 @@
 package presentationLayer.controller;
+import org.springframework.web.bind.annotation.RequestParam;
 
 import bussinesLayer.dto.LibroDTO;
 import bussinesLayer.service.LibroService;
@@ -115,5 +116,20 @@ public class LibroController {
         log.info("DELETE /api/v1/libros/{}", id);
         libroService.eliminarLibro(id);
         return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/buscar")
+    @Operation(summary = "Buscar libros", description = "Busca libros con o sin filtros (titulo, autor, idioma, anio, genero) y, opcionalmente, por disponibilidad (en una sede)")
+    @ApiResponse(responseCode = "200", description = "Consulta realizada exitosamente",
+            content = @Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = LibroDTO.class))))
+    public ResponseEntity<List<LibroDTO>> buscarLibros(
+            @Parameter(description = "Titulo (coincidencia parcial)") @RequestParam(required = false) String titulo,
+            @Parameter(description = "Nombre del autor (coincidencia parcial)") @RequestParam(required = false) String autor,
+            @Parameter(description = "Idioma") @RequestParam(required = false) String idioma,
+            @Parameter(description = "Anio de publicacion") @RequestParam(required = false) Integer anio,
+            @Parameter(description = "ID del genero") @RequestParam(required = false) Long generoId,
+            @Parameter(description = "true: solo con ejemplares disponibles; false: solo sin ejemplares disponibles") @RequestParam(required = false) Boolean disponible,
+            @Parameter(description = "Limita la disponibilidad a esta sede") @RequestParam(required = false) Long sedeId) {
+        return ResponseEntity.ok(libroService.buscarLibros(titulo, autor, idioma, anio, generoId, disponible, sedeId));
     }
 }

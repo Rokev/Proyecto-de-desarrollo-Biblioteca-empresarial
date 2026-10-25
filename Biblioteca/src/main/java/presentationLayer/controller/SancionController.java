@@ -1,4 +1,5 @@
 package presentationLayer.controller;
+import org.springframework.web.bind.annotation.RequestParam;
 
 import bussinesLayer.dto.SancionDTO;
 import bussinesLayer.service.SancionService;
@@ -115,5 +116,15 @@ public class SancionController {
         log.info("DELETE /api/v1/sanciones/{}", id);
         sancionService.eliminarSancion(id);
         return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/usuario/{usuarioId}")
+    @Operation(summary = "Consultar sanciones de un usuario", description = "Lista las sanciones del usuario con motivo y fecha de aplicacion (por defecto solo las ACTIVAS; use estado=TODAS para ver todas)")
+    @ApiResponse(responseCode = "200", description = "Consulta realizada exitosamente",
+            content = @Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = SancionDTO.class))))
+    public ResponseEntity<List<SancionDTO>> obtenerPorUsuario(
+            @Parameter(description = "ID del usuario", example = "1") @PathVariable Long usuarioId,
+            @Parameter(description = "Estado de la sancion (ACTIVA por defecto, TODAS para todas)") @RequestParam(defaultValue = "ACTIVA") String estado) {
+        return ResponseEntity.ok(sancionService.obtenerSancionesDeUsuario(usuarioId, estado));
     }
 }
