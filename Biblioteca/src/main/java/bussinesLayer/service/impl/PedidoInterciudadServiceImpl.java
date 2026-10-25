@@ -3,6 +3,7 @@ package bussinesLayer.service.impl;
 import bussinesLayer.dto.*;
 import bussinesLayer.exception.BusinessValidationException;
 import bussinesLayer.exception.ResourceNotFoundException;
+import bussinesLayer.service.ConfiguracionSistemaService;
 import bussinesLayer.service.PedidoInterciudadService;
 import bussinesLayer.service.SuscripcionService;
 import bussinesLayer.service.TarifaEnvioService;
@@ -10,6 +11,8 @@ import bussinesLayer.service.ReservaLibroService;
 import bussinesLayer.service.ValidadorUsuarioService;
 import bussinesLayer.service.NotificacionService;
 import bussinesLayer.service.AutomatizacionService;
+import bussinesLayer.util.ClavePlazo;
+import bussinesLayer.util.ConceptoMulta;
 import bussinesLayer.util.EstadoPago;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -47,10 +50,7 @@ public class PedidoInterciudadServiceImpl implements PedidoInterciudadService {
 
 
     private static final int DIAS_MAXIMO_SOLICITUD = 7;
-    private static final int DIAS_PLAZO_RECOGIDA = 2; 
-    private static final int DIAS_PRESTAMO_INTERCIUDAD = 14; 
     static final int MINUTOS_PAGO_ENVIO = 30;
-    private static final BigDecimal RECARGO_NO_RECIBIDO = new BigDecimal("15000.00"); 
 
     private final PedidoInterciudadDAO pedidoDAO;
     private final UsuarioDAO usuarioDAO;
@@ -63,6 +63,7 @@ public class PedidoInterciudadServiceImpl implements PedidoInterciudadService {
     private final NotificacionDAO notificacionDAO;
     private final SuscripcionService suscripcionService;
     private final TarifaEnvioService tarifaEnvioService;
+    private final ConfiguracionSistemaService configuracionService;
     private final ReservaLibroService reservaLibroService;
     private final NotificacionService notificacionService;
     private final ValidadorUsuarioService validadorUsuarioService;
@@ -274,7 +275,7 @@ public PedidoInterciudadDTO registrarDevolucionEnSede(Long pedidoId, Long biblio
 
         LocalDateTime ahora = LocalDateTime.now();
         pedido.setEstado(ESTADO_EN_ESPERA_DE_RECOGIDA);
-        pedido.setFechaLimiteRecogida(ahora.plusDays(DIAS_PLAZO_RECOGIDA));
+        pedido.setFechaLimiteRecogida(ahora.plusDays(configuracionService.plazo(ClavePlazo.DIAS_RECOGIDA_SEDE_DEVOLUCION)));
         pedido.setBibliotecarioId(bibliotecarioId);
 
         notificar(pedido.getUsuarioId(), "EN_ESPERA_DE_RECOGIDA", "Tu libro está en la sede de devolución",
@@ -292,17 +293,18 @@ public PedidoInterciudadDTO registrarDevolucionEnSede(Long pedidoId, Long biblio
         validarEstado(pedido, ESTADO_EN_ESPERA_DE_RECOGIDA);
 
         LocalDateTime ahora = LocalDateTime.now();
+        int diasPrestamo = configuracionService.plazo(ClavePlazo.DIAS_PRESTAMO_INTERCIUDAD);
         cambiarEstadoEjemplar(pedido.getEjemplarId(), EJEMPLAR_EN_TRANSITO, EJEMPLAR_PRESTADO);
 
         PrestamoDTO prestamo = prestamoDAO.findById(pedido.getPrestamoId()).orElseThrow();
         prestamo.setEstado("ACTIVO");
         prestamo.setFechaEntrega(ahora);
-        prestamo.setFechaVencimiento(LocalDate.now().plusDays(DIAS_PRESTAMO_INTERCIUDAD));
+        prestamo.setFechaVencimiento(ahora.toLocalDate().plusDays(diasPrestamo));
         prestamoDAO.update(prestamo.getId(), prestamo);
 
         pedido.setEstado(ESTADO_ENTREGADO);
         pedido.setFechaEntrega(ahora);
-        pedido.setFechaLimiteDevolucion(ahora.plusDays(DIAS_PRESTAMO_INTERCIUDAD));
+        pedido.setFechaLimiteDevolucion(ahora.plusDays(diasPrestamo));
         pedido.setBibliotecarioId(bibliotecarioId);
 
         return pedidoDAO.update(pedido.getId(), pedido).orElseThrow();
@@ -361,17 +363,18 @@ public PedidoInterciudadDTO registrarDevolucionEnSede(Long pedidoId, Long biblio
         validarEstado(pedido, ESTADO_EN_TRANSITO);
 
         LocalDateTime ahora = LocalDateTime.now();
+        int diasPrestamo = configuracionService.plazo(ClavePlazo.DIAS_PRESTAMO_INTERCIUDAD);
         cambiarEstadoEjemplar(pedido.getEjemplarId(), EJEMPLAR_EN_TRANSITO, EJEMPLAR_PRESTADO);
 
         PrestamoDTO prestamo = prestamoDAO.findById(pedido.getPrestamoId()).orElseThrow();
         prestamo.setEstado("ACTIVO");
         prestamo.setFechaEntrega(ahora);
-        prestamo.setFechaVencimiento(LocalDate.now().plusDays(DIAS_PRESTAMO_INTERCIUDAD));
+        prestamo.setFechaVencimiento(ahora.toLocalDate().plusDays(diasPrestamo));
         prestamoDAO.update(prestamo.getId(), prestamo);
 
         pedido.setEstado(ESTADO_ENTREGADO);
         pedido.setFechaEntrega(ahora);
-        pedido.setFechaLimiteDevolucion(ahora.plusDays(DIAS_PRESTAMO_INTERCIUDAD));
+        pedido.setFechaLimiteDevolucion(ahora.plusDays(diasPrestamo));
         pedido.setRepartidorId(repartidorId);
 
         notificar(pedido.getUsuarioId(), "ENTREGA_CONFIRMADA", "Pedido entregado con éxito",
@@ -389,7 +392,8 @@ public PedidoInterciudadDTO registrarDevolucionEnSede(Long pedidoId, Long biblio
 
         // Generar recargo por intento de entrega fallido
         MultaDTO recargo = new MultaDTO();
-        recargo.setMonto(RECARGO_NO_RECIBIDO);
+        BigDecimal montoRecargo = configuracionService.montoMulta(ConceptoMulta.RECARGO_PEDIDO_NO_RECIBIDO);
+        recargo.setMonto(montoRecargo);
         recargo.setMotivo("Recargo por no recibir pedido interciudad en la fecha y hora indicadas (Pedido #" + pedidoId + ")");
         recargo.setFechaGeneracion(LocalDateTime.now());
         recargo.setEstado("PENDIENTE");
@@ -399,7 +403,7 @@ public PedidoInterciudadDTO registrarDevolucionEnSede(Long pedidoId, Long biblio
 
         notificar(pedido.getUsuarioId(), "PEDIDO_NO_RECIBIDO", "Intento de entrega no completado",
                 "No fue posible entregar el pedido #" + pedidoId + ". El paquete se trasladará a la sede de devolución ("
-                        + pedido.getSedeDevolucionNombre() + "). Se aplicó un recargo de $" + RECARGO_NO_RECIBIDO);
+                        + pedido.getSedeDevolucionNombre() + "). Se aplicó un recargo de $" + montoRecargo);
 
         return pedidoDAO.update(pedido.getId(), pedido).orElseThrow();
     }

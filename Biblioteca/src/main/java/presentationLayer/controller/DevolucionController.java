@@ -174,9 +174,9 @@ public class DevolucionController {
     }
 
     @PostMapping("/danio-perdida")
-    @Operation(summary = "Registrar un libro devuelto como danado o perdido (bibliotecario, RF-41)",
+    @Operation(summary = "Registrar un libro devuelto como danado o perdido (bibliotecario,  41)",
             description = "El ejemplar pasa a DANADO o PERDIDO y se descuenta del stock disponible, el prestamo se cierra, "
-                    + "se aplica la multa configurada (RF-75) y la sancion si su politica esta activa (RF-74), y se notifica al usuario.")
+                    + "se aplica la multa configurada ( 75) y la sancion si su politica esta activa ( 74), y se notifica al usuario.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Dano o perdida registrada",
                     content = @Content(mediaType = "application/json", schema = @Schema(implementation = ResultadoDanioPerdidaDTO.class))),

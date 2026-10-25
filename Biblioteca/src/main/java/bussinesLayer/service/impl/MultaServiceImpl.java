@@ -4,7 +4,10 @@ import bussinesLayer.dto.MultaDTO;
 import bussinesLayer.dto.NotificacionDTO;
 import bussinesLayer.exception.BusinessValidationException;
 import bussinesLayer.exception.ResourceNotFoundException;
+import bussinesLayer.service.ConfiguracionSistemaService;
 import bussinesLayer.service.MultaService;
+import bussinesLayer.util.ConceptoMulta;
+import bussinesLayer.util.InfraccionSancion;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -12,6 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 import persistanceLayer.dao.MultaDAO;
 import persistanceLayer.dao.NotificacionDAO;
 import persistanceLayer.dao.PrestamoDAO;
+import persistanceLayer.dao.SancionDAO;
 import persistanceLayer.dao.UsuarioDAO;
 
 import java.math.BigDecimal;
@@ -30,6 +34,8 @@ public class MultaServiceImpl implements MultaService {
     private final UsuarioDAO usuarioDAO;
     private final PrestamoDAO prestamoDAO;
     private final NotificacionDAO notificacionDAO;
+    private final SancionDAO sancionDAO;
+    private final ConfiguracionSistemaService configuracionService;
 
     @Override
     public MultaDTO crearMulta(MultaDTO multaDTO) {
@@ -107,14 +113,22 @@ public class MultaServiceImpl implements MultaService {
     }
 
     @Override
-    public MultaDTO generarMultaPorDanioOPerdida(Long usuarioId, Long prestamoId, BigDecimal monto, String motivo) {
+    public MultaDTO generarMultaPorDanioOPerdida(Long usuarioId, Long prestamoId, String tipo, BigDecimal monto, String motivo) {
+        boolean perdido = "PERDIDO".equalsIgnoreCase(tipo);
+        if (!perdido && !"DANADO".equalsIgnoreCase(tipo)) {
+            throw new BusinessValidationException("El tipo debe ser DANADO o PERDIDO");
+        }
         if (!usuarioDAO.existsById(usuarioId)) {
             throw new ResourceNotFoundException("Usuario no encontrado con ID: " + usuarioId);
         }
         if (prestamoId != null && !prestamoDAO.existsById(prestamoId)) {
             throw new ResourceNotFoundException("Préstamo no encontrado con ID: " + prestamoId);
         }
-        if (monto == null || monto.compareTo(BigDecimal.ZERO) <= 0) {
+        //  75: sin monto explicito se cobra el configurado por el administrador.
+        if (monto == null) {
+            monto = configuracionService.montoMulta(perdido ? ConceptoMulta.LIBRO_PERDIDO : ConceptoMulta.LIBRO_DANADO);
+        }
+        if (monto.compareTo(BigDecimal.ZERO) <= 0) {
             throw new BusinessValidationException("El monto de la multa debe ser mayor a 0");
         }
 
@@ -127,6 +141,12 @@ public class MultaServiceImpl implements MultaService {
         multa.setFechaGeneracion(LocalDateTime.now());
 
         MultaDTO guardada = multaDAO.save(multa);
+
+        //  74: sancion segun la politica de la infraccion (por defecto no aplica sancion en daño/perdida).
+        configuracionService.construirSancion(perdido ? InfraccionSancion.LIBRO_PERDIDO : InfraccionSancion.LIBRO_DANADO,
+                usuarioId, prestamoId, (perdido ? "Libro perdido" : "Libro dañado")
+                        + (prestamoId != null ? " (prestamo #" + prestamoId + ")" : ""))
+                .ifPresent(sancionDAO::save);
 
         // Notificar al usuario
         NotificacionDTO notif = new NotificacionDTO();

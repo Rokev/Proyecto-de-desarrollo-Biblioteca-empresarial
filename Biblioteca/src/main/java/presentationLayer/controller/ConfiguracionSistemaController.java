@@ -17,17 +17,17 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
-/** RF-74, RF-75 y RF-76: configuración de políticas de sanción, multas y plazos (rol administrador). */
+/**  74,  75 y  76: configuración de políticas de sanción, multas y plazos (rol administrador). */
 @RestController
 @RequestMapping("/api/v1/configuracion")
 @RequiredArgsConstructor
 @Slf4j
-@Tag(name = "Configuración del sistema", description = "Políticas de sanción, multas y plazos (RF-74, RF-75, RF-76)")
+@Tag(name = "Configuración del sistema", description = "Políticas de sanción, multas y plazos ( 74,  75,  76)")
 public class ConfiguracionSistemaController {
 
     private final ConfiguracionSistemaService configuracionService;
 
-    // ---------------------------------------------------------------- RF-74
+    // ----------------------------------------------------------------  74
 
     @GetMapping("/sanciones")
     @Operation(summary = "Listar políticas de sanción", description = "Una por infracción: MORA_DEVOLUCION, PEDIDO_NO_RECOGIDO, LIBRO_DANADO, LIBRO_PERDIDO")
@@ -60,7 +60,7 @@ public class ConfiguracionSistemaController {
         return ResponseEntity.ok(configuracionService.actualizarPoliticaSancion(infraccion, dto));
     }
 
-    // ---------------------------------------------------------------- RF-75
+    // ----------------------------------------------------------------  75
 
     @GetMapping("/multas")
     @Operation(summary = "Listar políticas de multa", description = "Montos de mora por día, libro dañado, libro perdido, pedido no recogido y recargo por pedido no recibido")
@@ -93,7 +93,7 @@ public class ConfiguracionSistemaController {
         return ResponseEntity.ok(configuracionService.actualizarPoliticaMulta(concepto, dto));
     }
 
-    // ---------------------------------------------------------------- RF-76
+    // ----------------------------------------------------------------  76
 
     @GetMapping("/plazos")
     @Operation(summary = "Listar plazos del sistema", description = "Días de préstamo, días de préstamo interciudad, horas de retiro y días de recogida en sede de devolución")

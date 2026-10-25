@@ -6,8 +6,10 @@ import bussinesLayer.dto.EjemplarDTO;
 import bussinesLayer.dto.PrestamoDTO;
 import bussinesLayer.exception.BusinessValidationException;
 import bussinesLayer.exception.ResourceNotFoundException;
+import bussinesLayer.service.ConfiguracionSistemaService;
 import bussinesLayer.service.PrestamoService;
 import bussinesLayer.service.ValidadorUsuarioService;
+import bussinesLayer.util.ClavePlazo;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -29,7 +31,6 @@ import java.util.List;
 public class PrestamoServiceImpl implements PrestamoService {
 
     private static final int MAX_PRESTAMOS_VIGENTES = 3;
-    private static final int DIAS_PRESTAMO = 14;
 
     private static final String ESTADO_SOLICITADO = "SOLICITADO";
     private static final String ESTADO_ACTIVO = "ACTIVO";
@@ -52,6 +53,7 @@ public class PrestamoServiceImpl implements PrestamoService {
     private final LibroDAO libroDAO;
     private final SancionDAO sancionDAO;
     private final ValidadorUsuarioService validadorUsuarioService;
+    private final ConfiguracionSistemaService configuracionService;
 
     @Override
     public PrestamoDTO crearPrestamo(PrestamoDTO dto) {
@@ -83,7 +85,7 @@ public class PrestamoServiceImpl implements PrestamoService {
         dto.setVecesRenovado(0);
         dto.setFechaDevolucion(null);
         if (dto.getFechaVencimiento() == null) {
-            dto.setFechaVencimiento(LocalDate.now().plusDays(DIAS_PRESTAMO));
+            dto.setFechaVencimiento(LocalDate.now().plusDays(configuracionService.plazo(ClavePlazo.DIAS_PRESTAMO)));
         } else if (dto.getFechaVencimiento().isBefore(dto.getFechaSolicitud().toLocalDate())) {
             throw new BusinessValidationException("La fechaVencimiento no puede ser anterior a la fechaSolicitud");
         }

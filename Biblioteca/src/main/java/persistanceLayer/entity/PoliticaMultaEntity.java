@@ -9,7 +9,7 @@ import lombok.NoArgsConstructor;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
-/** Política de multa (RF-75): monto configurado para cada concepto económico. */
+/** Política de multa ( 75): monto configurado para cada concepto económico. */
 @Entity
 @Table(name = "politicas_multa",
         uniqueConstraints = @UniqueConstraint(name = "uk_politica_multa_concepto", columnNames = "concepto"))

@@ -127,7 +127,7 @@ class SedeController {
     }
 
     @PostMapping("/{id}/desactivar")
-    @Operation(summary = "Desactivar sede", description = "Pone la sede fuera de servicio solo si no tiene prestamos activos, reservas pendientes ni pedidos interciudad en curso; si los tiene, la bloquea y notifica al administrador (RF-68)")
+    @Operation(summary = "Desactivar sede", description = "Pone la sede fuera de servicio solo si no tiene prestamos activos, reservas pendientes ni pedidos interciudad en curso; si los tiene, la bloquea y notifica al administrador ( 68)")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Operacion realizada exitosamente",
                     content = @Content(mediaType = "application/json", schema = @Schema(implementation = SedeDTO.class))),
@@ -143,7 +143,7 @@ class SedeController {
     }
 
     @PostMapping("/{id}/reactivar")
-    @Operation(summary = "Reactivar sede", description = "Cambia la sede de fuera de servicio a activa y vuelve a mostrarla a los usuarios (RF-70)")
+    @Operation(summary = "Reactivar sede", description = "Cambia la sede de fuera de servicio a activa y vuelve a mostrarla a los usuarios ( 70)")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Operacion realizada exitosamente",
                     content = @Content(mediaType = "application/json", schema = @Schema(implementation = SedeDTO.class))),

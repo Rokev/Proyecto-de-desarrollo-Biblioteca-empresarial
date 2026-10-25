@@ -19,12 +19,12 @@ public interface SedeService {
 
     void eliminarSede(Long id);
 
-    /** RF-07: solo las sedes en operacion. */
+    /**  07: solo las sedes en operacion. */
     List<SedeDTO> obtenerSedesActivas();
 
-    /** RF-68: pone la sede fuera de servicio solo si no tiene prestamos activos, reservas pendientes ni pedidos interciudad en curso. */
+    /**  68: pone la sede fuera de servicio solo si no tiene prestamos activos, reservas pendientes ni pedidos interciudad en curso. */
     SedeDTO desactivarSede(Long id, Long administradorId);
 
-    /** RF-70: devuelve la sede a servicio. */
+    /**  70: devuelve la sede a servicio. */
     SedeDTO reactivarSede(Long id);
 }

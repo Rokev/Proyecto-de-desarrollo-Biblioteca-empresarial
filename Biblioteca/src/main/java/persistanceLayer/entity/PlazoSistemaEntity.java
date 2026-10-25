@@ -8,7 +8,7 @@ import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
 
-/** Plazo configurable del sistema (RF-76): días de préstamo, horas de retiro, días de recogida, etc. */
+/** Plazo configurable del sistema ( 76): días de préstamo, horas de retiro, días de recogida, etc. */
 @Entity
 @Table(name = "plazos_sistema",
         uniqueConstraints = @UniqueConstraint(name = "uk_plazo_sistema_clave", columnNames = "clave"))

@@ -24,5 +24,9 @@ public interface MultaService {
 
     BigDecimal obtenerSaldoPendienteUsuario(Long usuarioId);
 
-    MultaDTO generarMultaPorDanioOPerdida(Long usuarioId, Long prestamoId, BigDecimal monto, String motivo);
+    /**
+     * Multa por libro dañado o perdido ( 41). tipo = DANADO o PERDIDO. Si monto es nulo se usa el configurado
+     * ( 75) y, si la politica de sancion de esa infraccion esta activa, se aplica tambien la sancion ( 74).
+     */
+    MultaDTO generarMultaPorDanioOPerdida(Long usuarioId, Long prestamoId, String tipo, BigDecimal monto, String motivo);
 }

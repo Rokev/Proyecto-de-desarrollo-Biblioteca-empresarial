@@ -4,6 +4,8 @@ import bussinesLayer.dto.ChatbotRespuestaDTO;
 import bussinesLayer.dto.PreguntaFrecuenteDTO;
 import bussinesLayer.exception.BusinessValidationException;
 import bussinesLayer.service.ChatbotService;
+import bussinesLayer.service.ConfiguracionSistemaService;
+import bussinesLayer.util.VariablesConfiguracion;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -48,6 +50,7 @@ public class ChatbotServiceImpl implements ChatbotService {
             "tiempo", "dia", "plazo", "dia", "durar", "dura");
 
     private final PreguntaFrecuenteDAO preguntaFrecuenteDAO;
+    private final ConfiguracionSistemaService configuracionService;
 
     @Override
     public ChatbotRespuestaDTO responder(String mensaje) {
@@ -69,7 +72,9 @@ public class ChatbotServiceImpl implements ChatbotService {
 
         if (mejor != null && mejorPuntaje >= UMBRAL_COINCIDENCIA) {
             log.info("Chatbot: coincidencia {} ({})", mejor.getId(), mejorPuntaje);
-            return new ChatbotRespuestaDTO(mejor.getRespuesta(), mejor.getPregunta(), mejor.getCategoria(),
+            // Las variables {DIAS_PRESTAMO}, {MULTA_MORA_POR_DIA}... se resuelven con la configuracion vigente ( 74/75/76).
+            return new ChatbotRespuestaDTO(VariablesConfiguracion.resolver(mejor.getRespuesta(), configuracionService),
+                    mejor.getPregunta(), mejor.getCategoria(),
                     redondear(mejorPuntaje), List.of());
         }
 

@@ -4,6 +4,8 @@ import bussinesLayer.dto.DevolucionDTO;
 import bussinesLayer.dto.EjemplarDTO;
 import bussinesLayer.dto.PedidoInterciudadDTO;
 import bussinesLayer.dto.PrestamoDTO;
+import bussinesLayer.dto.MultaDTO;
+import bussinesLayer.dto.ResultadoDanioPerdidaDTO;
 import bussinesLayer.dto.SedeDTO;
 import bussinesLayer.dto.SolicitudDevolucionDTO;
 import bussinesLayer.dto.TrasladoRetornoDTO;
@@ -13,6 +15,7 @@ import bussinesLayer.service.DevolucionService;
 import bussinesLayer.service.ReservaLibroService;
 import bussinesLayer.service.NotificacionService;
 import bussinesLayer.service.AutomatizacionService;
+import bussinesLayer.service.MultaService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -25,6 +28,7 @@ import persistanceLayer.dao.SedeDAO;
 import persistanceLayer.dao.TrasladoRetornoDAO;
 import persistanceLayer.dao.UsuarioDAO;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -48,6 +52,8 @@ public class DevolucionServiceImpl implements DevolucionService {
     private static final String EJEMPLAR_PRESTADO = "PRESTADO";
     private static final String EJEMPLAR_DISPONIBLE = "DISPONIBLE";
     private static final String EJEMPLAR_EN_TRANSITO = "EN_TRANSITO";
+    private static final String EJEMPLAR_DANADO = "DANADO";
+    private static final String EJEMPLAR_PERDIDO = "PERDIDO";
 
     private final DevolucionDAO devolucionDAO;
     private final PrestamoDAO prestamoDAO;
@@ -59,6 +65,7 @@ public class DevolucionServiceImpl implements DevolucionService {
     private final ReservaLibroService reservaLibroService;
     private final NotificacionService notificacionService;
     private final AutomatizacionService automatizacionService;
+    private final MultaService multaService;
 
     // ------------------------------------------------------------------ CRUD
 
@@ -290,6 +297,72 @@ public class DevolucionServiceImpl implements DevolucionService {
         log.info("Devolucion {} confirmada por el bibliotecario {} (en origen: {})",
                 devolucion.getId(), bibliotecarioId, devueltoEnOrigen);
         return confirmada;
+    }
+
+    // ------------------------------------------------  41: libro dañado o perdido
+
+    @Override
+    public ResultadoDanioPerdidaDTO registrarDanioOPerdida(Long prestamoId, String tipo, Long bibliotecarioId,
+                                                        BigDecimal monto, String observaciones) {
+        boolean perdido = "PERDIDO".equalsIgnoreCase(tipo);
+        if (!perdido && !"DANADO".equalsIgnoreCase(tipo)) {
+            throw new BusinessValidationException("El tipo debe ser DANADO o PERDIDO");
+        }
+        if (!usuarioDAO.existsById(bibliotecarioId)) {
+            throw new ResourceNotFoundException("Bibliotecario no encontrado con ID: " + bibliotecarioId);
+        }
+        PrestamoDTO prestamo = prestamoDAO.findById(prestamoId)
+                .orElseThrow(() -> new ResourceNotFoundException("Prestamo no encontrado con ID: " + prestamoId));
+        if (!PRESTAMOS_DEVOLVIBLES.contains(prestamo.getEstado().toUpperCase())) {
+            throw new BusinessValidationException("Solo se puede registrar dano o perdida de un prestamo ACTIVO o VENCIDO"
+                    + " (estado actual: " + prestamo.getEstado() + ")");
+        }
+        EjemplarDTO ejemplar = ejemplarDAO.findById(prestamo.getEjemplarId())
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Ejemplar no encontrado con ID: " + prestamo.getEjemplarId()));
+        String estadoNuevo = perdido ? EJEMPLAR_PERDIDO : EJEMPLAR_DANADO;
+
+        // 1) Multa (monto configurado si no se indica) y sancion segun politica. Valida usuario y monto.
+        String motivo = (perdido ? "Libro perdido" : "Libro devuelto danado") + " - ejemplar #" + ejemplar.getId()
+                + " (prestamo #" + prestamo.getId() + ")"
+                + (observaciones != null && !observaciones.isBlank() ? ": " + observaciones.trim() : "");
+        if (motivo.length() > 200) {
+            motivo = motivo.substring(0, 200);
+        }
+
+        // 2) Mora acumulada hasta hoy (si el prestamo estaba vencido) y cierre del prestamo.
+        LocalDateTime ahora = LocalDateTime.now();
+        automatizacionService.evaluarRetrasoAlDevolver(prestamo.getId());
+        MultaDTO multa = multaService.generarMultaPorDanioOPerdida(
+                prestamo.getUsuarioId(), prestamo.getId(), tipo, monto, motivo);
+        prestamo.setEstado(PRESTAMO_DEVUELTO);
+        prestamo.setFechaDevolucion(ahora);
+        prestamoDAO.update(prestamo.getId(), prestamo);
+
+        // 3) El ejemplar sale del stock: el stock disponible se calcula con los ejemplares DISPONIBLE.
+        cambiarEstadoEjemplar(ejemplar.getId(), EJEMPLAR_PRESTADO, estadoNuevo);
+
+        // 4) Si el usuario ya habia solicitado la devolucion (QR pendiente), se confirma con la observacion.
+        devolucionDAO.findByPrestamoId(prestamo.getId())
+                .filter(d -> ESTADO_INICIAL.equalsIgnoreCase(d.getEstado()))
+                .ifPresent(d -> {
+                    d.setEstado(ESTADO_CONFIRMADA);
+                    d.setFechaConfirmacion(ahora);
+                    d.setBibliotecarioId(bibliotecarioId);
+                    d.setObservaciones(perdido ? "Libro perdido" : "Libro devuelto danado");
+                    devolucionDAO.update(d.getId(), d);
+                });
+
+        // 5) Pedido interciudad: el libro no volvera a la sede de origen, el pedido queda cerrado.
+        pedidoInterciudadDAO.findByPrestamoId(prestamo.getId()).ifPresent(pedido -> {
+            pedido.setEstado("CERRADO");
+            pedido.setBibliotecarioId(bibliotecarioId);
+            pedidoInterciudadDAO.update(pedido.getId(), pedido);
+        });
+
+        log.info("Prestamo {} cerrado: ejemplar {} registrado como {} por el bibliotecario {} (multa {})",
+                prestamo.getId(), ejemplar.getId(), estadoNuevo, bibliotecarioId, multa.getId());
+        return new ResultadoDanioPerdidaDTO(prestamo.getId(), ejemplar.getId(), estadoNuevo, multa);
     }
 
     // -------------------------------------------------------------- Privados

@@ -2,6 +2,10 @@ package bussinesLayer.service.impl;
 
 import bussinesLayer.dto.*;
 import bussinesLayer.service.AutomatizacionService;
+import bussinesLayer.service.ConfiguracionSistemaService;
+import bussinesLayer.util.ClavePlazo;
+import bussinesLayer.util.ConceptoMulta;
+import bussinesLayer.util.InfraccionSancion;
 import bussinesLayer.service.ReservaLibroService;
 import bussinesLayer.service.NotificacionService;
 import lombok.RequiredArgsConstructor;
@@ -43,7 +47,6 @@ public class AutomatizacionServiceImpl implements AutomatizacionService {
     private static final String MULTA_PAGADA = "PAGADA";
     private static final String MULTA_ANULADA = "ANULADA";
 
-    private static final String SANCION_BLOQUEO = "BLOQUEO_PRESTAMOS";
     private static final String SANCION_ACTIVA = "ACTIVA";
     private static final String SANCION_FINALIZADA = "FINALIZADA";
 
@@ -58,11 +61,9 @@ public class AutomatizacionServiceImpl implements AutomatizacionService {
     private static final String MOTIVO_NO_RECOGIDO = "Pedido interciudad no recogido a tiempo";
     private static final String MOTIVO_SANCION_NO_RECOGIDO = "No recogio el pedido interciudad a tiempo";
 
-    private static final BigDecimal MULTA_POR_DIA_MORA = new BigDecimal("2000.00");
-    private static final BigDecimal MULTA_NO_RECOGIDO = new BigDecimal("20000.00");
-    private static final int DIAS_SANCION_NO_RECOGIDO = 7;
+    /** Tipos de sancion configurables ( 74) que el sistema levanta o finaliza automaticamente. */
+    private static final List<String> TIPOS_SANCION = InfraccionSancion.TipoSancion.TODOS;
     private static final int MINUTOS_PAGO_RESERVA_SALA = 30;
-    private static final int HORAS_RETIRO_SOLICITUD = 48;
 
     private static final String PEDIDO_PENDIENTE_PAGO = "PENDIENTE_PAGO";
     private static final String PEDIDO_CANCELADO = "CANCELADO";
@@ -85,6 +86,7 @@ public class AutomatizacionServiceImpl implements AutomatizacionService {
     private final ReservaLibroService reservaLibroService;
     private final NotificacionService notificacionService;
     private final PlatformTransactionManager transactionManager;
+    private final ConfiguracionSistemaService configuracionService;
 
     // ------------------------------------------------ Seccion 1: prestamos vencidos
 
@@ -131,25 +133,24 @@ public class AutomatizacionServiceImpl implements AutomatizacionService {
 
         sincronizarMultaPorMora(prestamo);
 
+        //  74: la sancion (tipo, duracion o si aplica) la define la politica de MORA_DEVOLUCION.
         boolean yaTieneSancion = sancionDAO.findByPrestamoId(prestamo.getId()).stream()
-                .anyMatch(x -> SANCION_BLOQUEO.equalsIgnoreCase(x.getTipo()));
-        if (!yaTieneSancion) {
-            SancionDTO sancion = new SancionDTO();
-            sancion.setTipo(SANCION_BLOQUEO);
-            sancion.setMotivo(MOTIVO_SANCION_MORA + " (prestamo #" + prestamo.getId() + ")");
-            sancion.setFechaAplicacion(LocalDateTime.now());
-            sancion.setFechaFin(null);
-            sancion.setEstado(SANCION_ACTIVA);
-            sancion.setUsuarioId(prestamo.getUsuarioId());
-            sancion.setPrestamoId(prestamo.getId());
-            sancionDAO.save(sancion);
-        }
+                .anyMatch(x -> x.getMotivo() != null && x.getMotivo().startsWith(MOTIVO_SANCION_MORA));
+        Optional<SancionDTO> sancionNueva = yaTieneSancion ? Optional.empty()
+                : configuracionService.construirSancion(InfraccionSancion.MORA_DEVOLUCION, prestamo.getUsuarioId(),
+                        prestamo.getId(), MOTIVO_SANCION_MORA + " (prestamo #" + prestamo.getId() + ")");
+        sancionNueva.ifPresent(sancionDAO::save);
 
+        //  75: monto por dia de retraso configurado por el administrador.
         notificar(prestamo.getUsuarioId(), "PRESTAMO_VENCIDO", "Tu prestamo esta vencido",
                 "El prestamo de \"" + tituloDeEjemplar(prestamo.getEjemplarId()) + "\" vencio el "
-                        + prestamo.getFechaVencimiento() + ". Se genero una multa de $" + MULTA_POR_DIA_MORA
-                        + " por cada dia de retraso y no podras pedir mas libros hasta devolverlo y pagar la multa.");
-        log.info("Prestamo {} marcado como VENCIDO (sancion creada: {})", prestamo.getId(), !yaTieneSancion);
+                        + prestamo.getFechaVencimiento() + ". Se genero una multa de $"
+                        + configuracionService.montoMulta(ConceptoMulta.MORA_POR_DIA)
+                        + " por cada dia de retraso"
+                        + (yaTieneSancion || sancionNueva.isPresent()
+                                ? " y no podras pedir mas libros hasta devolverlo y pagar la multa."
+                                : ". Debes devolverlo y pagar la multa para volver a pedir libros."));
+        log.info("Prestamo {} marcado como VENCIDO (sancion creada: {})", prestamo.getId(), sancionNueva.isPresent());
         return true;
     }
 
@@ -157,7 +158,7 @@ public class AutomatizacionServiceImpl implements AutomatizacionService {
 
     @Override
     public int cancelarSolicitudesNoRetiradas() {
-        LocalDateTime limite = LocalDateTime.now().minusHours(HORAS_RETIRO_SOLICITUD);
+        LocalDateTime limite = LocalDateTime.now().minusHours(configuracionService.plazo(ClavePlazo.HORAS_RETIRO_LIBRO));
         List<PrestamoDTO> candidatos = prestamoDAO.findByEstadoIgnoreCase(PRESTAMO_SOLICITADO).stream()
                 .filter(p -> MODALIDAD_SEDE.equalsIgnoreCase(p.getModalidad()))
                 .filter(p -> p.getFechaSolicitud() != null && p.getFechaSolicitud().isBefore(limite))
@@ -188,7 +189,7 @@ public class AutomatizacionServiceImpl implements AutomatizacionService {
 
         notificar(prestamo.getUsuarioId(), "SOLICITUD_CANCELADA", "Solicitud de prestamo cancelada",
                 "Tu solicitud del libro \"" + tituloDeEjemplar(prestamo.getEjemplarId()) + "\" fue cancelada porque no lo "
-                        + "retiraste dentro de las " + HORAS_RETIRO_SOLICITUD + " horas establecidas.");
+                        + "retiraste dentro de las " + configuracionService.plazo(ClavePlazo.HORAS_RETIRO_LIBRO) + " horas establecidas.");
         log.info("Solicitud de prestamo {} cancelada por no retiro", prestamo.getId());
         return true;
     }
@@ -256,7 +257,7 @@ public class AutomatizacionServiceImpl implements AutomatizacionService {
             return false;
         }
         long dias = Math.max(1, ChronoUnit.DAYS.between(prestamo.getFechaVencimiento(), LocalDate.now()));
-        BigDecimal total = MULTA_POR_DIA_MORA.multiply(BigDecimal.valueOf(dias));
+        BigDecimal total = configuracionService.montoMulta(ConceptoMulta.MORA_POR_DIA).multiply(BigDecimal.valueOf(dias));
 
         List<MultaDTO> moras = multaDAO.findByPrestamoId(prestamo.getId()).stream()
                 .filter(m -> m.getMotivo() != null && m.getMotivo().startsWith(MOTIVO_MORA))
@@ -299,7 +300,8 @@ public class AutomatizacionServiceImpl implements AutomatizacionService {
 
     @Override
     public int levantarSancionesPorDevolucion() {
-        List<SancionDTO> activas = sancionDAO.findByTipoIgnoreCaseAndEstadoIgnoreCase(SANCION_BLOQUEO, SANCION_ACTIVA).stream()
+        List<SancionDTO> activas = TIPOS_SANCION.stream()
+                .flatMap(tipo -> sancionDAO.findByTipoIgnoreCaseAndEstadoIgnoreCase(tipo, SANCION_ACTIVA).stream())
                 .filter(x -> x.getPrestamoId() != null)
                 .filter(x -> x.getMotivo() != null && x.getMotivo().startsWith(MOTIVO_SANCION_MORA))
                 .toList();
@@ -432,7 +434,8 @@ public class AutomatizacionServiceImpl implements AutomatizacionService {
 
         // 3) Multa económica.
         MultaDTO multa = new MultaDTO();
-        multa.setMonto(MULTA_NO_RECOGIDO);
+        BigDecimal montoMulta = configuracionService.montoMulta(ConceptoMulta.PEDIDO_NO_RECOGIDO);
+        multa.setMonto(montoMulta);
         multa.setMotivo(MOTIVO_NO_RECOGIDO + " (pedido #" + pedido.getId() + ")");
         multa.setFechaGeneracion(ahora);
         multa.setEstado(MULTA_PENDIENTE);
@@ -441,20 +444,19 @@ public class AutomatizacionServiceImpl implements AutomatizacionService {
         multaDAO.save(multa);
 
         // 4) Sanción temporal: bloquea nuevos préstamos y pedidos hasta fechaFin.
-        SancionDTO sancion = new SancionDTO();
-        sancion.setTipo(SANCION_BLOQUEO);
-        sancion.setMotivo(MOTIVO_SANCION_NO_RECOGIDO + " (pedido #" + pedido.getId() + ")");
-        sancion.setFechaAplicacion(ahora);
-        sancion.setFechaFin(ahora.plusDays(DIAS_SANCION_NO_RECOGIDO));
-        sancion.setEstado(SANCION_ACTIVA);
-        sancion.setUsuarioId(pedido.getUsuarioId());
-        sancion.setPrestamoId(pedido.getPrestamoId());
-        sancionDAO.save(sancion);
+        //  74: tipo y duracion segun la politica de PEDIDO_NO_RECOGIDO (puede estar desactivada).
+        Optional<SancionDTO> sancion = configuracionService.construirSancion(InfraccionSancion.PEDIDO_NO_RECOGIDO,
+                pedido.getUsuarioId(), pedido.getPrestamoId(),
+                MOTIVO_SANCION_NO_RECOGIDO + " (pedido #" + pedido.getId() + ")");
+        sancion.ifPresent(sancionDAO::save);
 
+        String detalleSancion = sancion.map(x -> x.getFechaFin() == null
+                        ? " y no podrás pedir libros hasta pagarla."
+                        : " y no podrás pedir libros hasta pagarla y hasta el " + x.getFechaFin().toLocalDate() + ".")
+                .orElse(". Debes pagarla para volver a pedir libros.");
         notificar(pedido.getUsuarioId(), "PEDIDO_NO_RECOGIDO", "No recogiste tu pedido a tiempo",
                 "El pedido #" + pedido.getId() + " no se recogió antes de " + pedido.getFechaLimiteRecogida()
-                        + ". Se generó una multa de $" + MULTA_NO_RECOGIDO + " y no podrás pedir libros hasta pagarla "
-                        + "y hasta el " + sancion.getFechaFin().toLocalDate() + ".");
+                        + ". Se generó una multa de $" + montoMulta + detalleSancion);
         log.info("Pedido interciudad {} no recogido: multa y sancion aplicadas", pedido.getId());
         return true;
     }
@@ -462,8 +464,8 @@ public class AutomatizacionServiceImpl implements AutomatizacionService {
     @Override
     public int finalizarSancionesVencidas() {
         LocalDateTime ahora = LocalDateTime.now();
-        List<SancionDTO> candidatas = sancionDAO
-                .findByTipoIgnoreCaseAndEstadoIgnoreCase(SANCION_BLOQUEO, SANCION_ACTIVA).stream()
+        List<SancionDTO> candidatas = TIPOS_SANCION.stream()
+                .flatMap(tipo -> sancionDAO.findByTipoIgnoreCaseAndEstadoIgnoreCase(tipo, SANCION_ACTIVA).stream())
                 .filter(s -> s.getFechaFin() != null && s.getFechaFin().isBefore(ahora))
                 .toList();
         int finalizadas = 0;
