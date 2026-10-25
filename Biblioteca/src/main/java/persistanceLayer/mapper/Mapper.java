@@ -314,6 +314,10 @@ public interface Mapper {
 	@Mapping(target = "tokensRecuperacion", ignore = true)
 	UsuarioEntity usuarioToEntity(UsuarioDTO dto);
 
+	AuditoriaDTO auditoriaToDto(AuditoriaEntity entity);
+
+	AuditoriaEntity auditoriaToEntity(AuditoriaDTO dto);
+
 	/** Convierte la lista de autores de un libro en la lista de sus ids. */
 	default List<Long> autoresToIds(List<AutorEntity> autores) {
 		if (autores == null) {
