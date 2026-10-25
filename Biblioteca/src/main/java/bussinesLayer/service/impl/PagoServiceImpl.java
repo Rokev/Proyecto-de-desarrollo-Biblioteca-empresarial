@@ -14,6 +14,7 @@ import persistanceLayer.dao.*;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import java.math.BigDecimal;
 
@@ -28,6 +29,10 @@ public class PagoServiceImpl implements PagoService {
     private static final String CONCEPTO_SUSCRIPCION = "SUSCRIPCION";
     private static final String CONCEPTO_RESERVA_SALA = "RESERVA_SALA";
     private static final String CONCEPTO_ENVIO_INTERCIUDAD = "ENVIO_INTERCIUDAD";
+
+    /** Tarjetas de prueba predefinidas. Para agregar o cambiar tarjetas, editar solo estos conjuntos. */
+    private static final Set<String> TARJETAS_APROBADAS = Set.of("4111111111111111", "5555555555554444");
+    private static final Set<String> TARJETAS_RECHAZADAS = Set.of("4000000000000002", "4000000000009995");
 
     private static final String ESTADO_APROBADO = EstadoPago.APROBADO;
     private static final String ESTADO_RECHAZADO = EstadoPago.RECHAZADO;
@@ -131,6 +136,10 @@ public class PagoServiceImpl implements PagoService {
             suscripcionPorPagar = validarPagoSuscripcion(
                     solicitud.getUsuarioId(), solicitud.getPlanSuscripcionId(), solicitud.getMonto());
         }
+        if (CONCEPTO_MULTA.equalsIgnoreCase(solicitud.getConcepto())
+                || CONCEPTO_RECARGO.equalsIgnoreCase(solicitud.getConcepto())) {
+            validarPagoMulta(solicitud.getUsuarioId(), solicitud.getMultaId(), solicitud.getMonto());
+        }
 
         boolean esAprobado = esTarjetaAprobada(solicitud.getNumeroTarjeta());
         String estadoPago = esAprobado ? ESTADO_APROBADO : ESTADO_RECHAZADO;
@@ -161,7 +170,7 @@ public class PagoServiceImpl implements PagoService {
         if (!esAprobado) {
             notificar(solicitud.getUsuarioId(), "PAGO_RECHAZADO", "Pago no procesado",
                     "El pago por $" + solicitud.getMonto() + " con concepto " + solicitud.getConcepto() + " fue rechazado por la pasarela.");
-            return crearComprobante(pagoGuardado, ultimosCuatro, "La transacción fue rechazada por la entidad bancaria simulada.");
+            return crearComprobante(pagoGuardado, ultimosCuatro, mensajeRechazo(solicitud.getNumeroTarjeta()));
         }
 
         // Ejecutar lógica de negocio si el pago fue APROBADO
@@ -282,6 +291,30 @@ public class PagoServiceImpl implements PagoService {
     return pendiente;
 }
 
+    /**
+     * Valida el pago de una multa o recargo antes de cobrar: la multa debe existir, ser del usuario que paga,
+     * estar pendiente y el monto debe ser exactamente el de la multa.
+     */
+    private MultaDTO validarPagoMulta(Long usuarioId, Long multaId, BigDecimal monto) {
+        if (multaId == null) {
+            throw new BusinessValidationException("Debe especificar la multaId para pagar una multa o recargo");
+        }
+        MultaDTO multa = multaDAO.findById(multaId)
+                .orElseThrow(() -> new ResourceNotFoundException("Multa no encontrada con ID: " + multaId));
+        if (!multa.getUsuarioId().equals(usuarioId)) {
+            throw new BusinessValidationException("La multa " + multaId + " no pertenece al usuario " + usuarioId);
+        }
+        if (!"PENDIENTE".equalsIgnoreCase(multa.getEstado())) {
+            throw new BusinessValidationException("Solo se puede pagar una multa PENDIENTE (estado actual: "
+                    + multa.getEstado() + ")");
+        }
+        if (monto.compareTo(multa.getMonto()) != 0) {
+            throw new BusinessValidationException("El monto del pago (" + monto
+                    + ") no coincide con el monto de la multa (" + multa.getMonto() + ")");
+        }
+        return multa;
+    }
+
     private void activarSuscripcionSiCorresponde(PagoDTO pago) {
         if (!CONCEPTO_SUSCRIPCION.equalsIgnoreCase(pago.getConcepto())
                 || !ESTADO_APROBADO.equalsIgnoreCase(pago.getEstado())
@@ -373,11 +406,17 @@ public class PagoServiceImpl implements PagoService {
         }
     }
 
+    /** Solo estas tarjetas de prueba aprueban el pago (RF-14). Cualquier otra se rechaza. */
     private boolean esTarjetaAprobada(String numeroTarjeta) {
-        if (numeroTarjeta == null || numeroTarjeta.endsWith("0000") || numeroTarjeta.endsWith("9999")) {
-            return false;
+        return TARJETAS_APROBADAS.contains(numeroTarjeta);
+    }
+
+    /** Mensaje del comprobante cuando el pago es rechazado: distingue la tarjeta de rechazo de una desconocida. */
+    private String mensajeRechazo(String numeroTarjeta) {
+        if (TARJETAS_RECHAZADAS.contains(numeroTarjeta)) {
+            return "La transacción fue rechazada por la entidad bancaria simulada.";
         }
-        return true;
+        return "Tarjeta no reconocida: solo se aceptan las tarjetas de prueba predefinidas.";
     }
 
     private ComprobantePagoDTO crearComprobante(PagoDTO pago, String ultimosCuatro, String mensaje) {
