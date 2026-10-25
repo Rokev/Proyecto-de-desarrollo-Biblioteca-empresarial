@@ -1,7 +1,6 @@
 package bussinesLayer.service.impl;
 
 import bussinesLayer.dto.CompraSuscripcionDTO;
-import bussinesLayer.dto.PagoDTO;
 import bussinesLayer.dto.PlanSuscripcionDTO;
 import bussinesLayer.dto.SuscripcionDTO;
 import bussinesLayer.exception.BusinessValidationException;
@@ -23,7 +22,6 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
-import java.util.UUID;
 
 @Service
 @Transactional
@@ -36,18 +34,11 @@ public class SuscripcionServiceImpl implements SuscripcionService {
     private static final String ESTADO_CANCELADA = "CANCELADA";
     private static final String ESTADO_VENCIDA = "VENCIDA";
 
-    private static final String CONCEPTO_SUSCRIPCION = "SUSCRIPCION";
-    private static final String PAGO_EXITOSO = "EXITOSO";
-
-    /** RF-35: estados que dan beneficios mientras fechaFin no haya pasado.
-     *  CANCELADA conserva los beneficios hasta fechaFin (RF-25). */
     private static final List<String> ESTADOS_VIGENTES = List.of(ESTADO_ACTIVA, ESTADO_CANCELADA);
 
     private final SuscripcionDAO suscripcionDAO;
     private final UsuarioDAO usuarioDAO;
     private final PlanSuscripcionDAO planSuscripcionDAO;
-    private final MetodoPagoDAO metodoPagoDAO;
-    private final PagoDAO pagoDAO;
 
     // ------------------------------------------------------------------ CRUD
 
@@ -128,7 +119,7 @@ public class SuscripcionServiceImpl implements SuscripcionService {
         log.info("Suscripcion eliminada ID: {}", id);
     }
 
-    // ------------------------------------------------------------ RF-24 compra
+    // ------------------------------------------------------------ compra
 
     @Override
     public SuscripcionDTO comprarSuscripcion(CompraSuscripcionDTO compra) {
@@ -143,52 +134,33 @@ public class SuscripcionServiceImpl implements SuscripcionService {
         if (!Boolean.TRUE.equals(plan.getActivo())) {
             throw new BusinessValidationException("El plan de suscripcion seleccionado no esta activo");
         }
-        if (metodoPagoDAO.findByIdAndUsuarioId(compra.getMetodoPagoId(), compra.getUsuarioId()).isEmpty()) {
-            throw new BusinessValidationException("El metodo de pago " + compra.getMetodoPagoId()
-                    + " no existe o no pertenece al usuario " + compra.getUsuarioId());
-        }
-        if (suscripcionDAO.existsByUsuarioIdAndEstadoIn(compra.getUsuarioId(), List.of(ESTADO_PENDIENTE_PAGO))) {
-            throw new BusinessValidationException("El usuario tiene una compra de suscripcion pendiente de pago");
-        }
         buscarVigente(compra.getUsuarioId()).ifPresent(vigente -> {
             throw new BusinessValidationException(
                     "El usuario ya tiene una suscripcion vigente hasta " + vigente.getFechaFin());
         });
 
-        // 1) Suscripcion en PENDIENTE_PAGO; fechas y valores salen del plan, no del cliente.
+        // Si ya hay una compra pendiente de pago se reutiliza (permite cambiar de plan o reintentar el pago).
+        Optional<SuscripcionDTO> pendiente =
+                suscripcionDAO.findByUsuarioIdAndEstado(compra.getUsuarioId(), ESTADO_PENDIENTE_PAGO);
+        SuscripcionDTO suscripcion = pendiente.orElseGet(SuscripcionDTO::new);
+
         LocalDate hoy = LocalDate.now();
-        SuscripcionDTO nueva = new SuscripcionDTO();
-        nueva.setUsuarioId(compra.getUsuarioId());
-        nueva.setPlanId(plan.getId());
-        nueva.setEstado(ESTADO_PENDIENTE_PAGO);
-        nueva.setFechaInicio(hoy);
-        nueva.setFechaFin(hoy.plusMonths(plan.getDuracionMeses()));
-        nueva.setValorMensual(plan.getPrecio()
+        suscripcion.setUsuarioId(compra.getUsuarioId());
+        suscripcion.setPlanId(plan.getId());
+        suscripcion.setEstado(ESTADO_PENDIENTE_PAGO);
+        suscripcion.setFechaInicio(hoy);
+        suscripcion.setFechaFin(hoy.plusMonths(plan.getDuracionMeses()));
+        suscripcion.setValorMensual(plan.getPrecio()
                 .divide(BigDecimal.valueOf(plan.getDuracionMeses()), 2, RoundingMode.HALF_UP));
-        nueva.setDescuentoSalas(plan.getDescuentoSalas());
-        nueva.setRenovacionAutomatica(Boolean.TRUE.equals(compra.getRenovacionAutomatica()));
-        nueva.setMesesConsecutivos(0);
-        SuscripcionDTO guardada = suscripcionDAO.save(nueva);
+        suscripcion.setDescuentoSalas(plan.getDescuentoSalas());
+        suscripcion.setRenovacionAutomatica(Boolean.TRUE.equals(compra.getRenovacionAutomatica()));
+        suscripcion.setMesesConsecutivos(0);
 
-        // 2) Pago de la suscripcion.
-        PagoDTO pago = new PagoDTO();
-        pago.setMonto(plan.getPrecio());
-        pago.setFechaPago(LocalDateTime.now());
-        pago.setConcepto(CONCEPTO_SUSCRIPCION);
-        pago.setEstado(procesarPago(plan));
-        pago.setReferencia("SUS-" + UUID.randomUUID());
-        pago.setUsuarioId(compra.getUsuarioId());
-        pago.setMetodoPagoId(compra.getMetodoPagoId());
-        pago.setSuscripcionId(guardada.getId());
-        pagoDAO.save(pago);
-
-        // 3) Si el pago fue exitoso se activan los beneficios; si no, se revierte todo.
-        if (!PAGO_EXITOSO.equals(pago.getEstado())) {
-            throw new BusinessValidationException("No se pudo procesar el pago de la suscripcion");
-        }
-        SuscripcionDTO activa = activarSuscripcion(guardada.getId());
-        log.info("Suscripcion {} comprada y activada para el usuario {}", activa.getId(), activa.getUsuarioId());
-        return activa;
+        SuscripcionDTO guardada = pendiente.isPresent()
+                ? suscripcionDAO.update(suscripcion.getId(), suscripcion).orElseThrow()
+                : suscripcionDAO.save(suscripcion);
+        log.info("Suscripcion {} pendiente de pago para el usuario {}", guardada.getId(), guardada.getUsuarioId());
+        return guardada;
     }
 
     @Override
@@ -214,7 +186,7 @@ public class SuscripcionServiceImpl implements SuscripcionService {
         return activada;
     }
 
-    // ---------------------------------------------------------- RF-25 cancelar
+    // ---------------------------------------------------------- cancelar
 
     @Override
     public SuscripcionDTO cancelarSuscripcion(Long suscripcionId, Long usuarioId) {
@@ -234,7 +206,6 @@ public class SuscripcionServiceImpl implements SuscripcionService {
             throw new BusinessValidationException("La suscripcion ya finalizo");
         }
 
-        // Los beneficios se mantienen hasta fechaFin: la vigencia (RF-35) cuenta las CANCELADAS no vencidas.
         actual.setEstado(ESTADO_CANCELADA);
         actual.setFechaCancelacion(LocalDateTime.now());
         actual.setRenovacionAutomatica(false);
@@ -245,7 +216,7 @@ public class SuscripcionServiceImpl implements SuscripcionService {
         return cancelada;
     }
 
-    // ------------------------------------------------------- RF-35 vigencia
+    // ------------------------------------------------------- vigencia
 
     @Override
     @Transactional(readOnly = true)
@@ -303,10 +274,6 @@ public class SuscripcionServiceImpl implements SuscripcionService {
         }
     }
 
-    /** Punto de integracion con la pasarela de pagos. Por ahora se simula un pago exitoso. */
-    private String procesarPago(PlanSuscripcionDTO plan) {
-        return PAGO_EXITOSO;
-    }
 
     private PlanSuscripcionDTO validarReferencias(SuscripcionDTO dto, boolean exigirPlanActivo) {
         if (!usuarioDAO.existsById(dto.getUsuarioId())) {

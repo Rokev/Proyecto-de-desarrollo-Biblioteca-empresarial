@@ -1,6 +1,7 @@
 package bussinesLayer.service.impl;
 
 import bussinesLayer.dto.NotificacionDTO;
+import bussinesLayer.dto.UsuarioDTO;
 import bussinesLayer.exception.BusinessValidationException;
 import bussinesLayer.exception.ResourceNotFoundException;
 import bussinesLayer.service.NotificacionService;
@@ -11,6 +12,7 @@ import org.springframework.transaction.annotation.Transactional;
 import persistanceLayer.dao.NotificacionDAO;
 import persistanceLayer.dao.UsuarioDAO;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
@@ -21,6 +23,9 @@ public class NotificacionServiceImpl implements NotificacionService {
 
     private final NotificacionDAO notificacionDAO;
     private final UsuarioDAO usuarioDAO;
+
+    /** Debe coincidir con el nombre del rol del bibliotecario en la tabla roles. */
+    private static final String ROL_BIBLIOTECARIO = "BIBLIOTECARIO";
 
     @Override
     public NotificacionDTO crearNotificacion(NotificacionDTO notificacionDTO) {
@@ -74,6 +79,26 @@ public class NotificacionServiceImpl implements NotificacionService {
     private void validarUsuario(NotificacionDTO dto) {
         if (!usuarioDAO.existsById(dto.getUsuarioId())) {
             throw new ResourceNotFoundException("Usuario no encontrado con ID: " + dto.getUsuarioId());
+        }
+    }
+    @Override
+    public void notificarSede(Long sedeId, String tipo, String titulo, String mensaje) {
+        List<UsuarioDTO> bibliotecarios = usuarioDAO.findBySedeIdAndRolNombreIgnoreCase(sedeId, ROL_BIBLIOTECARIO);
+        if (bibliotecarios.isEmpty()) {
+            log.warn("La sede {} no tiene bibliotecarios a quienes notificar: {}", sedeId, titulo);
+            return;
+        }
+        LocalDateTime ahora = LocalDateTime.now();
+        for (UsuarioDTO bibliotecario : bibliotecarios) {
+            NotificacionDTO n = new NotificacionDTO();
+            n.setTipo(tipo);
+            n.setTitulo(titulo);
+            n.setMensaje(mensaje);
+            n.setCanal("APP");
+            n.setFechaCreacion(ahora);
+            n.setLeida(false);
+            n.setUsuarioId(bibliotecario.getId());
+            notificacionDAO.save(n);
         }
     }
 }

@@ -19,7 +19,7 @@ public class NotificacionDTO {
 
     @NotBlank(message = "El campo tipo es obligatorio")
     @Size(max = 40, message = "El campo tipo no puede superar los 40 caracteres")
-    @Schema(description = "LIBRO_DISPONIBLE, RECUPERAR_CONTRASENA, JUSTIFICACION_RECIBIDA, etc.", example = "LIBRO_DISPONIBLE", requiredMode = Schema.RequiredMode.REQUIRED, maxLength = 40)
+    @Schema(description = "LIBRO_DISPONIBLE, RECUPERAR_CONTRASENA, etc.", example = "LIBRO_DISPONIBLE", requiredMode = Schema.RequiredMode.REQUIRED, maxLength = 40)
     private String tipo;
 
     @NotBlank(message = "El campo titulo es obligatorio")

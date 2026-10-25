@@ -10,7 +10,7 @@ import lombok.Builder;
 
 import java.time.LocalDateTime;
 /**
- * Notificación enviada a un usuario (libro reservado disponible, justificación recibida, etc.) (RF-06, RF-15).
+ * Notificación enviada a un usuario (libro reservado disponible).
  */
 @Entity
 @Table(name = "notificaciones")
@@ -24,7 +24,7 @@ public class NotificacionEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    /** LIBRO_DISPONIBLE, RECUPERAR_CONTRASENA, JUSTIFICACION_RECIBIDA, etc. */
+    /** LIBRO_DISPONIBLE, RECUPERAR_CONTRASENA, etc. */
     @Column(nullable = false, length = 40)
     private String tipo;
 

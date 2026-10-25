@@ -28,9 +28,9 @@ public interface PagoRepository extends JpaRepository<PagoEntity, Long> {
 
     List<PagoEntity> findByEstadoIgnoreCase(String estado);
 
-    /** Pagos de envío aprobados de un pedido (APROBADO desde la pasarela simulada, EXITOSO desde el CRUD). */
+    /** Pagos de envío aprobados de un pedido (los reembolsados o rechazados no cuentan). */
     @Query("SELECT p FROM PagoEntity p WHERE p.pedidoInterciudad.id = :pedidoId "
-            + "AND UPPER(p.concepto) = 'ENVIO_INTERCIUDAD' AND UPPER(p.estado) IN ('APROBADO', 'EXITOSO') "
+            + "AND UPPER(p.concepto) = 'ENVIO_INTERCIUDAD' AND UPPER(p.estado) = 'APROBADO' "
             + "ORDER BY p.id DESC")
     List<PagoEntity> findEnviosPagadosPorPedido(@Param("pedidoId") Long pedidoId);
 }

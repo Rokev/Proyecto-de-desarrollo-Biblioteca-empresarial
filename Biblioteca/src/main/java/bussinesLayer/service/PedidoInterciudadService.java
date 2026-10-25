@@ -19,6 +19,7 @@ public interface PedidoInterciudadService {
     PedidoInterciudadDTO registrarRecepcionNoRecibido(Long pedidoId, Long bibliotecarioId); 
     PedidoInterciudadDTO registrarEntregaEnSede(Long pedidoId, Long bibliotecarioId); 
     PedidoInterciudadDTO registrarRecepcionEnSedeOrigen(Long pedidoId, Long bibliotecarioId); 
+    List<PedidoInterciudadDTO> obtenerPedidosSedeDevolucion(Long sedeDevolucionId);
 
     // --- ROL REPARTIDOR ---
     List<PedidoInterciudadDTO> obtenerAsignacionesRepartidor(Long repartidorId);

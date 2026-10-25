@@ -38,7 +38,7 @@ public class MultaEntity {
     @Column(nullable = false)
     private LocalDateTime fechaGeneracion;
 
-    /** PENDIENTE, PAGADA, ANULADA (p. ej. si se acepta la justificación del retraso). */
+    /** PENDIENTE, PAGADA, ANULADA (p. ej. si el admin lo anula). */
     @Column(nullable = false, length = 20)
     @Builder.Default
     private String estado = "PENDIENTE";

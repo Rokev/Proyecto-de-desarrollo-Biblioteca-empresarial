@@ -18,4 +18,7 @@ public interface NotificacionService {
     NotificacionDTO actualizarNotificacion(Long id, NotificacionDTO notificacionDTO);
 
     void eliminarNotificacion(Long id);
+
+    /** Avisa a los bibliotecarios de una sede */
+    void notificarSede(Long sedeId, String tipo, String titulo, String mensaje);
 }

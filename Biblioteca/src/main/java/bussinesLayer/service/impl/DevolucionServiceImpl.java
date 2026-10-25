@@ -10,6 +10,8 @@ import bussinesLayer.exception.BusinessValidationException;
 import bussinesLayer.exception.ResourceNotFoundException;
 import bussinesLayer.service.DevolucionService;
 import bussinesLayer.service.ReservaLibroService;
+import bussinesLayer.service.NotificacionService;
+import bussinesLayer.service.AutomatizacionService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -51,6 +53,8 @@ public class DevolucionServiceImpl implements DevolucionService {
     private final EjemplarDAO ejemplarDAO;
     private final TrasladoRetornoDAO trasladoRetornoDAO;
     private final ReservaLibroService reservaLibroService;
+    private final NotificacionService notificacionService;
+    private final AutomatizacionService automatizacionService;
 
     // ------------------------------------------------------------------ CRUD
 
@@ -126,7 +130,7 @@ public class DevolucionServiceImpl implements DevolucionService {
         log.info("Devolucion eliminada ID: {}", id);
     }
 
-    // ------------------------------------------------ RF-08 devolver en cualquier sede
+    // ------------------------------------------------  devolver en cualquier sede
 
     @Override
     @Transactional(readOnly = true)
@@ -222,6 +226,7 @@ public class DevolucionServiceImpl implements DevolucionService {
         DevolucionDTO confirmada = devolucionDAO.update(devolucion.getId(), devolucion)
                 .orElseThrow(() -> new ResourceNotFoundException("Devolucion no encontrada con ID: " + devolucion.getId()));
 
+        automatizacionService.evaluarRetrasoAlDevolver(prestamo.getId());
         prestamo.setEstado(PRESTAMO_DEVUELTO);
         prestamo.setFechaDevolucion(ahora);
         prestamoDAO.update(prestamo.getId(), prestamo);
@@ -247,6 +252,10 @@ public class DevolucionServiceImpl implements DevolucionService {
             String nombreSedeActual = sedeDAO.findById(devolucion.getSedeDevolucionId())
                     .map(SedeDTO::getNombre).orElse("otra sede");
             reservaLibroService.avisarDevolucionEnCamino(ejemplar.getLibroId(), ejemplar.getSedeId(), nombreSedeActual);
+            notificacionService.notificarSede(ejemplar.getSedeId(), "DEVOLUCION_EN_OTRA_SEDE",
+                "Libro devuelto en otra sede",
+            "   El ejemplar #" + ejemplar.getId() + " fue devuelto en la sede " + nombreSedeActual
+                + " y va en camino de regreso a tu sede.");
         }
 
         log.info("Devolucion {} confirmada por el bibliotecario {} (en origen: {})",

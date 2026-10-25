@@ -3,6 +3,7 @@ package bussinesLayer.service.impl;
 import bussinesLayer.dto.*;
 import bussinesLayer.service.AutomatizacionService;
 import bussinesLayer.service.ReservaLibroService;
+import bussinesLayer.service.NotificacionService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -54,10 +55,20 @@ public class AutomatizacionServiceImpl implements AutomatizacionService {
     /** Prefijos de motivo: permiten reconocer la multa y la sancion por mora de un prestamo. */
     private static final String MOTIVO_MORA = "Mora en la devolucion";
     private static final String MOTIVO_SANCION_MORA = "Retraso en la devolucion";
+    private static final String MOTIVO_NO_RECOGIDO = "Pedido interciudad no recogido a tiempo";
+    private static final String MOTIVO_SANCION_NO_RECOGIDO = "No recogio el pedido interciudad a tiempo";
 
     private static final BigDecimal MULTA_POR_DIA_MORA = new BigDecimal("2000.00");
+    private static final BigDecimal MULTA_NO_RECOGIDO = new BigDecimal("20000.00");
+    private static final int DIAS_SANCION_NO_RECOGIDO = 7;
     private static final int MINUTOS_PAGO_RESERVA_SALA = 30;
     private static final int HORAS_RETIRO_SOLICITUD = 48;
+
+    private static final String PEDIDO_PENDIENTE_PAGO = "PENDIENTE_PAGO";
+    private static final String PEDIDO_CANCELADO = "CANCELADO";
+    private static final String PEDIDO_EN_ESPERA_DE_RECOGIDA = "EN_ESPERA_DE_RECOGIDA";
+    private static final String PEDIDO_DEVUELTO_PENDIENTE_TRASLADO = "DEVUELTO_PENDIENTE_TRASLADO";
+
 
     private final PrestamoDAO prestamoDAO;
     private final ReservaLibroDAO reservaLibroDAO;
@@ -70,7 +81,9 @@ public class AutomatizacionServiceImpl implements AutomatizacionService {
     private final LibroDAO libroDAO;
     private final MultaDAO multaDAO;
     private final NotificacionDAO notificacionDAO;
+    private final PedidoInterciudadDAO pedidoInterciudadDAO;
     private final ReservaLibroService reservaLibroService;
+    private final NotificacionService notificacionService;
     private final PlatformTransactionManager transactionManager;
 
     // ------------------------------------------------ Seccion 1: prestamos vencidos
@@ -88,6 +101,23 @@ public class AutomatizacionServiceImpl implements AutomatizacionService {
         }
         log.info("Prestamos marcados como vencidos: {} de {} candidatos", procesados, candidatos.size());
         return procesados;
+    }
+
+    @Override
+    public long evaluarRetrasoAlDevolver(Long prestamoId) {
+        PrestamoDTO prestamo = prestamoDAO.findById(prestamoId).orElse(null);
+        if (prestamo == null || prestamo.getFechaVencimiento() == null
+                || !(PRESTAMO_ACTIVO.equalsIgnoreCase(prestamo.getEstado())
+                        || PRESTAMO_VENCIDO.equalsIgnoreCase(prestamo.getEstado()))
+                || !prestamo.getFechaVencimiento().isBefore(LocalDate.now())) {
+            return 0; // a tiempo, o el préstamo no está en un estado evaluable
+        }
+        if (PRESTAMO_ACTIVO.equalsIgnoreCase(prestamo.getEstado())) {
+            marcarVencidoYMultar(prestamo.getId());   // la tarea diaria aún no lo había detectado
+        } else {
+            sincronizarMultaPorMora(prestamo);        // ya estaba vencido: deja la multa con los días finales
+        }
+        return ChronoUnit.DAYS.between(prestamo.getFechaVencimiento(), LocalDate.now());
     }
 
     private boolean marcarVencidoYMultar(Long prestamoId) {
@@ -344,6 +374,150 @@ public class AutomatizacionServiceImpl implements AutomatizacionService {
         return liberadas;
     }
 
+    @Override
+    public int cancelarPedidosInterciudadSinPago() {
+        LocalDateTime limite = LocalDateTime.now().minusMinutes(PedidoInterciudadServiceImpl.MINUTOS_PAGO_ENVIO);
+        List<PedidoInterciudadDTO> candidatos = pedidoInterciudadDAO
+                .findByEstadoIgnoreCaseOrderByFechaSolicitudAsc(PEDIDO_PENDIENTE_PAGO).stream()
+                .filter(p -> p.getFechaSolicitud() != null && p.getFechaSolicitud().isBefore(limite))
+                .toList();
+        int procesados = 0;
+        for (PedidoInterciudadDTO candidato : candidatos) {
+            if (enTransaccion(candidato.getId(), "cancelar pedido interciudad sin pago",
+                    () -> cancelarPedidoSinPago(candidato.getId(), limite))) {
+                procesados++;
+            }
+        }
+        log.info("Pedidos interciudad cancelados por falta de pago: {}", procesados);
+        return procesados;
+    }
+
+    @Override
+    public int procesarPedidosNoRecogidos() {
+        LocalDateTime ahora = LocalDateTime.now();
+        List<PedidoInterciudadDTO> candidatos = pedidoInterciudadDAO
+                .findByEstadoIgnoreCaseOrderByFechaSolicitudAsc(PEDIDO_EN_ESPERA_DE_RECOGIDA).stream()
+                .filter(p -> p.getFechaLimiteRecogida() != null && p.getFechaLimiteRecogida().isBefore(ahora))
+                .toList();
+        int procesados = 0;
+        for (PedidoInterciudadDTO candidato : candidatos) {
+            if (enTransaccion(candidato.getId(), "procesar pedido interciudad no recogido",
+                    () -> marcarPedidoNoRecogido(candidato.getId()))) {
+                procesados++;
+            }
+        }
+        log.info("Pedidos interciudad no recogidos a tiempo: {}", procesados);
+        return procesados;
+    }
+
+    private boolean marcarPedidoNoRecogido(Long pedidoId) {
+        LocalDateTime ahora = LocalDateTime.now();
+        PedidoInterciudadDTO pedido = pedidoInterciudadDAO.findById(pedidoId).orElse(null);
+        if (pedido == null || !PEDIDO_EN_ESPERA_DE_RECOGIDA.equalsIgnoreCase(pedido.getEstado())
+                || pedido.getFechaLimiteRecogida() == null || !pedido.getFechaLimiteRecogida().isBefore(ahora)) {
+            return false;
+        }
+
+        // 1) El libro queda pendiente de traslado hacia la sede de origen (lo toma un repartidor).
+        pedido.setEstado(PEDIDO_DEVUELTO_PENDIENTE_TRASLADO);
+        pedidoInterciudadDAO.update(pedido.getId(), pedido);
+
+        // 2) El préstamo nunca se entregó: se cancela para que no cuente como vigente.
+        if (pedido.getPrestamoId() != null) {
+            prestamoDAO.findById(pedido.getPrestamoId()).ifPresent(p -> {
+                p.setEstado(PRESTAMO_CANCELADO);
+                prestamoDAO.update(p.getId(), p);
+            });
+        }
+
+        // 3) Multa económica.
+        MultaDTO multa = new MultaDTO();
+        multa.setMonto(MULTA_NO_RECOGIDO);
+        multa.setMotivo(MOTIVO_NO_RECOGIDO + " (pedido #" + pedido.getId() + ")");
+        multa.setFechaGeneracion(ahora);
+        multa.setEstado(MULTA_PENDIENTE);
+        multa.setUsuarioId(pedido.getUsuarioId());
+        multa.setPrestamoId(pedido.getPrestamoId());
+        multaDAO.save(multa);
+
+        // 4) Sanción temporal: bloquea nuevos préstamos y pedidos hasta fechaFin.
+        SancionDTO sancion = new SancionDTO();
+        sancion.setTipo(SANCION_BLOQUEO);
+        sancion.setMotivo(MOTIVO_SANCION_NO_RECOGIDO + " (pedido #" + pedido.getId() + ")");
+        sancion.setFechaAplicacion(ahora);
+        sancion.setFechaFin(ahora.plusDays(DIAS_SANCION_NO_RECOGIDO));
+        sancion.setEstado(SANCION_ACTIVA);
+        sancion.setUsuarioId(pedido.getUsuarioId());
+        sancion.setPrestamoId(pedido.getPrestamoId());
+        sancionDAO.save(sancion);
+
+        notificar(pedido.getUsuarioId(), "PEDIDO_NO_RECOGIDO", "No recogiste tu pedido a tiempo",
+                "El pedido #" + pedido.getId() + " no se recogió antes de " + pedido.getFechaLimiteRecogida()
+                        + ". Se generó una multa de $" + MULTA_NO_RECOGIDO + " y no podrás pedir libros hasta pagarla "
+                        + "y hasta el " + sancion.getFechaFin().toLocalDate() + ".");
+        log.info("Pedido interciudad {} no recogido: multa y sancion aplicadas", pedido.getId());
+        return true;
+    }
+
+    @Override
+    public int finalizarSancionesVencidas() {
+        LocalDateTime ahora = LocalDateTime.now();
+        List<SancionDTO> candidatas = sancionDAO
+                .findByTipoIgnoreCaseAndEstadoIgnoreCase(SANCION_BLOQUEO, SANCION_ACTIVA).stream()
+                .filter(s -> s.getFechaFin() != null && s.getFechaFin().isBefore(ahora))
+                .toList();
+        int finalizadas = 0;
+        for (SancionDTO candidata : candidatas) {
+            if (enTransaccion(candidata.getId(), "finalizar sancion vencida", () -> {
+                SancionDTO sancion = sancionDAO.findById(candidata.getId()).orElse(null);
+                if (sancion == null || !SANCION_ACTIVA.equalsIgnoreCase(sancion.getEstado())
+                        || sancion.getFechaFin() == null || !sancion.getFechaFin().isBefore(ahora)) {
+                    return false;
+                }
+                sancion.setEstado(SANCION_FINALIZADA);
+                sancionDAO.update(sancion.getId(), sancion);
+                notificar(sancion.getUsuarioId(), "SANCION_FINALIZADA", "Sancion finalizada",
+                        "Tu sancion termino. Si tienes multas pendientes, debes pagarlas para volver a pedir libros.");
+                return true;
+            })) {
+                finalizadas++;
+            }
+        }
+        log.info("Sanciones finalizadas por vencimiento: {}", finalizadas);
+        return finalizadas;
+    }
+
+    private boolean cancelarPedidoSinPago(Long pedidoId, LocalDateTime limite) {
+        PedidoInterciudadDTO pedido = pedidoInterciudadDAO.findById(pedidoId).orElse(null);
+        if (pedido == null || !PEDIDO_PENDIENTE_PAGO.equalsIgnoreCase(pedido.getEstado())
+                || pedido.getFechaSolicitud() == null || !pedido.getFechaSolicitud().isBefore(limite)) {
+            return false;
+        }
+
+        pedido.setEstado(PEDIDO_CANCELADO);
+        pedido.setFechaCancelacion(LocalDateTime.now());
+        pedidoInterciudadDAO.update(pedido.getId(), pedido);
+
+        if (pedido.getPrestamoId() != null) {
+            prestamoDAO.findById(pedido.getPrestamoId()).ifPresent(p -> {
+                p.setEstado(PRESTAMO_CANCELADO);
+                prestamoDAO.update(p.getId(), p);
+            });
+        }
+        liberarEjemplarYReasignar(pedido.getEjemplarId(), EJEMPLAR_RESERVADO);
+
+        notificar(pedido.getUsuarioId(), "PEDIDO_CANCELADO_SIN_PAGO", "Pedido cancelado por falta de pago",
+                "Tu pedido #" + pedido.getId() + " se canceló porque el envío no se pagó en "
+                        + PedidoInterciudadServiceImpl.MINUTOS_PAGO_ENVIO + " minutos.");
+        log.info("Pedido interciudad {} cancelado por falta de pago", pedido.getId());
+
+        notificacionService.notificarSede(pedido.getSedeOrigenId(), "PEDIDO_NO_RECOGIDO",
+        "Pedido no recogido, el libro regresará",
+        "El pedido #" + pedido.getId() + " no fue recogido en la sede de devolución y volverá a tu sede.");
+
+        return true;
+    }
+
     // ------------------------------------------------ Seccion 3: RECORDATORIOS PREVENTIVOS
 
     @Override
@@ -416,17 +590,23 @@ public class AutomatizacionServiceImpl implements AutomatizacionService {
         LocalDateTime dentro2h = ahora.plusHours(2);
         int enviados = 0;
 
+        // Solo reservas confirmadas (pagadas): las pendientes de pago se cancelan solas a los 30 minutos.
         List<ReservaSalaDTO> reservas = reservaSalaDAO.findByEstadoInAndFechaInicioBetween(
-                List.of(SALA_CONFIRMADA, SALA_PENDIENTE_PAGO), ahora, dentro2h);
+                List.of(SALA_CONFIRMADA), ahora, dentro2h);
 
         for (ReservaSalaDTO r : reservas) {
             if (enTransaccion(r.getId(), "enviar recordatorio sala", () -> {
                 String nombreSala = salaEstudioDAO.findById(r.getSalaId())
                         .map(SalaEstudioDTO::getNombre)
                         .orElse("Sala #" + r.getSalaId());
-                notificar(r.getUsuarioId(), "RECORDATORIO_RESERVA_SALA", "Tu reserva de sala iniciará pronto",
-                        "Tu reserva en la " + nombreSala + " está programada para hoy a las "
-                                + r.getFechaInicio().toLocalTime() + ".");
+                // El número de reserva hace único el mensaje, y eso permite detectar si ya se avisó.
+                String mensaje = "Tu reserva #" + r.getId() + " en la " + nombreSala + " está programada para el "
+                        + r.getFechaInicio().toLocalDate() + " a las " + r.getFechaInicio().toLocalTime() + ".";
+                if (notificacionDAO.existsByUsuarioIdAndTipoAndMensaje(
+                        r.getUsuarioId(), "RECORDATORIO_RESERVA_SALA", mensaje)) {
+                    return false; // ya se envió en una ejecución anterior
+                }
+                notificar(r.getUsuarioId(), "RECORDATORIO_RESERVA_SALA", "Tu reserva de sala iniciará pronto", mensaje);
                 return true;
             })) {
                 enviados++;
@@ -436,7 +616,6 @@ public class AutomatizacionServiceImpl implements AutomatizacionService {
         log.info("Recordatorios de reservas de salas enviados: {}", enviados);
         return enviados;
     }
-
     // -------------------------------------------------------------- privados
 
     private void liberarEjemplarYReasignar(Long ejemplarId, String estadoActual) {

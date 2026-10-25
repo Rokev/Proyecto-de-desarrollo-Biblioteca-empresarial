@@ -32,4 +32,19 @@ public interface AutomatizacionService {
 
     /** Recordatorios de reservas de salas de estudio que inician en las próximas 2 horas. */
     int enviarRecordatoriosSalasProximas();
+    
+    /** Cancela los pedidos interciudad PENDIENTE_PAGO que superaron el plazo de pago y libera el ejemplar. */
+    int cancelarPedidosInterciudadSinPago();
+
+    /** Pedidos interciudad EN_ESPERA_DE_RECOGIDA con plazo vencido: multa, sanción y regreso a la sede de origen. */
+    int procesarPedidosNoRecogidos();
+    
+    /** Sanciones ACTIVA con fechaFin pasada -> FINALIZADA (el usuario recupera el acceso). */
+    int finalizarSancionesVencidas();
+
+    /**
+     * Se invoca al devolver un préstamo (normal o interciudad): si llegó tarde, deja aplicadas la multa
+     * por mora y la sanción. Devuelve los días de retraso (0 si fue a tiempo).
+     */
+    long evaluarRetrasoAlDevolver(Long prestamoId);
 }

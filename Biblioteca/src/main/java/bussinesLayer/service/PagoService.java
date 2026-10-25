@@ -10,13 +10,19 @@ public interface PagoService {
 
     // --- MÉTODOS CRUD EXISTENTES ---
     PagoDTO crearPago(PagoDTO pagoDTO);
+
     PagoDTO obtenerPagoPorId(Long id);
+    
     List<PagoDTO> obtenerTodosLosPagos();
+    
     PagoDTO actualizarPago(Long id, PagoDTO pagoDTO);
+    
     void eliminarPago(Long id);
 
-    // --- MÉTODOS DE PASARELA DE PAGO SIMULADO (RF-14, RF-15) ---
+    // --- MÉTODOS DE PASARELA DE PAGO SIMULADO ---
     ComprobantePagoDTO procesarPagoSimulado(SolicitudPagoDTO solicitud);
+    
     ComprobantePagoDTO obtenerComprobantePorId(Long id);
+    
     List<ComprobantePagoDTO> obtenerPagosPorUsuario(Long usuarioId);
 }

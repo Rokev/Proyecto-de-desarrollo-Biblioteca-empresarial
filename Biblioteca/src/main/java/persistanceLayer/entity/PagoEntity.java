@@ -36,7 +36,7 @@ public class PagoEntity {
     @Column(nullable = false, length = 20)
     private String concepto;
 
-    /** EXITOSO, FALLIDO, PENDIENTE. */
+    /** PENDIENTE, APROBADO, RECHAZADO, REEMBOLSADO. */
     @Column(nullable = false, length = 20)
     private String estado;
 

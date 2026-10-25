@@ -35,7 +35,7 @@ public class PagoDTO {
 
     @NotBlank(message = "El campo estado es obligatorio")
     @Size(max = 20, message = "El campo estado no puede superar los 20 caracteres")
-    @Schema(description = "EXITOSO, FALLIDO, PENDIENTE", example = "EXITOSO", requiredMode = Schema.RequiredMode.REQUIRED, maxLength = 20)
+    @Schema(description = "PENDIENTE, APROBADO, RECHAZADO, REEMBOLSADO", example = "APROBADO", requiredMode = Schema.RequiredMode.REQUIRED, maxLength = 20)
     private String estado;
 
     @NotBlank(message = "El campo referencia es obligatorio")

@@ -135,7 +135,7 @@ public interface Mapper {
 	@Mapping(target = "bibliotecarioId", source = "bibliotecario.id")
 	PedidoInterciudadDTO pedidoInterciudadToDto(PedidoInterciudadEntity entity);
 
-	@Mapping(target = "estado", source = "estado", defaultValue = "SOLICITADO")
+	@Mapping(target = "estado", source = "estado", defaultValue = "PENDIENTE_PAGO")
 	@Mapping(target = "usuario", ignore = true)
 	@Mapping(target = "ejemplar", ignore = true)
 	@Mapping(target = "sedeOrigen", ignore = true)

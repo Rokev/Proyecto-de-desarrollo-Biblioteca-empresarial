@@ -18,6 +18,8 @@ public interface NotificacionRepository extends JpaRepository<NotificacionEntity
 
     long countByUsuarioIdAndLeidaFalse(Long usuarioId);
 
+    boolean existsByUsuarioIdAndTipoAndMensaje(Long usuarioId, String tipo, String mensaje);
+
     @Modifying
     @Query("UPDATE NotificacionEntity n SET n.leida = true WHERE n.usuario.id = :usuarioId AND n.leida = false")
     int marcarTodasLeidas(@Param("usuarioId") Long usuarioId);

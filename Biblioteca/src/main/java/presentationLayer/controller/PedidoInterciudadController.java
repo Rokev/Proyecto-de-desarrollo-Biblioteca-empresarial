@@ -53,8 +53,8 @@ public class PedidoInterciudadController {
     }
 
     @PostMapping("/{id}/cancelar")
-    @Operation(summary = "Cancelar un pedido interciudad (RF-29)",
-            description = "Permite cancelar únicamente si el pedido está en estado SOLICITADO. Si ya fue despachado o está en tránsito se bloquea la cancelación.")
+    @Operation(summary = "Cancelar un pedido interciudad",
+            description = "Permite cancelar únicamente si el pedido está en estado PENDIENTE_PAGO o SOLICITADO. Si ya fue despachado o está en tránsito se bloquea la cancelación.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Pedido cancelado y reembolso registrado",
                     content = @Content(mediaType = "application/json", schema = @Schema(implementation = PedidoInterciudadDTO.class))),
@@ -117,6 +117,20 @@ public class PedidoInterciudadController {
             @Parameter(description = "ID de la sede de origen", required = true, example = "1") @PathVariable Long sedeId) {
         return ResponseEntity.ok(pedidoService.obtenerPedidosSedeOrigen(sedeId));
     }
+
+        @GetMapping("/sede-devolucion/{sedeId}")
+        @Operation(summary = "Visualizar pedidos que se devuelven en la sede",
+                description = "Muestra al bibliotecario los pedidos que deben devolverse, esperar recogida o trasladarse desde su sede de devolución.")
+        @ApiResponses({
+                @ApiResponse(responseCode = "200", description = "Listado de pedidos de la sede de devolución",
+                        content = @Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = PedidoInterciudadDTO.class)))),
+                @ApiResponse(responseCode = "404", description = "Sede no encontrada",
+                        content = @Content(mediaType = "application/json", schema = @Schema(implementation = ApiError.class)))
+        })
+        public ResponseEntity<List<PedidoInterciudadDTO>> obtenerPedidosSedeDevolucion(
+                @Parameter(description = "ID de la sede de devolución", required = true, example = "2") @PathVariable Long sedeId) {
+            return ResponseEntity.ok(pedidoService.obtenerPedidosSedeDevolucion(sedeId));
+        }
 
     @PostMapping("/{id}/despachar")
     @Operation(summary = "Registrar envío entregándolo al repartidor",

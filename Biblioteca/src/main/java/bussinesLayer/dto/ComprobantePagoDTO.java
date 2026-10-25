@@ -19,7 +19,7 @@ public class ComprobantePagoDTO {
     @Schema(description = "Número de referencia generado por el sistema", example = "PAY-20261024-A8F92")
     private String numeroReferencia;
 
-    @Schema(description = "Estado del pago: APROBADO, RECHAZADO, REEMBOLSADO", example = "APROBADO")
+    @Schema(description = "Estado del pago: PENDIENTE, APROBADO, RECHAZADO, REEMBOLSADO", example = "APROBADO")
     private String estado;
 
     @Schema(description = "Concepto pagado", example = "MULTA")

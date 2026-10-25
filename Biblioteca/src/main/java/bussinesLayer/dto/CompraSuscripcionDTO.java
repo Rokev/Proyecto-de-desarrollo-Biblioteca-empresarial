@@ -20,10 +20,6 @@ public class CompraSuscripcionDTO {
     @Schema(description = "id del plan que se compra", example = "1", requiredMode = Schema.RequiredMode.REQUIRED)
     private Long planId;
 
-    @NotNull(message = "El campo metodoPagoId es obligatorio")
-    @Schema(description = "id del metodo de pago guardado del usuario", example = "1", requiredMode = Schema.RequiredMode.REQUIRED)
-    private Long metodoPagoId;
-
     @Schema(description = "Renovacion automatica (por defecto false)", example = "false")
     private Boolean renovacionAutomatica;
 }

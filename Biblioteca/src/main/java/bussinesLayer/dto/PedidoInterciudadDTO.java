@@ -16,7 +16,7 @@ public class PedidoInterciudadDTO {
     @Schema(description = "ID único del pedido", example = "1", accessMode = Schema.AccessMode.READ_ONLY)
     private Long id;
 
-    @Schema(description = "Estado actual: SOLICITADO, EN_TRANSITO, ENTREGADO, NO_RECIBIDO, EN_ESPERA_DE_RECOGIDA, DEVUELTO_PENDIENTE_TRASLADO, EN_CAMINO_SEDE_ORIGEN, CANCELADO, CERRADO", example = "SOLICITADO")
+    @Schema(description = "Estado actual: PENDIENTE_PAGO, SOLICITADO, EN_TRANSITO, ENTREGADO, NO_RECIBIDO, EN_ESPERA_DE_RECOGIDA, DEVUELTO_PENDIENTE_TRASLADO, EN_CAMINO_SEDE_ORIGEN, CANCELADO, CERRADO", example = "SOLICITADO")
     private String estado;
 
     @Schema(description = "Ciudad donde se entrega el libro", example = "Medellín")

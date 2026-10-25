@@ -4,6 +4,7 @@ import bussinesLayer.dto.*;
 import bussinesLayer.exception.BusinessValidationException;
 import bussinesLayer.exception.ResourceNotFoundException;
 import bussinesLayer.service.PagoService;
+import bussinesLayer.util.EstadoPago;
 import bussinesLayer.service.SuscripcionService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -28,9 +29,8 @@ public class PagoServiceImpl implements PagoService {
     private static final String CONCEPTO_RESERVA_SALA = "RESERVA_SALA";
     private static final String CONCEPTO_ENVIO_INTERCIUDAD = "ENVIO_INTERCIUDAD";
 
-    private static final String ESTADO_APROBADO = "APROBADO";
-    private static final String ESTADO_RECHAZADO = "RECHAZADO";
-    private static final String ESTADO_EXITOSO = "EXITOSO";
+    private static final String ESTADO_APROBADO = EstadoPago.APROBADO;
+    private static final String ESTADO_RECHAZADO = EstadoPago.RECHAZADO;
 
     private final PagoDAO pagoDAO;
     private final UsuarioDAO usuarioDAO;
@@ -40,6 +40,8 @@ public class PagoServiceImpl implements PagoService {
     private final ReservaSalaDAO reservaSalaDAO;
     private final NotificacionDAO notificacionDAO;
     private final PedidoInterciudadDAO pedidoInterciudadDAO;
+    private final PlanSuscripcionDAO planSuscripcionDAO;
+
     private final SuscripcionService suscripcionService;
 
     // =========================================================================
@@ -121,6 +123,14 @@ public class PagoServiceImpl implements PagoService {
                     solicitud.getUsuarioId(), solicitud.getPedidoInterciudadId(), solicitud.getMonto());
             exigirEnvioPendienteDePago(pedido);
         }
+        if (CONCEPTO_RESERVA_SALA.equalsIgnoreCase(solicitud.getConcepto())) {
+            validarPagoReservaSala(solicitud.getUsuarioId(), solicitud.getReservaSalaId(), solicitud.getMonto());
+        }
+        SuscripcionDTO suscripcionPorPagar = null;
+        if (CONCEPTO_SUSCRIPCION.equalsIgnoreCase(solicitud.getConcepto())) {
+            suscripcionPorPagar = validarPagoSuscripcion(
+                    solicitud.getUsuarioId(), solicitud.getPlanSuscripcionId(), solicitud.getMonto());
+        }
 
         boolean esAprobado = esTarjetaAprobada(solicitud.getNumeroTarjeta());
         String estadoPago = esAprobado ? ESTADO_APROBADO : ESTADO_RECHAZADO;
@@ -139,6 +149,7 @@ public class PagoServiceImpl implements PagoService {
         pago.setMetodoPagoId(1L); // Método de pago por defecto para la pasarela simulada
 
         if (solicitud.getMultaId() != null) pago.setMultaId(solicitud.getMultaId());
+        if (suscripcionPorPagar != null) pago.setSuscripcionId(suscripcionPorPagar.getId());
         if (solicitud.getReservaSalaId() != null) pago.setReservaSalaId(solicitud.getReservaSalaId());
         if (CONCEPTO_ENVIO_INTERCIUDAD.equalsIgnoreCase(solicitud.getConcepto())) {
             pago.setPedidoInterciudadId(solicitud.getPedidoInterciudadId());
@@ -168,16 +179,30 @@ public class PagoServiceImpl implements PagoService {
                 break;
 
             case CONCEPTO_SUSCRIPCION:
-                if (solicitud.getPlanSuscripcionId() == null) {
-                    throw new BusinessValidationException("Debe especificar el planSuscripcionId para comprar una suscripción");
-                }
-                suscripcionDAO.findByUsuarioIdAndEstado(solicitud.getUsuarioId(), "PENDIENTE_PAGO")
-                        .or(() -> suscripcionDAO.findByUsuarioIdAndEstado(solicitud.getUsuarioId(), "ACTIVA"))
-                        .ifPresent(suscripcion -> suscripcionService.activarSuscripcion(suscripcion.getId()));
+                suscripcionService.activarSuscripcion(suscripcionPorPagar.getId());
                 break;
 
             case CONCEPTO_ENVIO_INTERCIUDAD:
+                PedidoInterciudadDTO pedidoPagado = pedidoInterciudadDAO.findById(solicitud.getPedidoInterciudadId())
+                        .orElseThrow(() -> new ResourceNotFoundException(
+                                "Pedido interciudad no encontrado con ID: " + solicitud.getPedidoInterciudadId()));
+                        
+                pedidoPagado.setEstado("SOLICITADO"); // pago aprobado: el pedido queda confirmado
+                pedidoInterciudadDAO.update(pedidoPagado.getId(), pedidoPagado);
+                        
+                notificar(solicitud.getUsuarioId(), "PEDIDO_CONFIRMADO", "Pedido interciudad confirmado",
+                        "Tu pedido #" + pedidoPagado.getId() + " fue confirmado tras el pago del envío ($"
+                                + solicitud.getMonto() + "). Lo recibirás en " + pedidoPagado.getCiudadEntrega()
+                                + " el " + pedidoPagado.getFechaRecepcion() + " (" + pedidoPagado.getHoraRecepcion()
+                                + ") y deberás devolverlo en la sede " + pedidoPagado.getSedeDevolucionNombre() + ".");
+                log.info("Pedido interciudad {} confirmado por pago aprobado {}", pedidoPagado.getId(), numReferencia);
+                break;
             case CONCEPTO_RESERVA_SALA:
+                ReservaSalaDTO reservaSala = reservaSalaDAO.findById(solicitud.getReservaSalaId())
+                        .orElseThrow(() -> new ResourceNotFoundException(
+                                "Reserva de sala no encontrada con ID: " + solicitud.getReservaSalaId()));
+                reservaSala.setEstado("CONFIRMADA");
+                reservaSalaDAO.update(reservaSala.getId(), reservaSala);
                 break;
 
             default:
@@ -213,9 +238,53 @@ public class PagoServiceImpl implements PagoService {
     // MÉTODOS AUXILIARES
     // =========================================================================
 
+    private ReservaSalaDTO validarPagoReservaSala(Long usuarioId, Long reservaId, BigDecimal monto) {
+        if (reservaId == null) {
+            throw new BusinessValidationException("El campo reservaSalaId es obligatorio para pagos de RESERVA_SALA");
+        }
+        ReservaSalaDTO reserva = reservaSalaDAO.findById(reservaId)
+                .orElseThrow(() -> new ResourceNotFoundException("Reserva de sala no encontrada con ID: " + reservaId));
+        if (!reserva.getUsuarioId().equals(usuarioId)) {
+            throw new BusinessValidationException("La reserva " + reservaId + " no pertenece al usuario " + usuarioId);
+        }
+        if (!"PENDIENTE_PAGO".equalsIgnoreCase(reserva.getEstado())) {
+            throw new BusinessValidationException("Solo se puede pagar una reserva en estado PENDIENTE_PAGO (estado actual: "
+                    + reserva.getEstado() + ")");
+        }
+        if (monto.compareTo(reserva.getValorTotal()) != 0) {
+            throw new BusinessValidationException("El monto del pago (" + monto
+                    + ") no coincide con el valorTotal de la reserva (" + reserva.getValorTotal() + ")");
+        }
+        return reserva;
+    }
+
+    private SuscripcionDTO validarPagoSuscripcion(Long usuarioId, Long planId, BigDecimal monto) {
+    if (planId == null) {
+        throw new BusinessValidationException("Debe especificar el planSuscripcionId para pagar una suscripción");
+    }
+    SuscripcionDTO pendiente = suscripcionDAO.findByUsuarioIdAndEstado(usuarioId, "PENDIENTE_PAGO")
+            .orElseThrow(() -> new BusinessValidationException(
+                    "El usuario no tiene una compra de suscripción pendiente de pago. "
+                            + "Inicie la compra en POST /api/v1/suscripciones/comprar"));
+    if (!pendiente.getPlanId().equals(planId)) {
+        throw new BusinessValidationException("El plan a pagar (" + planId
+                + ") no coincide con el de la compra pendiente (" + pendiente.getPlanId() + ")");
+    }
+    PlanSuscripcionDTO plan = planSuscripcionDAO.findById(planId)
+            .orElseThrow(() -> new ResourceNotFoundException("Plan de suscripción no encontrado con ID: " + planId));
+    if (!Boolean.TRUE.equals(plan.getActivo())) {
+        throw new BusinessValidationException("El plan de suscripción seleccionado ya no está activo");
+    }
+    if (monto.compareTo(plan.getPrecio()) != 0) {
+        throw new BusinessValidationException("El monto del pago (" + monto
+                + ") no coincide con el precio del plan (" + plan.getPrecio() + ")");
+    }
+    return pendiente;
+}
+
     private void activarSuscripcionSiCorresponde(PagoDTO pago) {
         if (!CONCEPTO_SUSCRIPCION.equalsIgnoreCase(pago.getConcepto())
-                || (!ESTADO_EXITOSO.equalsIgnoreCase(pago.getEstado()) && !ESTADO_APROBADO.equalsIgnoreCase(pago.getEstado()))
+                || !ESTADO_APROBADO.equalsIgnoreCase(pago.getEstado())
                 || pago.getSuscripcionId() == null) {
             return;
         }
@@ -268,6 +337,12 @@ public class PagoServiceImpl implements PagoService {
             default -> throw new BusinessValidationException(
                     "Concepto inválido: " + dto.getConcepto() + ". Valores permitidos: MULTA, RECARGO, SUSCRIPCION, RESERVA_SALA, ENVIO_INTERCIUDAD");
         }
+        String estado = dto.getEstado() == null ? "" : dto.getEstado().trim().toUpperCase();
+        if (!EstadoPago.TODOS.contains(estado)) {
+            throw new BusinessValidationException("Estado de pago inválido: " + dto.getEstado()
+                    + ". Valores permitidos: PENDIENTE, APROBADO, RECHAZADO, REEMBOLSADO");
+        }
+        dto.setEstado(estado);
         dto.setConcepto(concepto);
     }
 
@@ -289,8 +364,8 @@ public class PagoServiceImpl implements PagoService {
     }
 
     private void exigirEnvioPendienteDePago(PedidoInterciudadDTO pedido) {
-        if (!"SOLICITADO".equalsIgnoreCase(pedido.getEstado())) {
-            throw new BusinessValidationException("Solo se puede pagar el envío de un pedido en estado SOLICITADO (estado actual: "
+        if (!"PENDIENTE_PAGO".equalsIgnoreCase(pedido.getEstado())) {
+            throw new BusinessValidationException("Solo se puede pagar el envío de un pedido en estado PENDIENTE_PAGO (estado actual: "
                     + pedido.getEstado() + ")");
         }
         if (pagoDAO.findEnvioPagadoPorPedido(pedido.getId()).isPresent()) {

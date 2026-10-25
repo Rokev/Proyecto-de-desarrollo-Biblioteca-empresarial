@@ -78,6 +78,16 @@ public class TareasProgramadas {
         } catch (Exception e) {
             log.error("Error al enviar recordatorios de reservas de salas", e);
         }
+        try {
+            automatizacionService.procesarPedidosNoRecogidos();
+        } catch (Exception e) {
+            log.error("Error al procesar pedidos interciudad no recogidos", e);
+        }
+        try {
+            automatizacionService.finalizarSancionesVencidas();
+        } catch (Exception e) {
+            log.error("Error al finalizar sanciones vencidas", e);
+        }
     }
 
     /** Cada 10 minutos: el plazo para pagar una reserva de sala es corto (30 min). */
@@ -87,6 +97,15 @@ public class TareasProgramadas {
             automatizacionService.liberarReservasSalaVencidas();
         } catch (Exception e) {
             log.error("Error al liberar reservas de sala", e);
+        }
+    }
+    
+    @Scheduled (cron = "0 */10 * * * *", zone = "America/Bogota")
+    public void cancelarPedidosInterciudadSinPago() {
+        try {
+            automatizacionService.cancelarPedidosInterciudadSinPago();
+        } catch (Exception e) {
+            log.error("Error al cancelar pedidos interciudad sin pago", e);
         }
     }
 }

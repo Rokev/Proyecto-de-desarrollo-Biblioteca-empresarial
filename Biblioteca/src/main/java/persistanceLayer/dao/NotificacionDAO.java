@@ -30,6 +30,10 @@ public class NotificacionDAO {
         return mapper.notificacionToDto(guardado);
     }
 
+    public boolean existsByUsuarioIdAndTipoAndMensaje(Long usuarioId, String tipo, String mensaje) {
+    return notificacionRepository.existsByUsuarioIdAndTipoAndMensaje(usuarioId, tipo, mensaje);
+}
+
     public Optional<NotificacionDTO> findById(Long id) {
         return notificacionRepository.findById(id).map(mapper::notificacionToDto);
     }

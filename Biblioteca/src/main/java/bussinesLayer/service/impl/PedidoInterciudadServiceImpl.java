@@ -6,6 +6,11 @@ import bussinesLayer.exception.ResourceNotFoundException;
 import bussinesLayer.service.PedidoInterciudadService;
 import bussinesLayer.service.SuscripcionService;
 import bussinesLayer.service.TarifaEnvioService;
+import bussinesLayer.service.ReservaLibroService;
+import bussinesLayer.service.ValidadorUsuarioService;
+import bussinesLayer.service.NotificacionService;
+import bussinesLayer.service.AutomatizacionService;
+import bussinesLayer.util.EstadoPago;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -33,20 +38,22 @@ public class PedidoInterciudadServiceImpl implements PedidoInterciudadService {
     private static final String ESTADO_EN_CAMINO_SEDE_ORIGEN = "EN_CAMINO_SEDE_ORIGEN";
     private static final String ESTADO_CANCELADO = "CANCELADO";
     private static final String ESTADO_CERRADO = "CERRADO";
+    private static final String ESTADO_PENDIENTE_PAGO = "PENDIENTE_PAGO";
 
     private static final String EJEMPLAR_DISPONIBLE = "DISPONIBLE";
     private static final String EJEMPLAR_RESERVADO = "RESERVADO";
     private static final String EJEMPLAR_EN_TRANSITO = "EN_TRANSITO";
     private static final String EJEMPLAR_PRESTADO = "PRESTADO";
 
+
     private static final int DIAS_MAXIMO_SOLICITUD = 7;
     private static final int DIAS_PLAZO_RECOGIDA = 2; 
     private static final int DIAS_PRESTAMO_INTERCIUDAD = 14; 
+    static final int MINUTOS_PAGO_ENVIO = 30;
     private static final BigDecimal RECARGO_NO_RECIBIDO = new BigDecimal("15000.00"); 
 
     private final PedidoInterciudadDAO pedidoDAO;
     private final UsuarioDAO usuarioDAO;
-    private final LibroDAO libroDAO;
     private final EjemplarDAO ejemplarDAO;
     private final SedeDAO sedeDAO;
     private final PagoDAO pagoDAO;
@@ -56,6 +63,10 @@ public class PedidoInterciudadServiceImpl implements PedidoInterciudadService {
     private final NotificacionDAO notificacionDAO;
     private final SuscripcionService suscripcionService;
     private final TarifaEnvioService tarifaEnvioService;
+    private final ReservaLibroService reservaLibroService;
+    private final NotificacionService notificacionService;
+    private final ValidadorUsuarioService validadorUsuarioService;
+    private final AutomatizacionService automatizacionService;
 
     // ------------------------------------------------------------Solicitar
 
@@ -66,10 +77,18 @@ public class PedidoInterciudadServiceImpl implements PedidoInterciudadService {
         if (!usuarioDAO.existsById(solicitud.getUsuarioId())) {
             throw new ResourceNotFoundException("Usuario no encontrado: " + solicitud.getUsuarioId());
         }
-        suscripcionService.exigirSuscripcionVigente(solicitud.getUsuarioId()); 
+        suscripcionService.exigirSuscripcionVigente(solicitud.getUsuarioId());
 
-        if (!sedeDAO.existsById(solicitud.getSedeDevolucionId())) {
-            throw new ResourceNotFoundException("Sede de devolución no encontrada: " + solicitud.getSedeDevolucionId());
+        // Sanciones activas y multas pendientes (mismo control que préstamos y reservas)
+        validadorUsuarioService.validarUsuarioHabilitadoParaOperaciones(solicitud.getUsuarioId());
+
+        // La sede de devolución debe existir y estar en operación
+        SedeDTO sedeDevolucion = sedeDAO.findById(solicitud.getSedeDevolucionId())
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Sede de devolución no encontrada: " + solicitud.getSedeDevolucionId()));
+        if (!Boolean.TRUE.equals(sedeDevolucion.getEnOperacion())) {
+            throw new BusinessValidationException(
+                    "La sede de devolución " + sedeDevolucion.getNombre() + " no está en operación");
         }
 
         LocalDate hoy = LocalDate.now();
@@ -77,9 +96,6 @@ public class PedidoInterciudadServiceImpl implements PedidoInterciudadService {
             throw new BusinessValidationException("La fecha de recepción no puede superar los 7 días a partir de hoy");
         }
 
-        if (sancionDAO.existsByUsuarioIdAndTipoIgnoreCaseAndEstadoIgnoreCase(solicitud.getUsuarioId(), "BLOQUEO_PRESTAMOS", "ACTIVA")) {
-            throw new BusinessValidationException("El usuario posee sanciones activas que impiden realizar pedidos");
-        }
 
         EjemplarDTO ejemplar = reservarEjemplarConTarifa(solicitud.getLibroId(), solicitud.getCiudadEntrega());
         String ciudadOrigen = obtenerCiudadDeSede(ejemplar.getSedeId());
@@ -99,7 +115,7 @@ public class PedidoInterciudadServiceImpl implements PedidoInterciudadService {
 
         // Crear Pedido Interciudad
         PedidoInterciudadDTO pedido = new PedidoInterciudadDTO();
-        pedido.setEstado(ESTADO_SOLICITADO);
+        pedido.setEstado(ESTADO_PENDIENTE_PAGO);
         pedido.setCiudadEntrega(solicitud.getCiudadEntrega().trim());
         pedido.setDireccionEntrega(solicitud.getDireccionEntrega().trim());
         pedido.setFechaRecepcion(solicitud.getFechaRecepcion());
@@ -112,7 +128,11 @@ public class PedidoInterciudadServiceImpl implements PedidoInterciudadService {
         pedido.setSedeDevolucionId(solicitud.getSedeDevolucionId());
         pedido.setPrestamoId(prestamoGuardado.getId());
 
-        return pedidoDAO.save(pedido);
+        PedidoInterciudadDTO guardado = pedidoDAO.save(pedido);
+        notificar(solicitud.getUsuarioId(), "PEDIDO_PENDIENTE_PAGO", "Paga el envío para confirmar tu pedido",
+                "Tu pedido #" + guardado.getId() + " quedó pendiente de pago ($" + costoEnvio + "). Tienes "
+                        + MINUTOS_PAGO_ENVIO + " minutos para pagar el envío o se cancelará automáticamente.");
+        return guardado;
     }
 
     // ------------------------------------------------------------ Cancelar
@@ -123,10 +143,11 @@ public class PedidoInterciudadServiceImpl implements PedidoInterciudadService {
         if (!pedido.getUsuarioId().equals(usuarioId)) {
             throw new BusinessValidationException("El pedido no pertenece al usuario especificado");
         }
-        if (!ESTADO_SOLICITADO.equalsIgnoreCase(pedido.getEstado())) {
+        boolean pendientePago = ESTADO_PENDIENTE_PAGO.equalsIgnoreCase(pedido.getEstado());
+        if (!pendientePago && !ESTADO_SOLICITADO.equalsIgnoreCase(pedido.getEstado())) {
             notificar(usuarioId, "CANCELACION_BLOQUEADA", "No se pudo cancelar el pedido",
-                    "El pedido #" + pedidoId + " ya no está en estado SOLICITADO y no se puede cancelar.");
-            throw new BusinessValidationException("Solo se pueden cancelar pedidos en estado SOLICITADO");
+                    "El pedido #" + pedidoId + " ya no está en estado SOLICITADO ni PENDIENTE_PAGO y no se puede cancelar.");
+            throw new BusinessValidationException("Solo se pueden cancelar pedidos en estado SOLICITADO o PENDIENTE_PAGO");
         }
 
         cambiarEstadoEjemplar(pedido.getEjemplarId(), EJEMPLAR_RESERVADO, EJEMPLAR_DISPONIBLE);
@@ -170,6 +191,18 @@ public class PedidoInterciudadServiceImpl implements PedidoInterciudadService {
         return pedidoDAO.findBySedeOrigenAndEstados(sedeOrigenId, List.of(ESTADO_SOLICITADO, ESTADO_EN_CAMINO_SEDE_ORIGEN));
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public List<PedidoInterciudadDTO> obtenerPedidosSedeDevolucion(Long sedeDevolucionId) {
+        if (!sedeDAO.existsById(sedeDevolucionId)) {
+            throw new ResourceNotFoundException("Sede no encontrada: " + sedeDevolucionId);
+        }
+        // Pedidos que llegan, se devuelven o esperan recogida en esta sede
+        return pedidoDAO.findBySedeDevolucionAndEstados(sedeDevolucionId, List.of(
+                ESTADO_EN_TRANSITO, ESTADO_ENTREGADO, ESTADO_NO_RECIBIDO,
+                ESTADO_EN_ESPERA_DE_RECOGIDA, ESTADO_DEVUELTO_PENDIENTE_TRASLADO));
+    }
+
     // ------------------------------------------------------------ Acciones Bibliotecario
 
     @Override
@@ -189,27 +222,50 @@ public class PedidoInterciudadServiceImpl implements PedidoInterciudadService {
 
         notificar(pedido.getUsuarioId(), "PEDIDO_EN_TRANSITO", "Tu pedido va en camino",
                 "El pedido #" + pedidoId + " se encuentra en tránsito a la dirección indicada.");
+        notificacionService.notificarSede(pedido.getSedeDevolucionId(), "PEDIDO_DESPACHADO", "Pedido interciudad despachado",
+        "El pedido #" + pedidoId + " salió hacia el usuario y deberá devolverse en tu sede ("
+                + pedido.getSedeDevolucionNombre() + ").");
         return pedidoDAO.update(pedido.getId(), pedido).orElseThrow();
     }
 
-    @Override
-    public PedidoInterciudadDTO registrarDevolucionEnSede(Long pedidoId, Long bibliotecarioId, Long sedeId) { 
-        PedidoInterciudadDTO pedido = buscarPedido(pedidoId);
-        if (!pedido.getSedeDevolucionId().equals(sedeId)) {
-            throw new BusinessValidationException("El pedido debe devolverse en la sede de devolución elegida: " + pedido.getSedeDevolucionNombre());
-        }
+@Override
+public PedidoInterciudadDTO registrarDevolucionEnSede(Long pedidoId, Long bibliotecarioId, Long sedeId) {
+    PedidoInterciudadDTO pedido = buscarPedido(pedidoId);
+    validarEstado(pedido, ESTADO_ENTREGADO);
 
-        pedido.setEstado(ESTADO_DEVUELTO_PENDIENTE_TRASLADO);
-        pedido.setBibliotecarioId(bibliotecarioId);
-
-        PrestamoDTO prestamo = prestamoDAO.findById(pedido.getPrestamoId()).orElseThrow();
-        prestamo.setEstado("DEVUELTO");
-        prestamoDAO.update(prestamo.getId(), prestamo);
-
-        notificar(pedido.getUsuarioId(), "LIBRO_DEVUELTO", "Devolución registrada",
-                "Se registró la devolución exitosa del pedido #" + pedidoId + " en la sede elegida.");
-        return pedidoDAO.update(pedido.getId(), pedido).orElseThrow();
+    if (!pedido.getSedeDevolucionId().equals(sedeId)) {
+        throw new BusinessValidationException("El pedido debe devolverse en la sede de devolución elegida: " + pedido.getSedeDevolucionNombre());
     }
+
+    LocalDateTime ahora = LocalDateTime.now();
+
+    long diasRetraso = automatizacionService.evaluarRetrasoAlDevolver(pedido.getPrestamoId());
+
+    // El libro queda físicamente en la sede de devolución, esperando traslado
+    cambiarEstadoEjemplar(pedido.getEjemplarId(), EJEMPLAR_PRESTADO, EJEMPLAR_EN_TRANSITO);
+
+    pedido.setEstado(ESTADO_DEVUELTO_PENDIENTE_TRASLADO);
+    pedido.setBibliotecarioId(bibliotecarioId);
+
+    PrestamoDTO prestamo = prestamoDAO.findById(pedido.getPrestamoId()).orElseThrow();
+    prestamo.setEstado("DEVUELTO");
+    prestamo.setFechaDevolucion(ahora);
+    prestamoDAO.update(prestamo.getId(), prestamo);
+
+    String avisoRetraso = diasRetraso > 0
+            ? " La devolución tuvo " + diasRetraso + (diasRetraso == 1 ? " día" : " días")
+                    + " de retraso: revisa tus multas pendientes."
+            : "";
+    notificar(pedido.getUsuarioId(), "LIBRO_DEVUELTO", "Devolución registrada",
+            "Se registró la devolución exitosa del pedido #" + pedidoId + " en la sede elegida." + avisoRetraso);
+
+    notificacionService.notificarSede(pedido.getSedeOrigenId(), "LIBRO_DEVUELTO_REGRESA",
+            "Libro devuelto, pronto volverá a tu sede",
+            "El libro del pedido #" + pedidoId + " fue devuelto en la sede " + pedido.getSedeDevolucionNombre()
+                    + " y pronto volverá a tu sede.");
+
+    return pedidoDAO.update(pedido.getId(), pedido).orElseThrow();
+}
 
     @Override
     public PedidoInterciudadDTO registrarRecepcionNoRecibido(Long pedidoId, Long bibliotecarioId) { 
@@ -223,6 +279,10 @@ public class PedidoInterciudadServiceImpl implements PedidoInterciudadService {
 
         notificar(pedido.getUsuarioId(), "EN_ESPERA_DE_RECOGIDA", "Tu libro está en la sede de devolución",
                 "Puedes recoger tu pedido #" + pedidoId + " en la sede de devolución antes de: " + pedido.getFechaLimiteRecogida());
+        notificacionService.notificarSede(pedido.getSedeOrigenId(), "LIBRO_DEVUELTO_REGRESA",
+        "Libro devuelto, pronto volverá a tu sede",
+        "El libro del pedido #" + pedidoId + " fue devuelto en la sede " + pedido.getSedeDevolucionNombre()
+                + " y pronto volverá a tu sede.");
         return pedidoDAO.update(pedido.getId(), pedido).orElseThrow();
     }
 
@@ -249,13 +309,23 @@ public class PedidoInterciudadServiceImpl implements PedidoInterciudadService {
     }
 
     @Override
-    public PedidoInterciudadDTO registrarRecepcionEnSedeOrigen(Long pedidoId, Long bibliotecarioId) { 
+    public PedidoInterciudadDTO registrarRecepcionEnSedeOrigen(Long pedidoId, Long bibliotecarioId) {
         PedidoInterciudadDTO pedido = buscarPedido(pedidoId);
+
+        if (!ESTADO_EN_CAMINO_SEDE_ORIGEN.equalsIgnoreCase(pedido.getEstado())) {
+            throw new BusinessValidationException("El pedido #" + pedidoId
+                    + " no puede recibirse en la sede de origen (estado actual: " + pedido.getEstado()
+                    + "). Debe estar EN_CAMINO_SEDE_ORIGEN");
+        }
+
         cambiarEstadoEjemplar(pedido.getEjemplarId(), EJEMPLAR_EN_TRANSITO, EJEMPLAR_DISPONIBLE);
 
         pedido.setEstado(ESTADO_CERRADO);
         pedido.setBibliotecarioId(bibliotecarioId);
-        return pedidoDAO.update(pedido.getId(), pedido).orElseThrow();
+        PedidoInterciudadDTO cerrado = pedidoDAO.update(pedido.getId(), pedido).orElseThrow();
+
+        reservaLibroService.asignarEjemplarAReservaEnEspera(pedido.getEjemplarId());
+        return cerrado;
     }
 
     // ------------------------------------------------------------ Acciones Repartidor
@@ -323,6 +393,11 @@ public class PedidoInterciudadServiceImpl implements PedidoInterciudadService {
         pedido.setEstado(ESTADO_EN_CAMINO_SEDE_ORIGEN);
         pedido.setRepartidorId(repartidorId);
 
+        notificacionService.notificarSede(pedido.getSedeOrigenId(), "TRASLADO_EN_CAMINO",
+        "Libro en camino a tu sede",
+        "El libro del pedido #" + pedido.getId() + " va en camino desde la sede "
+                + pedido.getSedeDevolucionNombre() + ".");
+
         return pedidoDAO.update(pedido.getId(), pedido).orElseThrow();
     }
 
@@ -373,7 +448,7 @@ public class PedidoInterciudadServiceImpl implements PedidoInterciudadService {
     private Optional<PagoDTO> reembolsarEnvio(PedidoInterciudadDTO pedido) {
         Optional<PagoDTO> pagoOpt = pagoDAO.findEnvioPagadoPorPedido(pedido.getId());
         pagoOpt.ifPresent(pago -> {
-            pago.setEstado("REEMBOLSADO");
+            pago.setEstado(EstadoPago.REEMBOLSADO);
             pagoDAO.update(pago.getId(), pago);
             log.info("Reembolso del envío del pedido {}: pago {} por {}", pedido.getId(), pago.getReferencia(), pago.getMonto());
         });
