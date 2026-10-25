@@ -1,4 +1,6 @@
 package presentationLayer.controller;
+import bussinesLayer.dto.AsistenteEventoDTO;
+import org.springframework.web.bind.annotation.RequestParam;
 
 import bussinesLayer.dto.InscripcionEventoDTO;
 import bussinesLayer.service.InscripcionEventoService;
@@ -127,6 +129,15 @@ public class InscripcionEventoController {
         log.info("POST /api/v1/inscripciones-evento/depurar-sin-suscripcion");
         int canceladas = inscripcionEventoService.cancelarInscripcionesExclusivasSinSuscripcion();
         return ResponseEntity.ok(Map.of("inscripcionesCanceladas", canceladas));
-    }    
+    }
 
+    @GetMapping("/evento/{eventoId}")
+    @Operation(summary = "Consultar asistentes de un evento", description = "Lista actualizada de usuarios inscritos al evento (por defecto solo inscripciones ACTIVAS; estado=TODAS para ver todas)")
+    @ApiResponse(responseCode = "200", description = "Consulta realizada exitosamente",
+            content = @Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = AsistenteEventoDTO.class))))
+    public ResponseEntity<List<AsistenteEventoDTO>> obtenerAsistentes(
+            @Parameter(description = "ID del evento", example = "1") @PathVariable Long eventoId,
+            @Parameter(description = "Estado de la inscripcion (ACTIVA por defecto, TODAS para todas)") @RequestParam(required = false) String estado) {
+        return ResponseEntity.ok(inscripcionEventoService.obtenerAsistentesDeEvento(eventoId, estado));
+    }
 }

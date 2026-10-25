@@ -1,4 +1,6 @@
 package presentationLayer.controller;
+import bussinesLayer.dto.ReservaLibroDetalleDTO;
+import org.springframework.web.bind.annotation.RequestParam;
 
 import bussinesLayer.dto.ReservaLibroDTO;
 import bussinesLayer.service.ReservaLibroService;
@@ -115,5 +117,27 @@ public class ReservaLibroController {
         log.info("DELETE /api/v1/reservas-libro/{}", id);
         reservaLibroService.eliminarReservaLibro(id);
         return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/usuario/{usuarioId}")
+    @Operation(summary = "Consultar reservas de libro de un usuario", description = "Lista las reservas del usuario con libro, sede, estado y fecha limite de retiro")
+    @ApiResponse(responseCode = "200", description = "Consulta realizada exitosamente",
+            content = @Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = ReservaLibroDetalleDTO.class))))
+    public ResponseEntity<List<ReservaLibroDetalleDTO>> obtenerPorUsuario(
+            @Parameter(description = "ID del usuario", example = "1") @PathVariable Long usuarioId,
+            @Parameter(description = "Filtro opcional por estado") @RequestParam(required = false) String estado) {
+        return ResponseEntity.ok(reservaLibroService.obtenerReservasDeUsuario(usuarioId, estado));
+    }
+
+    @GetMapping("/sede/{sedeId}")
+    @Operation(summary = "Consultar reservas de libro de una sede", description = "Lista las reservas de la sede, filtrables por estado, usuario y libro")
+    @ApiResponse(responseCode = "200", description = "Consulta realizada exitosamente",
+            content = @Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = ReservaLibroDetalleDTO.class))))
+    public ResponseEntity<List<ReservaLibroDetalleDTO>> obtenerPorSede(
+            @Parameter(description = "ID de la sede", example = "1") @PathVariable Long sedeId,
+            @Parameter(description = "Filtro opcional por estado") @RequestParam(required = false) String estado,
+            @Parameter(description = "Filtro opcional por usuario") @RequestParam(required = false) Long usuarioId,
+            @Parameter(description = "Filtro opcional por libro") @RequestParam(required = false) Long libroId) {
+        return ResponseEntity.ok(reservaLibroService.obtenerReservasDeSede(sedeId, estado, usuarioId, libroId));
     }
 }

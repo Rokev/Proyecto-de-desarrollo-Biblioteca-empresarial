@@ -1,4 +1,5 @@
 package presentationLayer.controller;
+import org.springframework.web.bind.annotation.RequestParam;
 
 import bussinesLayer.dto.SedeDTO;
 import bussinesLayer.service.SedeService;
@@ -115,5 +116,13 @@ class SedeController {
         log.info("DELETE /api/v1/sedes/{}", id);
         sedeService.eliminarSede(id);
         return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/activas")
+    @Operation(summary = "Listar sedes activas", description = "Obtiene unicamente las sedes en operacion (estado activo)")
+    @ApiResponse(responseCode = "200", description = "Consulta realizada exitosamente",
+            content = @Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = SedeDTO.class))))
+    public ResponseEntity<List<SedeDTO>> obtenerActivas() {
+        return ResponseEntity.ok(sedeService.obtenerSedesActivas());
     }
 }

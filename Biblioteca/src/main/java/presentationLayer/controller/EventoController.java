@@ -1,4 +1,7 @@
 package presentationLayer.controller;
+import org.springframework.format.annotation.DateTimeFormat;
+import java.time.LocalDate;
+import org.springframework.web.bind.annotation.RequestParam;
 
 import bussinesLayer.dto.EventoDTO;
 import bussinesLayer.service.EventoService;
@@ -115,5 +118,16 @@ public class EventoController {
         log.info("DELETE /api/v1/eventos/{}", id);
         eventoService.eliminarEvento(id);
         return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/proximos")
+    @Operation(summary = "Listar eventos proximos", description = "Eventos programados que aun no han empezado (excluye cancelados), filtrables por sede, fecha y tipo")
+    @ApiResponse(responseCode = "200", description = "Consulta realizada exitosamente",
+            content = @Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = EventoDTO.class))))
+    public ResponseEntity<List<EventoDTO>> buscarProximos(
+            @Parameter(description = "Filtro por sede") @RequestParam(required = false) Long sedeId,
+            @Parameter(description = "Filtro por fecha de inicio (yyyy-MM-dd)") @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fecha,
+            @Parameter(description = "true: solo exclusivos; false: solo generales") @RequestParam(required = false) Boolean exclusivo) {
+        return ResponseEntity.ok(eventoService.buscarEventosProximos(sedeId, fecha, exclusivo));
     }
 }
