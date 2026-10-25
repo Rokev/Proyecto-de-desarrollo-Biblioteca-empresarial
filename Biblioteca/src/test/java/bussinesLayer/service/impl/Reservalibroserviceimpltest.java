@@ -6,7 +6,9 @@ import bussinesLayer.dto.NotificacionDTO;
 import bussinesLayer.dto.ReservaLibroDTO;
 import bussinesLayer.exception.BusinessValidationException;
 import bussinesLayer.exception.ResourceNotFoundException;
+import bussinesLayer.service.ConfiguracionSistemaService;
 import bussinesLayer.service.ValidadorUsuarioService;
+import bussinesLayer.util.ClavePlazo;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -29,7 +31,6 @@ import java.util.Optional;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -58,6 +59,7 @@ class ReservaLibroServiceImplTest {
     @Mock private SedeDAO sedeDAO;
     @Mock private EjemplarDAO ejemplarDAO;
     @Mock private ValidadorUsuarioService validadorUsuarioService;
+    @Mock private ConfiguracionSistemaService configuracionService;
 
     @InjectMocks
     private ReservaLibroServiceImpl service;
@@ -221,6 +223,7 @@ class ReservaLibroServiceImplTest {
     @Test
     @DisplayName("eliminarReservaLibro: elimina cuando existe")
     void eliminar_existente_elimina() {
+        when(reservaLibroDAO.findById(RESERVA_ID)).thenReturn(Optional.of(reservaExistente("EN_ESPERA")));
         when(reservaLibroDAO.deleteById(RESERVA_ID)).thenReturn(true);
 
         service.eliminarReservaLibro(RESERVA_ID);
@@ -231,6 +234,17 @@ class ReservaLibroServiceImplTest {
     @Test
     @DisplayName("eliminarReservaLibro: inexistente lanza ResourceNotFoundException")
     void eliminar_inexistente_lanzaNotFound() {
+        when(reservaLibroDAO.findById(RESERVA_ID)).thenReturn(Optional.empty());
+
+        assertThrows(ResourceNotFoundException.class, () -> service.eliminarReservaLibro(RESERVA_ID));
+
+        verify(reservaLibroDAO, never()).deleteById(any());
+    }
+
+    @Test
+    @DisplayName("eliminarReservaLibro: si el DAO no la elimina lanza ResourceNotFoundException")
+    void eliminar_daoNoElimina_lanzaNotFound() {
+        when(reservaLibroDAO.findById(RESERVA_ID)).thenReturn(Optional.of(reservaExistente("EN_ESPERA")));
         when(reservaLibroDAO.deleteById(RESERVA_ID)).thenReturn(false);
 
         assertThrows(ResourceNotFoundException.class, () -> service.eliminarReservaLibro(RESERVA_ID));
@@ -292,17 +306,15 @@ class ReservaLibroServiceImplTest {
     }
 
     @Test
-    @DisplayName("actualizarReservaLibro: si ya estaba CANCELADA no vuelve a poner fechaCancelacion")
-    void actualizar_yaCancelada_noCambiaFecha() {
+    @DisplayName("actualizarReservaLibro: no permite cancelar una reserva que ya estaba CANCELADA")
+    void actualizar_yaCancelada_lanzaBusinessValidation() {
         when(reservaLibroDAO.findById(RESERVA_ID)).thenReturn(Optional.of(reservaExistente("CANCELADA")));
         referenciasValidas();
-        when(reservaLibroDAO.update(eq(RESERVA_ID), any(ReservaLibroDTO.class)))
-                .thenAnswer(inv -> Optional.of(inv.getArgument(1)));
         dto.setEstado("CANCELADA");
 
-        ReservaLibroDTO resultado = service.actualizarReservaLibro(RESERVA_ID, dto);
+        assertThrows(BusinessValidationException.class, () -> service.actualizarReservaLibro(RESERVA_ID, dto));
 
-        assertNull(resultado.getFechaCancelacion());
+        verify(reservaLibroDAO, never()).update(any(), any());
     }
 
     @Test
@@ -407,7 +419,7 @@ class ReservaLibroServiceImplTest {
     }
 
     @Test
-    @DisplayName("asignarEjemplarAReservaEnEspera: asigna el ejemplar, marca NOTIFICADA con 2 dias de plazo y notifica")
+    @DisplayName("asignarEjemplarAReservaEnEspera: asigna el ejemplar, marca NOTIFICADA con el plazo configurado (48 h) y notifica")
     void asignar_exitoso_notificaYActualizaReserva() {
         ReservaLibroDTO reserva = reservaExistente("EN_ESPERA");
         when(ejemplarDAO.findById(EJEMPLAR_ID)).thenReturn(Optional.of(ejemplar()));
@@ -415,6 +427,7 @@ class ReservaLibroServiceImplTest {
                 LIBRO_ID, SEDE_ID, "EN_ESPERA")).thenReturn(Optional.of(reserva));
         when(ejemplarDAO.cambiarEstadoSiEs(EJEMPLAR_ID, "DISPONIBLE", "RESERVADO")).thenReturn(1);
         when(libroDAO.findById(LIBRO_ID)).thenReturn(Optional.of(libro("Dune")));
+        when(configuracionService.plazo(ClavePlazo.HORAS_RETIRO_LIBRO)).thenReturn(48);
 
         boolean asignado = service.asignarEjemplarAReservaEnEspera(EJEMPLAR_ID);
 
@@ -422,7 +435,7 @@ class ReservaLibroServiceImplTest {
         assertEquals("NOTIFICADA", reserva.getEstado());
         assertEquals(EJEMPLAR_ID, reserva.getEjemplarId());
         assertNotNull(reserva.getFechaNotificacion());
-        assertEquals(reserva.getFechaNotificacion().plusDays(2), reserva.getFechaLimiteRetiro());
+        assertEquals(reserva.getFechaNotificacion().plusHours(48), reserva.getFechaLimiteRetiro());
         verify(reservaLibroDAO).update(RESERVA_ID, reserva);
 
         ArgumentCaptor<NotificacionDTO> captor = ArgumentCaptor.forClass(NotificacionDTO.class);
@@ -431,5 +444,3 @@ class ReservaLibroServiceImplTest {
         assertEquals(USUARIO_ID, captor.getValue().getUsuarioId());
     }
 }
-
-

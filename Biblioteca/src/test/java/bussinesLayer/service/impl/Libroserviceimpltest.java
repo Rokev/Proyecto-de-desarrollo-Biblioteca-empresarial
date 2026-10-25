@@ -1,5 +1,6 @@
 package bussinesLayer.service.impl;
 
+import bussinesLayer.dto.EjemplarDTO;
 import bussinesLayer.dto.LibroDTO;
 import bussinesLayer.exception.BusinessValidationException;
 import bussinesLayer.exception.ResourceNotFoundException;
@@ -11,8 +12,11 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import persistanceLayer.dao.AutorDAO;
+import persistanceLayer.dao.EjemplarDAO;
 import persistanceLayer.dao.GeneroDAO;
 import persistanceLayer.dao.LibroDAO;
+import persistanceLayer.dao.PrestamoDAO;
+import persistanceLayer.dao.ReservaLibroDAO;
 
 import java.time.Year;
 import java.util.List;
@@ -22,6 +26,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyCollection;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -40,6 +46,9 @@ class LibroServiceImplTest {
     @Mock private LibroDAO libroDAO;
     @Mock private GeneroDAO generoDAO;
     @Mock private AutorDAO autorDAO;
+    @Mock private EjemplarDAO ejemplarDAO;
+    @Mock private PrestamoDAO prestamoDAO;
+    @Mock private ReservaLibroDAO reservaLibroDAO;
 
     @InjectMocks
     private LibroServiceImpl service;
@@ -254,8 +263,10 @@ class LibroServiceImplTest {
     // ---------------------------------------------------------------- eliminarLibro
 
     @Test
-    @DisplayName("eliminarLibro: elimina cuando el libro existe")
-    void eliminarLibro_existente_elimina() {
+    @DisplayName("eliminarLibro: sin prestamos, reservas ni ejemplares elimina el libro")
+    void eliminarLibro_sinDependencias_elimina() {
+        when(libroDAO.existsById(LIBRO_ID)).thenReturn(true);
+        when(ejemplarDAO.findByLibroId(LIBRO_ID)).thenReturn(List.of());
         when(libroDAO.deleteById(LIBRO_ID)).thenReturn(true);
 
         service.eliminarLibro(LIBRO_ID);
@@ -266,8 +277,115 @@ class LibroServiceImplTest {
     @Test
     @DisplayName("eliminarLibro: libro inexistente lanza ResourceNotFoundException")
     void eliminarLibro_inexistente_lanzaNotFound() {
+        when(libroDAO.existsById(LIBRO_ID)).thenReturn(false);
+
+        assertThrows(ResourceNotFoundException.class, () -> service.eliminarLibro(LIBRO_ID));
+
+        verify(libroDAO, never()).deleteById(any());
+    }
+
+    @Test
+    @DisplayName("eliminarLibro: con prestamos activos lanza BusinessValidationException")
+    void eliminarLibro_conPrestamosActivos_lanzaBusinessValidation() {
+        when(libroDAO.existsById(LIBRO_ID)).thenReturn(true);
+        when(prestamoDAO.existsByEjemplarLibroIdAndEstadoIn(eq(LIBRO_ID), anyCollection())).thenReturn(true);
+
+        assertThrows(BusinessValidationException.class, () -> service.eliminarLibro(LIBRO_ID));
+
+        verify(libroDAO, never()).deleteById(any());
+    }
+
+    @Test
+    @DisplayName("eliminarLibro: con reservas pendientes lanza BusinessValidationException")
+    void eliminarLibro_conReservasPendientes_lanzaBusinessValidation() {
+        when(libroDAO.existsById(LIBRO_ID)).thenReturn(true);
+        when(reservaLibroDAO.existsByLibroIdAndEstadoIn(eq(LIBRO_ID), anyCollection())).thenReturn(true);
+
+        assertThrows(BusinessValidationException.class, () -> service.eliminarLibro(LIBRO_ID));
+
+        verify(libroDAO, never()).deleteById(any());
+    }
+
+    @Test
+    @DisplayName("eliminarLibro: con ejemplares registrados lanza BusinessValidationException")
+    void eliminarLibro_conEjemplares_lanzaBusinessValidation() {
+        when(libroDAO.existsById(LIBRO_ID)).thenReturn(true);
+        when(ejemplarDAO.findByLibroId(LIBRO_ID)).thenReturn(List.of(new EjemplarDTO()));
+
+        assertThrows(BusinessValidationException.class, () -> service.eliminarLibro(LIBRO_ID));
+
+        verify(libroDAO, never()).deleteById(any());
+    }
+
+    @Test
+    @DisplayName("eliminarLibro: si el DAO no logra eliminarlo lanza ResourceNotFoundException")
+    void eliminarLibro_daoNoElimina_lanzaNotFound() {
+        when(libroDAO.existsById(LIBRO_ID)).thenReturn(true);
         when(libroDAO.deleteById(LIBRO_ID)).thenReturn(false);
 
         assertThrows(ResourceNotFoundException.class, () -> service.eliminarLibro(LIBRO_ID));
+    }
+
+    // ---------------------------------------------------------------- buscarLibros
+
+    private EjemplarDTO ejemplarEnSede(Long libroId, Long sedeId) {
+        EjemplarDTO e = new EjemplarDTO();
+        e.setLibroId(libroId);
+        e.setSedeId(sedeId);
+        e.setEstado("DISPONIBLE");
+        return e;
+    }
+
+    @Test
+    @DisplayName("buscarLibros: sin filtro de disponibilidad devuelve lo encontrado y normaliza textos vacios a nulo")
+    void buscarLibros_sinDisponible_devuelveEncontrados() {
+        when(libroDAO.buscar("dune", null, null, 1967, GENERO_ID))
+                .thenReturn(List.of(libroConId(LIBRO_ID), libroConId(OTRO_ID)));
+
+        List<LibroDTO> resultado = service.buscarLibros(" dune ", "  ", "", 1967, GENERO_ID, null, null);
+
+        assertEquals(2, resultado.size());
+        verify(ejemplarDAO, never()).findByLibroIdAndEstadoIgnoreCase(any(), any());
+    }
+
+    @Test
+    @DisplayName("buscarLibros: disponible=true deja solo los libros con un ejemplar DISPONIBLE")
+    void buscarLibros_disponibleTrue_filtraLosDisponibles() {
+        when(libroDAO.buscar(null, null, null, null, null))
+                .thenReturn(List.of(libroConId(LIBRO_ID), libroConId(OTRO_ID)));
+        when(ejemplarDAO.findByLibroIdAndEstadoIgnoreCase(LIBRO_ID, "DISPONIBLE"))
+                .thenReturn(List.of(ejemplarEnSede(LIBRO_ID, 5L)));
+        when(ejemplarDAO.findByLibroIdAndEstadoIgnoreCase(OTRO_ID, "DISPONIBLE")).thenReturn(List.of());
+
+        List<LibroDTO> resultado = service.buscarLibros(null, null, null, null, null, true, null);
+
+        assertEquals(1, resultado.size());
+        assertEquals(LIBRO_ID, resultado.get(0).getId());
+    }
+
+    @Test
+    @DisplayName("buscarLibros: disponible=false deja solo los libros sin ejemplares DISPONIBLES")
+    void buscarLibros_disponibleFalse_filtraLosNoDisponibles() {
+        when(libroDAO.buscar(null, null, null, null, null))
+                .thenReturn(List.of(libroConId(LIBRO_ID), libroConId(OTRO_ID)));
+        when(ejemplarDAO.findByLibroIdAndEstadoIgnoreCase(LIBRO_ID, "DISPONIBLE"))
+                .thenReturn(List.of(ejemplarEnSede(LIBRO_ID, 5L)));
+        when(ejemplarDAO.findByLibroIdAndEstadoIgnoreCase(OTRO_ID, "DISPONIBLE")).thenReturn(List.of());
+
+        List<LibroDTO> resultado = service.buscarLibros(null, null, null, null, null, false, null);
+
+        assertEquals(1, resultado.size());
+        assertEquals(OTRO_ID, resultado.get(0).getId());
+    }
+
+    @Test
+    @DisplayName("buscarLibros: con sede solo cuenta los ejemplares disponibles en esa sede")
+    void buscarLibros_conSede_soloCuentaEjemplaresDeEsaSede() {
+        when(libroDAO.buscar(null, null, null, null, null)).thenReturn(List.of(libroConId(LIBRO_ID)));
+        when(ejemplarDAO.findByLibroIdAndEstadoIgnoreCase(LIBRO_ID, "DISPONIBLE"))
+                .thenReturn(List.of(ejemplarEnSede(LIBRO_ID, 5L)));
+
+        assertEquals(1, service.buscarLibros(null, null, null, null, null, true, 5L).size());
+        assertEquals(0, service.buscarLibros(null, null, null, null, null, true, 9L).size());
     }
 }

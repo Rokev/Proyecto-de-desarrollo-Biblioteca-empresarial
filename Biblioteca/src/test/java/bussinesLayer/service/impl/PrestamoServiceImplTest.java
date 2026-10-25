@@ -1,10 +1,15 @@
 package bussinesLayer.service.impl;
 
 import bussinesLayer.dto.EjemplarDTO;
+import bussinesLayer.dto.LibroDTO;
 import bussinesLayer.dto.PrestamoDTO;
+import bussinesLayer.dto.PrestamoDetalleDTO;
+import bussinesLayer.dto.SedeDTO;
 import bussinesLayer.exception.BusinessValidationException;
 import bussinesLayer.exception.ResourceNotFoundException;
+import bussinesLayer.service.ConfiguracionSistemaService;
 import bussinesLayer.service.ValidadorUsuarioService;
+import bussinesLayer.util.ClavePlazo;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -14,6 +19,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import persistanceLayer.dao.EjemplarDAO;
+import persistanceLayer.dao.LibroDAO;
 import persistanceLayer.dao.PrestamoDAO;
 import persistanceLayer.dao.SancionDAO;
 import persistanceLayer.dao.SedeDAO;
@@ -50,8 +56,10 @@ class PrestamoServiceImplTest {
     @Mock private UsuarioDAO usuarioDAO;
     @Mock private EjemplarDAO ejemplarDAO;
     @Mock private SedeDAO sedeDAO;
+    @Mock private LibroDAO libroDAO;
     @Mock private SancionDAO sancionDAO;
     @Mock private ValidadorUsuarioService validadorUsuarioService;
+    @Mock private ConfiguracionSistemaService configuracionService;
 
     @InjectMocks
     private PrestamoServiceImpl service;
@@ -81,6 +89,11 @@ class PrestamoServiceImplTest {
         when(prestamoDAO.existsByEjemplarIdAndEstadoIn(eq(EJEMPLAR_ID), anyCollection())).thenReturn(false);
     }
 
+    /** El plazo de prestamo ya no es fijo: sale de la configuracion del sistema. */
+    private void plazoPrestamo14Dias() {
+        when(configuracionService.plazo(ClavePlazo.DIAS_PRESTAMO)).thenReturn(14);
+    }
+
     private PrestamoDTO prestamoExistente(String estado) {
         PrestamoDTO p = new PrestamoDTO();
         p.setId(PRESTAMO_ID);
@@ -95,9 +108,10 @@ class PrestamoServiceImplTest {
     // ---------------------------------------------------------------- crearPrestamo
 
     @Test
-    @DisplayName("crearPrestamo: guarda el prestamo con valores por defecto y marca el ejemplar como PRESTADO")
+    @DisplayName("crearPrestamo: guarda el prestamo con valores por defecto (plazo configurado) y marca el ejemplar como PRESTADO")
     void crearPrestamo_valido_aplicaDefaultsYReservaEjemplar() {
         prepararCreacionValida();
+        plazoPrestamo14Dias();
         when(prestamoDAO.save(any(PrestamoDTO.class))).thenAnswer(inv -> {
             PrestamoDTO p = inv.getArgument(0);
             p.setId(PRESTAMO_ID);
@@ -135,6 +149,7 @@ class PrestamoServiceImplTest {
     @DisplayName("crearPrestamo: normaliza la modalidad a mayusculas")
     void crearPrestamo_modalidadDomicilioConDireccion_laNormaliza() {
         prepararCreacionValida();
+        plazoPrestamo14Dias();
         dto.setModalidad("domicilio");
         dto.setDireccionEntrega("Calle 35 # 34-57");
         when(prestamoDAO.save(any(PrestamoDTO.class))).thenAnswer(inv -> inv.getArgument(0));
@@ -204,6 +219,7 @@ class PrestamoServiceImplTest {
     @Test
     @DisplayName("crearPrestamo: con 2 prestamos vigentes todavia permite crear uno nuevo")
     void crearPrestamo_conDosVigentes_aunPermite() {
+        plazoPrestamo14Dias();
         when(usuarioDAO.existsById(USUARIO_ID)).thenReturn(true);
         when(sedeDAO.existsById(SEDE_ID)).thenReturn(true);
         when(ejemplarDAO.findById(EJEMPLAR_ID)).thenReturn(Optional.of(ejemplar));
@@ -458,5 +474,105 @@ class PrestamoServiceImplTest {
 
         verify(ejemplarDAO, never()).update(any(), any());
         verify(prestamoDAO).deleteById(PRESTAMO_ID);
+    }
+
+    // ---------------------------------------------------------------- consultas con detalle
+
+    @Test
+    @DisplayName("crearPrestamo: usa el plazo configurado por el administrador, no un valor fijo")
+    void crearPrestamo_usaElPlazoConfigurado() {
+        prepararCreacionValida();
+        when(configuracionService.plazo(ClavePlazo.DIAS_PRESTAMO)).thenReturn(30);
+        when(prestamoDAO.save(any(PrestamoDTO.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        PrestamoDTO resultado = service.crearPrestamo(dto);
+
+        assertEquals(LocalDate.now().plusDays(30), resultado.getFechaVencimiento());
+    }
+
+    @Test
+    @DisplayName("obtenerPrestamosDeUsuario: usuario inexistente lanza ResourceNotFoundException")
+    void obtenerPrestamosDeUsuario_usuarioInexistente_lanzaNotFound() {
+        when(usuarioDAO.existsById(USUARIO_ID)).thenReturn(false);
+
+        assertThrows(ResourceNotFoundException.class, () -> service.obtenerPrestamosDeUsuario(USUARIO_ID, null));
+    }
+
+    @Test
+    @DisplayName("obtenerPrestamosDeUsuario: sin estado lista todos y arma el detalle con titulo y sede")
+    void obtenerPrestamosDeUsuario_sinEstado_armaElDetalle() {
+        when(usuarioDAO.existsById(USUARIO_ID)).thenReturn(true);
+        when(prestamoDAO.findByUsuarioIdOrderByFechaSolicitudDesc(USUARIO_ID))
+                .thenReturn(List.of(prestamoExistente("ACTIVO")));
+        EjemplarDTO ej = new EjemplarDTO();
+        ej.setId(EJEMPLAR_ID);
+        ej.setLibroId(77L);
+        when(ejemplarDAO.findById(EJEMPLAR_ID)).thenReturn(Optional.of(ej));
+        LibroDTO libro = new LibroDTO();
+        libro.setId(77L);
+        libro.setTitulo("Dune");
+        when(libroDAO.findById(77L)).thenReturn(Optional.of(libro));
+        SedeDTO sede = new SedeDTO();
+        sede.setId(SEDE_ID);
+        sede.setNombre("Sede Norte");
+        when(sedeDAO.findById(SEDE_ID)).thenReturn(Optional.of(sede));
+
+        List<PrestamoDetalleDTO> resultado = service.obtenerPrestamosDeUsuario(USUARIO_ID, " ");
+
+        assertEquals(1, resultado.size());
+        assertEquals("ACTIVO", resultado.get(0).getEstado());
+        assertEquals("Dune", resultado.get(0).getLibroTitulo());
+        assertEquals("Sede Norte", resultado.get(0).getSedeNombre());
+    }
+
+    @Test
+    @DisplayName("obtenerPrestamosDeUsuario: con estado filtra por ese estado")
+    void obtenerPrestamosDeUsuario_conEstado_filtraPorEstado() {
+        when(usuarioDAO.existsById(USUARIO_ID)).thenReturn(true);
+        when(prestamoDAO.findByUsuarioIdAndEstadoIgnoreCase(USUARIO_ID, "VENCIDO"))
+                .thenReturn(List.of(prestamoExistente("VENCIDO")));
+
+        List<PrestamoDetalleDTO> resultado = service.obtenerPrestamosDeUsuario(USUARIO_ID, "VENCIDO");
+
+        assertEquals(1, resultado.size());
+        verify(prestamoDAO, never()).findByUsuarioIdOrderByFechaSolicitudDesc(any());
+    }
+
+    @Test
+    @DisplayName("obtenerPrestamosDeSede: sede inexistente lanza ResourceNotFoundException")
+    void obtenerPrestamosDeSede_sedeInexistente_lanzaNotFound() {
+        when(sedeDAO.existsById(SEDE_ID)).thenReturn(false);
+
+        assertThrows(ResourceNotFoundException.class,
+                () -> service.obtenerPrestamosDeSede(SEDE_ID, null, null, null));
+    }
+
+    @Test
+    @DisplayName("obtenerPrestamosDeSede: filtra por estado ignorando mayusculas")
+    void obtenerPrestamosDeSede_filtraPorEstado() {
+        when(sedeDAO.existsById(SEDE_ID)).thenReturn(true);
+        when(prestamoDAO.findBySedeRetiroId(SEDE_ID))
+                .thenReturn(List.of(prestamoExistente("ACTIVO"), prestamoExistente("DEVUELTO")));
+
+        List<PrestamoDetalleDTO> resultado = service.obtenerPrestamosDeSede(SEDE_ID, "activo", null, null);
+
+        assertEquals(1, resultado.size());
+        assertEquals("ACTIVO", resultado.get(0).getEstado());
+    }
+
+    @Test
+    @DisplayName("obtenerPrestamosDeSede: filtra por usuario y por libro")
+    void obtenerPrestamosDeSede_filtraPorUsuarioYLibro() {
+        PrestamoDTO deOtro = prestamoExistente("ACTIVO");
+        deOtro.setUsuarioId(99L);
+        when(sedeDAO.existsById(SEDE_ID)).thenReturn(true);
+        when(prestamoDAO.findBySedeRetiroId(SEDE_ID)).thenReturn(List.of(prestamoExistente("ACTIVO"), deOtro));
+        EjemplarDTO ej = new EjemplarDTO();
+        ej.setId(EJEMPLAR_ID);
+        ej.setLibroId(77L);
+        when(ejemplarDAO.findById(EJEMPLAR_ID)).thenReturn(Optional.of(ej));
+
+        assertEquals(1, service.obtenerPrestamosDeSede(SEDE_ID, null, USUARIO_ID, 77L).size());
+        assertEquals(0, service.obtenerPrestamosDeSede(SEDE_ID, null, USUARIO_ID, 88L).size());
     }
 }

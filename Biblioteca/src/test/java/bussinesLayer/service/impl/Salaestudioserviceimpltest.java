@@ -1,5 +1,6 @@
 package bussinesLayer.service.impl;
 
+import bussinesLayer.dto.ReservaSalaDTO;
 import bussinesLayer.dto.SalaEstudioDTO;
 import bussinesLayer.exception.BusinessValidationException;
 import bussinesLayer.exception.ResourceNotFoundException;
@@ -10,10 +11,12 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import persistanceLayer.dao.ReservaSalaDAO;
 import persistanceLayer.dao.SalaEstudioDAO;
 import persistanceLayer.dao.SedeDAO;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -23,6 +26,8 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyCollection;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -37,6 +42,7 @@ class SalaEstudioServiceImplTest {
 
     @Mock private SalaEstudioDAO salaEstudioDAO;
     @Mock private SedeDAO sedeDAO;
+    @Mock private ReservaSalaDAO reservaSalaDAO;
 
     @InjectMocks
     private SalaEstudioServiceImpl service;
@@ -246,8 +252,12 @@ class SalaEstudioServiceImplTest {
     // ---------------------------------------------------------------- eliminarSalaEstudio
 
     @Test
-    @DisplayName("eliminarSalaEstudio: elimina cuando la sala existe")
+    @DisplayName("eliminarSalaEstudio: elimina cuando existe, sin reservas activas ni historial")
     void eliminarSalaEstudio_existente_elimina() {
+        when(salaEstudioDAO.existsById(SALA_ID)).thenReturn(true);
+        when(reservaSalaDAO.existsBySalaIdAndEstadoInAndFechaFinAfter(
+                eq(SALA_ID), anyCollection(), any(LocalDateTime.class))).thenReturn(false);
+        when(reservaSalaDAO.findBySalaId(SALA_ID)).thenReturn(List.of());
         when(salaEstudioDAO.deleteById(SALA_ID)).thenReturn(true);
 
         service.eliminarSalaEstudio(SALA_ID);
@@ -258,6 +268,43 @@ class SalaEstudioServiceImplTest {
     @Test
     @DisplayName("eliminarSalaEstudio: sala inexistente lanza ResourceNotFoundException")
     void eliminarSalaEstudio_inexistente_lanzaNotFound() {
+        when(salaEstudioDAO.existsById(SALA_ID)).thenReturn(false);
+
+        assertThrows(ResourceNotFoundException.class, () -> service.eliminarSalaEstudio(SALA_ID));
+
+        verify(salaEstudioDAO, never()).deleteById(any());
+    }
+
+    @Test
+    @DisplayName("eliminarSalaEstudio: con reservas activas lanza BusinessValidationException")
+    void eliminarSalaEstudio_conReservasActivas_lanzaBusinessValidation() {
+        when(salaEstudioDAO.existsById(SALA_ID)).thenReturn(true);
+        when(reservaSalaDAO.existsBySalaIdAndEstadoInAndFechaFinAfter(
+                eq(SALA_ID), anyCollection(), any(LocalDateTime.class))).thenReturn(true);
+
+        assertThrows(BusinessValidationException.class, () -> service.eliminarSalaEstudio(SALA_ID));
+
+        verify(salaEstudioDAO, never()).deleteById(any());
+    }
+
+    @Test
+    @DisplayName("eliminarSalaEstudio: con historial de reservas lanza BusinessValidationException")
+    void eliminarSalaEstudio_conHistorial_lanzaBusinessValidation() {
+        when(salaEstudioDAO.existsById(SALA_ID)).thenReturn(true);
+        when(reservaSalaDAO.existsBySalaIdAndEstadoInAndFechaFinAfter(
+                eq(SALA_ID), anyCollection(), any(LocalDateTime.class))).thenReturn(false);
+        when(reservaSalaDAO.findBySalaId(SALA_ID)).thenReturn(List.of(new ReservaSalaDTO()));
+
+        assertThrows(BusinessValidationException.class, () -> service.eliminarSalaEstudio(SALA_ID));
+
+        verify(salaEstudioDAO, never()).deleteById(any());
+    }
+
+    @Test
+    @DisplayName("eliminarSalaEstudio: si el DAO no la elimina lanza ResourceNotFoundException")
+    void eliminarSalaEstudio_daoNoElimina_lanzaNotFound() {
+        when(salaEstudioDAO.existsById(SALA_ID)).thenReturn(true);
+        when(reservaSalaDAO.findBySalaId(SALA_ID)).thenReturn(List.of());
         when(salaEstudioDAO.deleteById(SALA_ID)).thenReturn(false);
 
         assertThrows(ResourceNotFoundException.class, () -> service.eliminarSalaEstudio(SALA_ID));

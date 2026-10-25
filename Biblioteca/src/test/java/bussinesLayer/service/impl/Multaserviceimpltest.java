@@ -2,8 +2,12 @@ package bussinesLayer.service.impl;
 
 import bussinesLayer.dto.MultaDTO;
 import bussinesLayer.dto.NotificacionDTO;
+import bussinesLayer.dto.SancionDTO;
 import bussinesLayer.exception.BusinessValidationException;
 import bussinesLayer.exception.ResourceNotFoundException;
+import bussinesLayer.service.ConfiguracionSistemaService;
+import bussinesLayer.util.ConceptoMulta;
+import bussinesLayer.util.InfraccionSancion;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -15,6 +19,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import persistanceLayer.dao.MultaDAO;
 import persistanceLayer.dao.NotificacionDAO;
 import persistanceLayer.dao.PrestamoDAO;
+import persistanceLayer.dao.SancionDAO;
 import persistanceLayer.dao.UsuarioDAO;
 
 import java.math.BigDecimal;
@@ -47,6 +52,8 @@ class MultaServiceImplTest {
     @Mock private UsuarioDAO usuarioDAO;
     @Mock private PrestamoDAO prestamoDAO;
     @Mock private NotificacionDAO notificacionDAO;
+    @Mock private SancionDAO sancionDAO;
+    @Mock private ConfiguracionSistemaService configuracionService;
 
     @InjectMocks
     private MultaServiceImpl service;
@@ -314,7 +321,8 @@ class MultaServiceImplTest {
             return m;
         });
 
-        MultaDTO resultado = service.generarMultaPorDanioOPerdida(USUARIO_ID, PRESTAMO_ID, MONTO, "Libro perdido");
+        MultaDTO resultado = service.generarMultaPorDanioOPerdida(USUARIO_ID, PRESTAMO_ID, "PERDIDO", MONTO,
+                "Libro perdido");
 
         assertEquals(MULTA_ID, resultado.getId());
         assertEquals(USUARIO_ID, resultado.getUsuarioId());
@@ -342,7 +350,7 @@ class MultaServiceImplTest {
         when(usuarioDAO.existsById(USUARIO_ID)).thenReturn(true);
         when(multaDAO.save(any(MultaDTO.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        service.generarMultaPorDanioOPerdida(USUARIO_ID, null, MONTO, "Libro danado");
+        service.generarMultaPorDanioOPerdida(USUARIO_ID, null, "DANADO", MONTO, "Libro danado");
 
         verify(prestamoDAO, never()).existsById(any());
     }
@@ -353,7 +361,7 @@ class MultaServiceImplTest {
         when(usuarioDAO.existsById(USUARIO_ID)).thenReturn(true);
         when(multaDAO.save(any(MultaDTO.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        MultaDTO resultado = service.generarMultaPorDanioOPerdida(USUARIO_ID, null, MONTO, null);
+        MultaDTO resultado = service.generarMultaPorDanioOPerdida(USUARIO_ID, null, "PERDIDO", MONTO, null);
 
         assertNotNull(resultado.getMotivo());
         assertTrue(resultado.getMotivo().startsWith("Multa por ejemplar"));
@@ -365,7 +373,7 @@ class MultaServiceImplTest {
         when(usuarioDAO.existsById(USUARIO_ID)).thenReturn(true);
         when(multaDAO.save(any(MultaDTO.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        MultaDTO resultado = service.generarMultaPorDanioOPerdida(USUARIO_ID, null, MONTO, "   ");
+        MultaDTO resultado = service.generarMultaPorDanioOPerdida(USUARIO_ID, null, "PERDIDO", MONTO, "   ");
 
         assertTrue(resultado.getMotivo().startsWith("Multa por ejemplar"));
     }
@@ -376,7 +384,7 @@ class MultaServiceImplTest {
         when(usuarioDAO.existsById(USUARIO_ID)).thenReturn(false);
 
         assertThrows(ResourceNotFoundException.class,
-                () -> service.generarMultaPorDanioOPerdida(USUARIO_ID, null, MONTO, "x"));
+                () -> service.generarMultaPorDanioOPerdida(USUARIO_ID, null, "PERDIDO", MONTO, "x"));
 
         verify(multaDAO, never()).save(any());
         verify(notificacionDAO, never()).save(any());
@@ -389,20 +397,92 @@ class MultaServiceImplTest {
         when(prestamoDAO.existsById(PRESTAMO_ID)).thenReturn(false);
 
         assertThrows(ResourceNotFoundException.class,
-                () -> service.generarMultaPorDanioOPerdida(USUARIO_ID, PRESTAMO_ID, MONTO, "x"));
+                () -> service.generarMultaPorDanioOPerdida(USUARIO_ID, PRESTAMO_ID, "PERDIDO", MONTO, "x"));
 
         verify(multaDAO, never()).save(any());
     }
 
     @Test
-    @DisplayName("generarMultaPorDanioOPerdida: monto nulo lanza BusinessValidationException")
-    void generarMulta_montoNulo_lanzaBusinessValidation() {
-        when(usuarioDAO.existsById(USUARIO_ID)).thenReturn(true);
-
+    @DisplayName("generarMultaPorDanioOPerdida: tipo nulo lanza BusinessValidationException")
+    void generarMulta_tipoNulo_lanzaBusinessValidation() {
         assertThrows(BusinessValidationException.class,
-                () -> service.generarMultaPorDanioOPerdida(USUARIO_ID, null, null, "x"));
+                () -> service.generarMultaPorDanioOPerdida(USUARIO_ID, null, null, MONTO, "x"));
 
         verify(multaDAO, never()).save(any());
+        verify(notificacionDAO, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("generarMultaPorDanioOPerdida: tipo distinto de DANADO o PERDIDO lanza BusinessValidationException")
+    void generarMulta_tipoInvalido_lanzaBusinessValidation() {
+        assertThrows(BusinessValidationException.class,
+                () -> service.generarMultaPorDanioOPerdida(USUARIO_ID, null, "ROBADO", MONTO, "x"));
+
+        verify(multaDAO, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("generarMultaPorDanioOPerdida: el tipo no distingue mayusculas ni minusculas")
+    void generarMulta_tipoEnMinusculas_esValido() {
+        when(usuarioDAO.existsById(USUARIO_ID)).thenReturn(true);
+        when(multaDAO.save(any(MultaDTO.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        MultaDTO resultado = service.generarMultaPorDanioOPerdida(USUARIO_ID, null, "danado", MONTO, "x");
+
+        assertEquals(MONTO, resultado.getMonto());
+    }
+
+    @Test
+    @DisplayName("generarMultaPorDanioOPerdida: monto nulo y tipo PERDIDO cobra el monto configurado para libro perdido")
+    void generarMulta_montoNuloPerdido_usaMontoConfigurado() {
+        BigDecimal configurado = new BigDecimal("60000.00");
+        when(usuarioDAO.existsById(USUARIO_ID)).thenReturn(true);
+        when(configuracionService.montoMulta(ConceptoMulta.LIBRO_PERDIDO)).thenReturn(configurado);
+        when(multaDAO.save(any(MultaDTO.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        MultaDTO resultado = service.generarMultaPorDanioOPerdida(USUARIO_ID, null, "PERDIDO", null, "x");
+
+        assertEquals(configurado, resultado.getMonto());
+    }
+
+    @Test
+    @DisplayName("generarMultaPorDanioOPerdida: monto nulo y tipo DANADO cobra el monto configurado para libro danado")
+    void generarMulta_montoNuloDanado_usaMontoConfigurado() {
+        BigDecimal configurado = new BigDecimal("30000.00");
+        when(usuarioDAO.existsById(USUARIO_ID)).thenReturn(true);
+        when(configuracionService.montoMulta(ConceptoMulta.LIBRO_DANADO)).thenReturn(configurado);
+        when(multaDAO.save(any(MultaDTO.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        MultaDTO resultado = service.generarMultaPorDanioOPerdida(USUARIO_ID, null, "DANADO", null, "x");
+
+        assertEquals(configurado, resultado.getMonto());
+    }
+
+    @Test
+    @DisplayName("generarMultaPorDanioOPerdida: si la politica genera sancion, se guarda")
+    void generarMulta_politicaGeneraSancion_laGuarda() {
+        SancionDTO sancion = new SancionDTO();
+        when(usuarioDAO.existsById(USUARIO_ID)).thenReturn(true);
+        when(prestamoDAO.existsById(PRESTAMO_ID)).thenReturn(true);
+        when(multaDAO.save(any(MultaDTO.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(configuracionService.construirSancion(InfraccionSancion.LIBRO_PERDIDO, USUARIO_ID, PRESTAMO_ID,
+                "Libro perdido (prestamo #" + PRESTAMO_ID + ")")).thenReturn(Optional.of(sancion));
+
+        service.generarMultaPorDanioOPerdida(USUARIO_ID, PRESTAMO_ID, "PERDIDO", MONTO, "x");
+
+        verify(sancionDAO).save(sancion);
+    }
+
+    @Test
+    @DisplayName("generarMultaPorDanioOPerdida: si la politica no genera sancion, no se guarda ninguna")
+    void generarMulta_politicaSinSancion_noGuardaSancion() {
+        when(usuarioDAO.existsById(USUARIO_ID)).thenReturn(true);
+        when(multaDAO.save(any(MultaDTO.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(configuracionService.construirSancion(any(), any(), any(), anyString())).thenReturn(Optional.empty());
+
+        service.generarMultaPorDanioOPerdida(USUARIO_ID, null, "DANADO", MONTO, "x");
+
+        verify(sancionDAO, never()).save(any());
     }
 
     @Test
@@ -411,7 +491,7 @@ class MultaServiceImplTest {
         when(usuarioDAO.existsById(USUARIO_ID)).thenReturn(true);
 
         assertThrows(BusinessValidationException.class,
-                () -> service.generarMultaPorDanioOPerdida(USUARIO_ID, null, BigDecimal.ZERO, "x"));
+                () -> service.generarMultaPorDanioOPerdida(USUARIO_ID, null, "PERDIDO", BigDecimal.ZERO, "x"));
 
         verify(multaDAO, never()).save(any());
     }
@@ -422,7 +502,7 @@ class MultaServiceImplTest {
         when(usuarioDAO.existsById(USUARIO_ID)).thenReturn(true);
 
         assertThrows(BusinessValidationException.class,
-                () -> service.generarMultaPorDanioOPerdida(USUARIO_ID, null, new BigDecimal("-1"), "x"));
+                () -> service.generarMultaPorDanioOPerdida(USUARIO_ID, null, "PERDIDO", new BigDecimal("-1"), "x"));
 
         verify(multaDAO, never()).save(any());
         verify(notificacionDAO, never()).save(any());
