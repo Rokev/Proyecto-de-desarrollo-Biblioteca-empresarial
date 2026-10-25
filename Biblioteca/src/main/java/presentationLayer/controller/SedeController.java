@@ -125,4 +125,35 @@ class SedeController {
     public ResponseEntity<List<SedeDTO>> obtenerActivas() {
         return ResponseEntity.ok(sedeService.obtenerSedesActivas());
     }
+
+    @PostMapping("/{id}/desactivar")
+    @Operation(summary = "Desactivar sede", description = "Pone la sede fuera de servicio solo si no tiene prestamos activos, reservas pendientes ni pedidos interciudad en curso; si los tiene, la bloquea y notifica al administrador (RF-68)")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Operacion realizada exitosamente",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = SedeDTO.class))),
+            @ApiResponse(responseCode = "400", description = "La operacion no es valida en el estado actual",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = ApiError.class))),
+            @ApiResponse(responseCode = "404", description = "Recurso no encontrado",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = ApiError.class)))
+    })
+    public ResponseEntity<SedeDTO> desactivar(
+            @Parameter(description = "ID de la sede", example = "1") @PathVariable Long id,
+            @Parameter(description = "ID del administrador que solicita la accion (para notificarle si se bloquea)") @RequestParam(required = false) Long administradorId) {
+        return ResponseEntity.ok(sedeService.desactivarSede(id, administradorId));
+    }
+
+    @PostMapping("/{id}/reactivar")
+    @Operation(summary = "Reactivar sede", description = "Cambia la sede de fuera de servicio a activa y vuelve a mostrarla a los usuarios (RF-70)")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Operacion realizada exitosamente",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = SedeDTO.class))),
+            @ApiResponse(responseCode = "400", description = "La operacion no es valida en el estado actual",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = ApiError.class))),
+            @ApiResponse(responseCode = "404", description = "Recurso no encontrado",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = ApiError.class)))
+    })
+    public ResponseEntity<SedeDTO> reactivar(
+            @Parameter(description = "ID de la sede", example = "1") @PathVariable Long id) {
+        return ResponseEntity.ok(sedeService.reactivarSede(id));
+    }
 }

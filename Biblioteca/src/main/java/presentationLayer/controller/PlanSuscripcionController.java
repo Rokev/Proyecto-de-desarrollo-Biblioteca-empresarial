@@ -1,4 +1,5 @@
 package presentationLayer.controller;
+import org.springframework.web.bind.annotation.RequestParam;
 
 import bussinesLayer.dto.PlanSuscripcionDTO;
 import bussinesLayer.service.PlanSuscripcionService;
@@ -113,5 +114,35 @@ public class PlanSuscripcionController {
         log.info("DELETE /api/v1/planes-suscripcion/{}", id);
         planSuscripcionService.eliminarPlanSuscripcion(id);
         return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/{id}/desactivar")
+    @Operation(summary = "Desactivar plan de suscripcion", description = "Impide nuevas compras del plan; las suscripciones vigentes no se afectan (RF-72)")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Operacion realizada exitosamente",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = PlanSuscripcionDTO.class))),
+            @ApiResponse(responseCode = "400", description = "La operacion no es valida en el estado actual",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = ApiError.class))),
+            @ApiResponse(responseCode = "404", description = "Recurso no encontrado",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = ApiError.class)))
+    })
+    public ResponseEntity<PlanSuscripcionDTO> desactivar(
+            @Parameter(description = "ID del plan", example = "1") @PathVariable Long id) {
+        return ResponseEntity.ok(planSuscripcionService.desactivarPlan(id));
+    }
+
+    @PostMapping("/{id}/reactivar")
+    @Operation(summary = "Reactivar plan de suscripcion", description = "Vuelve a permitir nuevas compras del plan (RF-73)")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Operacion realizada exitosamente",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = PlanSuscripcionDTO.class))),
+            @ApiResponse(responseCode = "400", description = "La operacion no es valida en el estado actual",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = ApiError.class))),
+            @ApiResponse(responseCode = "404", description = "Recurso no encontrado",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = ApiError.class)))
+    })
+    public ResponseEntity<PlanSuscripcionDTO> reactivar(
+            @Parameter(description = "ID del plan", example = "1") @PathVariable Long id) {
+        return ResponseEntity.ok(planSuscripcionService.reactivarPlan(id));
     }
 }

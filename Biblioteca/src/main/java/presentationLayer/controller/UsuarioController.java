@@ -129,4 +129,49 @@ public class UsuarioController {
             @Parameter(description = "true: con suscripcion vigente; false: sin ella") @RequestParam(required = false) Boolean conSuscripcion) {
         return ResponseEntity.ok(usuarioService.filtrarUsuarios(rol, sedeId, activo, conSuscripcion));
     }
+
+    @PostMapping("/{id}/desactivar")
+    @Operation(summary = "Desactivar bibliotecario o repartidor", description = "Desactiva la cuenta sin borrar su historial (RF-60)")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Operacion realizada exitosamente",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = UsuarioDTO.class))),
+            @ApiResponse(responseCode = "400", description = "La operacion no es valida en el estado actual",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = ApiError.class))),
+            @ApiResponse(responseCode = "404", description = "Recurso no encontrado",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = ApiError.class)))
+    })
+    public ResponseEntity<UsuarioDTO> desactivarPersonal(
+            @Parameter(description = "ID de la cuenta", example = "1") @PathVariable Long id) {
+        return ResponseEntity.ok(usuarioService.desactivarPersonal(id));
+    }
+
+    @PostMapping("/{id}/suspender")
+    @Operation(summary = "Suspender usuario", description = "Suspende la cuenta de un usuario y le notifica (RF-64)")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Operacion realizada exitosamente",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = UsuarioDTO.class))),
+            @ApiResponse(responseCode = "400", description = "La operacion no es valida en el estado actual",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = ApiError.class))),
+            @ApiResponse(responseCode = "404", description = "Recurso no encontrado",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = ApiError.class)))
+    })
+    public ResponseEntity<UsuarioDTO> suspender(
+            @Parameter(description = "ID del usuario", example = "1") @PathVariable Long id) {
+        return ResponseEntity.ok(usuarioService.suspenderUsuario(id));
+    }
+
+    @PostMapping("/{id}/reactivar")
+    @Operation(summary = "Reactivar cuenta", description = "Reactiva un usuario suspendido o un bibliotecario/repartidor desactivado, conserva su historial y le notifica (RF-65)")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Operacion realizada exitosamente",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = UsuarioDTO.class))),
+            @ApiResponse(responseCode = "400", description = "La operacion no es valida en el estado actual",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = ApiError.class))),
+            @ApiResponse(responseCode = "404", description = "Recurso no encontrado",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = ApiError.class)))
+    })
+    public ResponseEntity<UsuarioDTO> reactivar(
+            @Parameter(description = "ID de la cuenta", example = "1") @PathVariable Long id) {
+        return ResponseEntity.ok(usuarioService.reactivarCuenta(id));
+    }
 }
