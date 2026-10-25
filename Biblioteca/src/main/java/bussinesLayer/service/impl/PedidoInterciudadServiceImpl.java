@@ -332,8 +332,27 @@ public PedidoInterciudadDTO registrarDevolucionEnSede(Long pedidoId, Long biblio
 
     @Override
     @Transactional(readOnly = true)
-    public List<PedidoInterciudadDTO> obtenerAsignacionesRepartidor(Long repartidorId) { 
-        return pedidoDAO.findByRepartidorIdAndEstados(repartidorId, List.of(ESTADO_EN_TRANSITO, ESTADO_DEVUELTO_PENDIENTE_TRASLADO, ESTADO_EN_CAMINO_SEDE_ORIGEN));
+    public List<PedidoInterciudadDTO> obtenerAsignacionesRepartidor(Long repartidorId) {
+        if (!usuarioDAO.existsById(repartidorId)) {
+            throw new ResourceNotFoundException("Repartidor no encontrado con ID: " + repartidorId);
+        }
+        // Asignados explícitamente al repartidor (EN_TRANSITO, EN_CAMINO_SEDE_ORIGEN)
+        List<PedidoInterciudadDTO> asignados = pedidoDAO.findByRepartidorIdAndEstados(
+                repartidorId, List.of(ESTADO_EN_TRANSITO, ESTADO_EN_CAMINO_SEDE_ORIGEN, ESTADO_DEVUELTO_PENDIENTE_TRASLADO));
+        
+        // Traslados pendientes de retorno en cualquier sede que aún no tengan o tengan repartidor asignado
+        List<PedidoInterciudadDTO> pendientesTraslado = pedidoDAO.findPendientesDeTraslado();
+        
+        // Combinar sin duplicados
+        java.util.Map<Long, PedidoInterciudadDTO> mapa = new java.util.LinkedHashMap<>();
+        for (PedidoInterciudadDTO p : asignados) {
+            mapa.put(p.getId(), p);
+        }
+        for (PedidoInterciudadDTO p : pendientesTraslado) {
+            mapa.putIfAbsent(p.getId(), p);
+        }
+    
+        return new java.util.ArrayList<>(mapa.values());
     }
 
     @Override

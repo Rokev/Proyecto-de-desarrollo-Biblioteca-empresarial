@@ -87,6 +87,13 @@ public class PedidoInterciudadDAO {
         return pedidoRepository.findBySedeDevolucionIdAndEstadoInOrderByFechaSolicitudAsc(sedeDevolucionId, estados).stream().map(mapper::pedidoInterciudadToDto).toList();
     }
 
+    public List<PedidoInterciudadDTO> findPendientesDeTraslado() {
+    return pedidoRepository.findByEstadoIgnoreCaseOrderByFechaSolicitudAsc("DEVUELTO_PENDIENTE_TRASLADO")
+            .stream()
+            .map(mapper::pedidoInterciudadToDto)
+            .toList();
+}
+
     private UsuarioEntity referenciaUsuario(Long id) {
         if (id == null) return null;
         UsuarioEntity ref = new UsuarioEntity();
