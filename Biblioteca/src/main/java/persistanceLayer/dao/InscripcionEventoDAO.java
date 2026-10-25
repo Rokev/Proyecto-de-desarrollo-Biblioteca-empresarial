@@ -94,7 +94,7 @@ public class InscripcionEventoDAO {
 
     public List<InscripcionEventoDTO> findActivasEnEventosExclusivosFuturos(LocalDateTime ahora) {
         return inscripcionEventoRepository.findActivasEnEventosExclusivosFuturos(ahora).stream().map(mapper::inscripcionEventoToDto).toList();
-    }    
+    }
 
     private EventoEntity referenciaEvento(Long idEvento) {
         if (idEvento == null) {
