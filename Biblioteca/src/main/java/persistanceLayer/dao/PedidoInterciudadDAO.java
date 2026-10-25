@@ -79,6 +79,10 @@ public class PedidoInterciudadDAO {
         return pedidoRepository.findByRepartidorIdAndEstadoInOrderByFechaSolicitudAsc(repartidorId, estados).stream().map(mapper::pedidoInterciudadToDto).toList();
     }
 
+    public Optional<PedidoInterciudadDTO> findByPrestamoId(Long prestamoId) {
+        return pedidoRepository.findByPrestamoId(prestamoId).map(mapper::pedidoInterciudadToDto);
+    }
+
     public List<PedidoInterciudadDTO> findBySedeOrigenAndEstados(Long sedeOrigenId, Collection<String> estados) {
         return pedidoRepository.findBySedeOrigenIdAndEstadoInOrderByFechaSolicitudAsc(sedeOrigenId, estados).stream().map(mapper::pedidoInterciudadToDto).toList();
     }

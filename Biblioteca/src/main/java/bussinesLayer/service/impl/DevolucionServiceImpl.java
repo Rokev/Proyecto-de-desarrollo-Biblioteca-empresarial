@@ -2,6 +2,7 @@ package bussinesLayer.service.impl;
 
 import bussinesLayer.dto.DevolucionDTO;
 import bussinesLayer.dto.EjemplarDTO;
+import bussinesLayer.dto.PedidoInterciudadDTO;
 import bussinesLayer.dto.PrestamoDTO;
 import bussinesLayer.dto.SedeDTO;
 import bussinesLayer.dto.SolicitudDevolucionDTO;
@@ -18,6 +19,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import persistanceLayer.dao.DevolucionDAO;
 import persistanceLayer.dao.EjemplarDAO;
+import persistanceLayer.dao.PedidoInterciudadDAO;
 import persistanceLayer.dao.PrestamoDAO;
 import persistanceLayer.dao.SedeDAO;
 import persistanceLayer.dao.TrasladoRetornoDAO;
@@ -25,6 +27,7 @@ import persistanceLayer.dao.UsuarioDAO;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 @Service
@@ -52,6 +55,7 @@ public class DevolucionServiceImpl implements DevolucionService {
     private final UsuarioDAO usuarioDAO;
     private final EjemplarDAO ejemplarDAO;
     private final TrasladoRetornoDAO trasladoRetornoDAO;
+    private final PedidoInterciudadDAO pedidoInterciudadDAO;
     private final ReservaLibroService reservaLibroService;
     private final NotificacionService notificacionService;
     private final AutomatizacionService automatizacionService;
@@ -130,7 +134,7 @@ public class DevolucionServiceImpl implements DevolucionService {
         log.info("Devolucion eliminada ID: {}", id);
     }
 
-    // ------------------------------------------------  devolver en cualquier sede
+    // ------------------------------------------------  Devolver en Sede
 
     @Override
     @Transactional(readOnly = true)
@@ -154,6 +158,19 @@ public class DevolucionServiceImpl implements DevolucionService {
                     + prestamo.getEstado() + ")");
         }
 
+        // Validar si el préstamo pertenece a un pedido interciudad
+        Optional<PedidoInterciudadDTO> pedidoOpt = pedidoInterciudadDAO.findByPrestamoId(prestamo.getId());
+        if (pedidoOpt.isPresent()) {
+            PedidoInterciudadDTO pedido = pedidoOpt.get();
+            if (solicitud.getSedeDevolucionId() != null && !solicitud.getSedeDevolucionId().equals(pedido.getSedeDevolucionId())) {
+                throw new BusinessValidationException(
+                        "Los pedidos interciudad sólo se pueden devolver en la sede de devolución seleccionada al solicitar el pedido: "
+                                + pedido.getSedeDevolucionNombre() + " (RF-54)");
+            }
+            // Forzar la sede de devolución registrada en el pedido interciudad
+            solicitud.setSedeDevolucionId(pedido.getSedeDevolucionId());
+        }
+
         SedeDTO sede = resolverSedeDeDevolucion(solicitud);
         if (!Boolean.TRUE.equals(sede.getEnOperacion())) {
             throw new BusinessValidationException("La sede " + sede.getNombre() + " no esta en operacion");
@@ -169,7 +186,6 @@ public class DevolucionServiceImpl implements DevolucionService {
         String codigoQr = "DEV-" + UUID.randomUUID();
 
         if (existente != null) {
-            // Reintento despues de una devolucion rechazada: se reutiliza el registro con un QR nuevo.
             existente.setCodigoQr(codigoQr);
             existente.setFechaSolicitud(ahora);
             existente.setFechaConfirmacion(null);
@@ -195,7 +211,6 @@ public class DevolucionServiceImpl implements DevolucionService {
 
     @Override
     public DevolucionDTO confirmarDevolucion(String codigoQr, Long bibliotecarioId) {
-        // Por ahora solo se comprueba que el bibliotecario exista; el rol se validara con la seguridad.
         if (!usuarioDAO.existsById(bibliotecarioId)) {
             throw new ResourceNotFoundException("Bibliotecario no encontrado con ID: " + bibliotecarioId);
         }
@@ -213,13 +228,28 @@ public class DevolucionServiceImpl implements DevolucionService {
             throw new BusinessValidationException("El prestamo ya no esta ACTIVO ni VENCIDO (estado actual: "
                     + prestamo.getEstado() + ")");
         }
+
+        // Si es un pedido interciudad, validar sede de recepción y actualizar pedido
+        Optional<PedidoInterciudadDTO> pedidoOpt = pedidoInterciudadDAO.findByPrestamoId(prestamo.getId());
+        if (pedidoOpt.isPresent()) {
+            PedidoInterciudadDTO pedido = pedidoOpt.get();
+            if (!devolucion.getSedeDevolucionId().equals(pedido.getSedeDevolucionId())) {
+                throw new BusinessValidationException(
+                        "Este libro pertenece a un pedido interciudad y sólo puede devolverse en la sede de devolución seleccionada: "
+                                + pedido.getSedeDevolucionNombre() );
+            }
+            pedido.setEstado("DEVUELTO_PENDIENTE_TRASLADO");
+            pedido.setBibliotecarioId(bibliotecarioId);
+            pedidoInterciudadDAO.update(pedido.getId(), pedido);
+        }
+
         EjemplarDTO ejemplar = ejemplarDAO.findById(prestamo.getEjemplarId())
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Ejemplar no encontrado con ID: " + prestamo.getEjemplarId()));
 
         LocalDateTime ahora = LocalDateTime.now();
 
-        // 1) Devolucion confirmada y prestamo cerrado.
+        // Devolución confirmada y préstamo cerrado
         devolucion.setEstado(ESTADO_CONFIRMADA);
         devolucion.setFechaConfirmacion(ahora);
         devolucion.setBibliotecarioId(bibliotecarioId);
@@ -231,7 +261,7 @@ public class DevolucionServiceImpl implements DevolucionService {
         prestamo.setFechaDevolucion(ahora);
         prestamoDAO.update(prestamo.getId(), prestamo);
 
-        // 2) Ejemplar: el origen es la sede propietaria (ejemplar.sede), que no cambia al prestarse.
+        // Ejemplar
         boolean devueltoEnOrigen = devolucion.getSedeDevolucionId().equals(ejemplar.getSedeId());
         if (devueltoEnOrigen) {
             cambiarEstadoEjemplar(ejemplar.getId(), EJEMPLAR_PRESTADO, EJEMPLAR_DISPONIBLE);
@@ -248,14 +278,13 @@ public class DevolucionServiceImpl implements DevolucionService {
             traslado.setDevolucionId(devolucion.getId());
             trasladoRetornoDAO.save(traslado);
 
-            // 3) Aviso a quien tiene reservado este libro en la sede de origen.
             String nombreSedeActual = sedeDAO.findById(devolucion.getSedeDevolucionId())
                     .map(SedeDTO::getNombre).orElse("otra sede");
             reservaLibroService.avisarDevolucionEnCamino(ejemplar.getLibroId(), ejemplar.getSedeId(), nombreSedeActual);
             notificacionService.notificarSede(ejemplar.getSedeId(), "DEVOLUCION_EN_OTRA_SEDE",
-                "Libro devuelto en otra sede",
-            "   El ejemplar #" + ejemplar.getId() + " fue devuelto en la sede " + nombreSedeActual
-                + " y va en camino de regreso a tu sede.");
+                    "Libro devuelto en otra sede",
+                    "El ejemplar #" + ejemplar.getId() + " fue devuelto en la sede " + nombreSedeActual
+                            + " y va en camino de regreso a tu sede.");
         }
 
         log.info("Devolucion {} confirmada por el bibliotecario {} (en origen: {})",
@@ -263,7 +292,7 @@ public class DevolucionServiceImpl implements DevolucionService {
         return confirmada;
     }
 
-    // -------------------------------------------------------------- privados
+    // -------------------------------------------------------------- Privados
 
     private SedeDTO resolverSedeDeDevolucion(SolicitudDevolucionDTO solicitud) {
         if (solicitud.getSedeDevolucionId() != null) {

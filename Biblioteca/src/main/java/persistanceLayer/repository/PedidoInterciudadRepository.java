@@ -6,9 +6,12 @@ import persistanceLayer.entity.PedidoInterciudadEntity;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface PedidoInterciudadRepository extends JpaRepository<PedidoInterciudadEntity, Long> {
+
+    Optional<PedidoInterciudadEntity> findByPrestamoId(Long prestamoId);
 
     List<PedidoInterciudadEntity> findByUsuarioIdOrderByFechaSolicitudDesc(Long usuarioId);
 

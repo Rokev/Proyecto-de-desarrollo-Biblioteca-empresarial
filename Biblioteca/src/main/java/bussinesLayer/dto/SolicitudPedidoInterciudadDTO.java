@@ -14,7 +14,7 @@ import java.time.LocalDate;
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-@Schema(description = "Solicitud de un libro de otra ciudad con entrega a domicilio y sede de devolución elegida (RF-28)")
+@Schema(description = "Solicitud de un libro de otra ciudad con entrega a domicilio y sede de devolución elegida")
 public class SolicitudPedidoInterciudadDTO {
 
     @NotNull(message = "El campo usuarioId es obligatorio")
@@ -36,7 +36,7 @@ public class SolicitudPedidoInterciudadDTO {
     private String direccionEntrega;
 
     @NotNull(message = "El campo sedeDevolucionId es obligatorio")
-    @Schema(description = "ID de la sede donde el usuario devolverá el libro (RF-28)", example = "2", requiredMode = Schema.RequiredMode.REQUIRED)
+    @Schema(description = "ID de la sede donde el usuario devolverá el libro", example = "2", requiredMode = Schema.RequiredMode.REQUIRED)
     private Long sedeDevolucionId;
 
     @NotNull(message = "El campo fechaRecepcion es obligatorio")
