@@ -28,12 +28,12 @@ public class InscripcionEventoEntity {
     @Column(nullable = false)
     private LocalDateTime fechaInscripcion;
 
-    /** Cantidad de cupos reservados por el usuario (RF-16). */
+    /** Cantidad de cupos reservados por el usuario. */
     @Column(nullable = false)
     @Builder.Default
     private Integer cantidadCupos = 1;
 
-    /** Se llena al cancelar y liberar el cupo (RF-17). */
+    /** Se llena al cancelar y liberar el cupo. */
     private LocalDateTime fechaCancelacion;
 
     /** ACTIVA, CANCELADA. */

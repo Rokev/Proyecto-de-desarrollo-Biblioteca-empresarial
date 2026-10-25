@@ -13,7 +13,7 @@ import lombok.NoArgsConstructor;
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-@Schema(description = "Solicitud de pago con tarjeta simulada para suscripción, envío interciudad, multas o reservas de salas (RF-14)")
+@Schema(description = "Solicitud de pago con tarjeta simulada para suscripción, envío interciudad, multas o reservas de salas")
 public class SolicitudPagoDTO {
 
     @NotNull(message = "El campo usuarioId es obligatorio")

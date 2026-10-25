@@ -42,7 +42,7 @@ public class EventoEntity {
     @Column(nullable = false)
     private Integer cupoMaximo;
 
-    /** Cupos libres actualizados al inscribir / cancelar (RF-16, RF-17, RF-18). */
+    /** Cupos libres actualizados al inscribir / cancelar. */
     @Column(nullable = false)
     private Integer cuposDisponibles;
 
@@ -51,7 +51,7 @@ public class EventoEntity {
     @Builder.Default
     private String estado = "PROGRAMADO";
 
-        /** true si el evento es solo para suscriptores con suscripción vigente (RF-30). */
+        /** true si el evento es solo para suscriptores con suscripción vigente. */
     @Column(nullable = false)
     @Builder.Default
     private Boolean exclusivo = false;

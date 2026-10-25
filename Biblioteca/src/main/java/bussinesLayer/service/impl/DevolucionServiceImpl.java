@@ -165,7 +165,7 @@ public class DevolucionServiceImpl implements DevolucionService {
             if (solicitud.getSedeDevolucionId() != null && !solicitud.getSedeDevolucionId().equals(pedido.getSedeDevolucionId())) {
                 throw new BusinessValidationException(
                         "Los pedidos interciudad sólo se pueden devolver en la sede de devolución seleccionada al solicitar el pedido: "
-                                + pedido.getSedeDevolucionNombre() + " (RF-54)");
+                                + pedido.getSedeDevolucionNombre() );
             }
             // Forzar la sede de devolución registrada en el pedido interciudad
             solicitud.setSedeDevolucionId(pedido.getSedeDevolucionId());

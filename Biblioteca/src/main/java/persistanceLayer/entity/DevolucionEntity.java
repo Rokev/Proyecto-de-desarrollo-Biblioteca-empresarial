@@ -51,7 +51,7 @@ public class DevolucionEntity {
     @JoinColumn(name = "sede_devolucion_id", nullable = false)
     private SedeEntity sedeDevolucion;
 
-    /** Bibliotecario que registra la devolución (RF-08 / RF-62). */
+    /** Bibliotecario que registra la devolución*/
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "bibliotecario_id")
     private UsuarioEntity bibliotecario;

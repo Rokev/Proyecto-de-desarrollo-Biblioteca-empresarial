@@ -26,7 +26,7 @@ import java.util.List;
 @RequestMapping("/api/v1/pagos")
 @RequiredArgsConstructor
 @Slf4j
-@Tag(name = "Pagos y Pasarela Simulada", description = "Gestión de transacciones de pago, pasarela de tarjetas de prueba y consulta de comprobantes (RF-14, RF-15)")
+@Tag(name = "Pagos y Pasarela Simulada", description = "Gestión de transacciones de pago, pasarela de tarjetas de prueba y consulta de comprobantes ")
 public class PagoController {
 
     private final PagoService pagoService;

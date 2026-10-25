@@ -10,7 +10,7 @@ import lombok.NoArgsConstructor;
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-@Schema(description = "Comprobante de pago generado por la pasarela simulada (RF-14)")
+@Schema(description = "Comprobante de pago generado por la pasarela simulada")
 public class ComprobantePagoDTO {
 
     @Schema(description = "ID único del registro de pago", example = "10")

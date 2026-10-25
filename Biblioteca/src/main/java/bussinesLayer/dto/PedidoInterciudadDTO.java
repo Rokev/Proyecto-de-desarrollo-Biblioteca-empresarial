@@ -46,10 +46,10 @@ public class PedidoInterciudadDTO {
     @Schema(description = "Fecha y hora en que el usuario canceló el pedido", example = "2026-10-24T15:00:00")
     private LocalDateTime fechaCancelacion;
 
-    @Schema(description = "Fecha límite para recoger el pedido en sede de devolución si no fue recibido a domicilio (RF-76)", example = "2026-10-28T18:00:00")
+    @Schema(description = "Fecha límite para recoger el pedido en sede de devolución si no fue recibido a domicilio", example = "2026-10-28T18:00:00")
     private LocalDateTime fechaLimiteRecogida;
 
-    @Schema(description = "Fecha límite que tiene el usuario para devolver el libro prestado (RF-76)", example = "2026-11-09T23:59:59")
+    @Schema(description = "Fecha límite que tiene el usuario para devolver el libro prestado", example = "2026-11-09T23:59:59")
     private LocalDateTime fechaLimiteDevolucion;
 
     @Schema(description = "ID del usuario que solicitó el pedido", example = "1")
@@ -70,7 +70,7 @@ public class PedidoInterciudadDTO {
     @Schema(description = "Nombre de la sede de origen", example = "Biblioteca Central Bogotá")
     private String sedeOrigenNombre;
 
-    @Schema(description = "ID de la sede seleccionada por el usuario para realizar la devolución (RF-28)", example = "2")
+    @Schema(description = "ID de la sede seleccionada por el usuario para realizar la devolución", example = "2")
     private Long sedeDevolucionId;
 
     @Schema(description = "Nombre de la sede elegida para la devolución", example = "Sede Norte Medellín")

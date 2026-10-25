@@ -463,7 +463,7 @@ public PedidoInterciudadDTO registrarDevolucionEnSede(Long pedidoId, Long biblio
         }
     }
 
-    /** Marca como REEMBOLSADO el pago de envío aprobado del pedido (RF-29). Vacío si el pedido no se había pagado. */
+    /** Marca como REEMBOLSADO el pago de envío aprobado del pedido. Vacío si el pedido no se había pagado. */
     private Optional<PagoDTO> reembolsarEnvio(PedidoInterciudadDTO pedido) {
         Optional<PagoDTO> pagoOpt = pagoDAO.findEnvioPagadoPorPedido(pedido.getId());
         pagoOpt.ifPresent(pago -> {

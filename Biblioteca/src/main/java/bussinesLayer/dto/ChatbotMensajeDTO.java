@@ -10,7 +10,7 @@ import lombok.NoArgsConstructor;
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-@Schema(description = "Mensaje que el usuario le escribe al chatbot (RF-16)")
+@Schema(description = "Mensaje que el usuario le escribe al chatbot")
 public class ChatbotMensajeDTO {
 
     @NotBlank(message = "El campo mensaje es obligatorio")

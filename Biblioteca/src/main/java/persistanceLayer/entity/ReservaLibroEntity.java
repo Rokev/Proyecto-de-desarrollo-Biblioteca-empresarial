@@ -8,8 +8,8 @@ import lombok.Builder;
 
 import java.time.LocalDateTime;
 /**
- * Reserva de un libro sin stock en una sede (RF-06, RF-11).
- * Cuando se libera un ejemplar se notifica al usuario y se fija la fecha límite de retiro (RF-12).
+ * Reserva de un libro sin stock en una sede.
+ * Cuando se libera un ejemplar se notifica al usuario y se fija la fecha límite de retiro.
  */
 @Entity
 @Table(name = "reservas_libro")
@@ -32,7 +32,7 @@ public class ReservaLibroEntity {
     /** Fecha límite para retirar el libro una vez notificado. */
     private LocalDateTime fechaLimiteRetiro;
 
-    /** Se llena al cancelar la reserva (RF-11). */
+    /** Se llena al cancelar la reserva. */
     private LocalDateTime fechaCancelacion;
 
     /** EN_ESPERA, NOTIFICADA, RETIRADA, CANCELADA, EXPIRADA. */

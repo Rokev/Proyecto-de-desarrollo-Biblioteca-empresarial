@@ -15,38 +15,29 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
-
+import org.springframework.web.bind.annotation.*;
 import presentationLayer.advice.ApiError;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1/multas")
 @RequiredArgsConstructor
 @Slf4j
-@Tag(name = "Multas", description = "Operaciones CRUD para la gestion de multas de los usuarios")
+@Tag(name = "Multas", description = "Operaciones para la gestión de multas, recargos y saldos de los usuarios")
 public class MultaController {
 
     private final MultaService multaService;
 
     @PostMapping
-    @Operation(summary = "Crear una multa", description = "Registra una nueva multa asociada a un usuario y a un prestamo")
+    @Operation(summary = "Crear una multa", description = "Registra una nueva multa asociada a un usuario y a un préstamo")
     @ApiResponses({
             @ApiResponse(responseCode = "201", description = "Multa creada exitosamente",
                     content = @Content(mediaType = "application/json", schema = @Schema(implementation = MultaDTO.class))),
-            @ApiResponse(responseCode = "400", description = "Datos invalidos o faltantes",
+            @ApiResponse(responseCode = "400", description = "Datos inválidos o faltantes",
                     content = @Content(mediaType = "application/json", schema = @Schema(implementation = ApiError.class))),
-            @ApiResponse(responseCode = "404", description = "Usuario o prestamo no encontrado",
-                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = ApiError.class))),
-            @ApiResponse(responseCode = "500", description = "Error interno del servidor",
+            @ApiResponse(responseCode = "404", description = "Usuario o préstamo no encontrado",
                     content = @Content(mediaType = "application/json", schema = @Schema(implementation = ApiError.class)))
     })
     public ResponseEntity<MultaDTO> crearMulta(
@@ -57,8 +48,53 @@ public class MultaController {
         return ResponseEntity.status(HttpStatus.CREATED).body(creada);
     }
 
+    @GetMapping("/usuario/{usuarioId}")
+    @Operation(summary = " Consultar multas de un usuario", description = "Obtiene las multas del usuario, opcionalmente filtrando por estado (PENDIENTE, PAGADA)")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Lista de multas del usuario",
+                    content = @Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = MultaDTO.class)))),
+            @ApiResponse(responseCode = "404", description = "Usuario no encontrado",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = ApiError.class)))
+    })
+    public ResponseEntity<List<MultaDTO>> obtenerPorUsuario(
+            @Parameter(description = "ID del usuario", required = true, example = "1") @PathVariable Long usuarioId,
+            @Parameter(description = "Estado opcional (PENDIENTE, PAGADA)", example = "PENDIENTE") @RequestParam(required = false) String estado) {
+        return ResponseEntity.ok(multaService.obtenerMultasPorUsuario(usuarioId, estado));
+    }
+
+    @GetMapping("/usuario/{usuarioId}/saldo-pendiente")
+    @Operation(summary = "Consultar saldo total pendiente de pago de un usuario", description = "Suma el valor total de todas las multas y recargos en estado PENDIENTE")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Monto total pendiente"),
+            @ApiResponse(responseCode = "404", description = "Usuario no encontrado",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = ApiError.class)))
+    })
+    public ResponseEntity<BigDecimal> obtenerSaldoPendiente(
+            @Parameter(description = "ID del usuario", required = true, example = "1") @PathVariable Long usuarioId) {
+        return ResponseEntity.ok(multaService.obtenerSaldoPendienteUsuario(usuarioId));
+    }
+
+    @PostMapping("/danio-perdida")
+    @Operation(summary = "Registrar multa por libro dañado o perdido", description = "El bibliotecario aplica un cargo económico al usuario por daño o pérdida de un ejemplar")
+    @ApiResponses({
+            @ApiResponse(responseCode = "201", description = "Multa por daño/pérdida creada exitosamente",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = MultaDTO.class))),
+            @ApiResponse(responseCode = "400", description = "Datos inválidos o monto <= 0",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = ApiError.class))),
+            @ApiResponse(responseCode = "404", description = "Usuario o préstamo no encontrado",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = ApiError.class)))
+    })
+    public ResponseEntity<MultaDTO> generarMultaDanioPerdida(
+            @Parameter(description = "ID del usuario", required = true, example = "1") @RequestParam Long usuarioId,
+            @Parameter(description = "ID del préstamo asociado (opcional)", example = "1") @RequestParam(required = false) Long prestamoId,
+            @Parameter(description = "Monto a cobrar", required = true, example = "45000.00") @RequestParam BigDecimal monto,
+            @Parameter(description = "Motivo detallado", required = true, example = "Libro devuelto con la portada destruida") @RequestParam String motivo) {
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(multaService.generarMultaPorDanioOPerdida(usuarioId, prestamoId, monto, motivo));
+    }
+
     @GetMapping("/{id}")
-    @Operation(summary = "Buscar multa por ID", description = "Obtiene la informacion de una multa especifica")
+    @Operation(summary = "Buscar multa por ID")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Multa encontrada",
                     content = @Content(mediaType = "application/json", schema = @Schema(implementation = MultaDTO.class))),
@@ -66,53 +102,41 @@ public class MultaController {
                     content = @Content(mediaType = "application/json", schema = @Schema(implementation = ApiError.class)))
     })
     public ResponseEntity<MultaDTO> obtenerPorId(
-            @Parameter(description = "ID de la multa", required = true, example = "1")
-            @PathVariable Long id) {
-        log.debug("GET /api/v1/multas/{}", id);
+            @Parameter(description = "ID de la multa", required = true, example = "1") @PathVariable Long id) {
         return ResponseEntity.ok(multaService.obtenerMultaPorId(id));
     }
 
     @GetMapping
-    @Operation(summary = "Listar todas las multas", description = "Obtiene la lista completa de multas registradas")
-    @ApiResponse(responseCode = "200", description = "Lista de multas obtenida exitosamente",
+    @Operation(summary = "Listar todas las multas")
+    @ApiResponse(responseCode = "200", description = "Lista completa de multas",
             content = @Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = MultaDTO.class))))
     public ResponseEntity<List<MultaDTO>> obtenerTodos() {
-        log.debug("GET /api/v1/multas");
         return ResponseEntity.ok(multaService.obtenerTodasLasMultas());
     }
 
     @PutMapping("/{id}")
-    @Operation(summary = "Actualizar multa", description = "Actualiza los datos de una multa existente")
+    @Operation(summary = "Actualizar multa")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Multa actualizada exitosamente",
                     content = @Content(mediaType = "application/json", schema = @Schema(implementation = MultaDTO.class))),
-            @ApiResponse(responseCode = "400", description = "Datos invalidos o faltantes",
-                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = ApiError.class))),
-            @ApiResponse(responseCode = "404", description = "Multa, usuario o prestamo no encontrado",
+            @ApiResponse(responseCode = "404", description = "Multa no encontrada",
                     content = @Content(mediaType = "application/json", schema = @Schema(implementation = ApiError.class)))
     })
     public ResponseEntity<MultaDTO> actualizar(
-            @Parameter(description = "ID de la multa a actualizar", required = true, example = "1")
-            @PathVariable Long id,
-            @Parameter(description = "Nuevos datos de la multa", required = true)
-            @Valid @RequestBody MultaDTO multaDTO) {
-        log.info("PUT /api/v1/multas/{}", id);
+            @Parameter(description = "ID de la multa a actualizar", required = true, example = "1") @PathVariable Long id,
+            @Parameter(description = "Nuevos datos de la multa", required = true) @Valid @RequestBody MultaDTO multaDTO) {
         return ResponseEntity.ok(multaService.actualizarMulta(id, multaDTO));
     }
 
     @DeleteMapping("/{id}")
-    @Operation(summary = "Eliminar multa", description = "Elimina una multa del sistema")
+    @Operation(summary = "Eliminar multa")
     @ApiResponses({
             @ApiResponse(responseCode = "204", description = "Multa eliminada exitosamente"),
             @ApiResponse(responseCode = "404", description = "Multa no encontrada",
-                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = ApiError.class))),
-            @ApiResponse(responseCode = "409", description = "No se puede eliminar porque esta relacionada con otros datos",
                     content = @Content(mediaType = "application/json", schema = @Schema(implementation = ApiError.class)))
     })
     public ResponseEntity<Void> eliminar(
-            @Parameter(description = "ID de la multa a eliminar", required = true, example = "1")
-            @PathVariable Long id) {
-        log.info("DELETE /api/v1/multas/{}", id);
+            @Parameter(description = "ID de la multa a eliminar", required = true, example = "1") @PathVariable Long id) {
         multaService.eliminarMulta(id);
         return ResponseEntity.noContent().build();
     }

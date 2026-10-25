@@ -10,7 +10,7 @@ import lombok.Builder;
 
 import java.time.LocalDateTime;
 /**
- * Token de restablecimiento de contraseña enviado por correo (RF-05).
+ * Token de restablecimiento de contraseña enviado por correo
  * Expira a las 24 horas de su creación y solo puede usarse una vez.
  */
 @Entity

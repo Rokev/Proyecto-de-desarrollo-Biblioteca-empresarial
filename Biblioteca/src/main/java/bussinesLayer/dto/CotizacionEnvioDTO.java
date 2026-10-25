@@ -10,7 +10,7 @@ import java.math.BigDecimal;
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-@Schema(description = "Costo de envío calculado entre dos ciudades (se muestra antes de confirmar el pedido, RF-28)")
+@Schema(description = "Costo de envío calculado entre dos ciudades (se muestra antes de confirmar el pedido")
 public class CotizacionEnvioDTO {
     private String ciudadOrigen;
     private String ciudadDestino;

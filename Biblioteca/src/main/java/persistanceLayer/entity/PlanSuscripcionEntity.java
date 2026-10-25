@@ -12,7 +12,7 @@ import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 /**
- * Plan de suscripción disponible en la plataforma, con su precio, beneficios y vigencia (RF-23, RF-24).
+ * Plan de suscripción disponible en la plataforma, con su precio, beneficios y vigencia.
  */
 @Entity
 @Table(name = "planes_suscripcion")
@@ -44,7 +44,7 @@ public class PlanSuscripcionEntity {
     private Integer duracionMeses;
 
     /** Descuento en salas de estudio como fracción entre 0 y 1 (0.15 = 15 %).
-     *  Se copia a la suscripción al comprar el plan (RF-29). */
+     *  Se copia a la suscripción al comprar el plan. */
     @Column(nullable = false, precision = 5, scale = 4)
     @Builder.Default
     private BigDecimal descuentoSalas = BigDecimal.ZERO;

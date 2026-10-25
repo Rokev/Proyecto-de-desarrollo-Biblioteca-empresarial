@@ -23,7 +23,7 @@ import presentationLayer.advice.ApiError;
 @RequestMapping("/api/v1/chatbot")
 @RequiredArgsConstructor
 @Slf4j
-@Tag(name = "Chatbot", description = "Asistente que responde con la base de preguntas frecuentes (RF-16)")
+@Tag(name = "Chatbot", description = "Asistente que responde con la base de preguntas frecuentes")
 class ChatbotController {
 
     private final ChatbotService chatbotService;

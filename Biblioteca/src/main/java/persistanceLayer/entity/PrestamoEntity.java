@@ -29,11 +29,11 @@ public class PrestamoEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    /** Momento en que el usuario solicita el préstamo (RF-07). */
+    /** Momento en que el usuario solicita el préstamo. */
     @Column(nullable = false)
     private LocalDateTime fechaSolicitud;
 
-    /** Momento en que se registra la entrega del libro; desde aquí corre el plazo (RF-07 / RF-48). */
+    /** Momento en que se registra la entrega del libro; desde aquí corre el plazo. */
     private LocalDateTime fechaEntrega;
 
     /** Fecha límite de devolución (más extensa si el usuario tiene suscripción).
@@ -69,7 +69,7 @@ public class PrestamoEntity {
     @JoinColumn(name = "ejemplar_id", nullable = false)
     private EjemplarEntity ejemplar;
 
-    /** Sede donde el usuario retira el libro (RF-12 muestra libro, sede y estado). */
+    /** Sede donde el usuario retira el libro. */
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "sede_retiro_id", nullable = false)
     private SedeEntity sedeRetiro;

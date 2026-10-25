@@ -37,7 +37,7 @@ public class UsuarioEntity {
     @Column(nullable = false, unique = true, length = 20)
     private String documento;
 
-    /** Nombre de usuario único (RF-04). */
+    /** Nombre de usuario único */
     @Column(nullable = false, unique = true, length = 40)
     private String nombreUsuario;
 
@@ -45,7 +45,7 @@ public class UsuarioEntity {
     private String correo;
 
     /** Hash de la contraseña (nunca en texto plano). La regla de mínimo 8 caracteres
-     *  se valida sobre la contraseña original en la capa de negocio (RF-01). */
+     *  se valida sobre la contraseña original en la capa de negocio */
     @Column(nullable = false, length = 255)
     private String contrasena;
 

@@ -8,7 +8,7 @@ import lombok.Builder;
 
 import java.time.LocalDateTime;
 /**
- * Sanción aplicada a un usuario (por ejemplo, bloqueo de préstamos por retraso) (RF-13).
+ * Sanción aplicada a un usuario (por ejemplo, bloqueo de préstamos por retraso).
  * Se consulta junto con las multas.
  */
 @Entity

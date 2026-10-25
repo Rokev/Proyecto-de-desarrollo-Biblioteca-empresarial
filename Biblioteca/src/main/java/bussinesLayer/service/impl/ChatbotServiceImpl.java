@@ -23,7 +23,7 @@ import java.util.stream.Collectors;
 /**
  * Sin servicios externos: normaliza el mensaje (minusculas, sin tildes, sin palabras vacias) y lo compara
  * con cada pregunta frecuente activa. Gana la que comparte mas palabras con el mensaje; la base de
- * conocimiento se administra con /api/v1/preguntas-frecuentes (RF-81).
+ * conocimiento se administra con /api/v1/preguntas-frecuentes.
  */
 @Service
 @Transactional(readOnly = true)

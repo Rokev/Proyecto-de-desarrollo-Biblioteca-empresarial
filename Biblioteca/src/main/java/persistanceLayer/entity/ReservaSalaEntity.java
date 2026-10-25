@@ -54,7 +54,7 @@ public class ReservaSalaEntity {
     @Column(nullable = false)
     private LocalDateTime fechaCreacion;
 
-    /** Se llena al cancelar y liberar la sala (RF-22). */
+    /** Se llena al cancelar y liberar la sala. */
     private LocalDateTime fechaCancelacion;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)

@@ -22,13 +22,13 @@ import java.util.List;
 @RequestMapping("/api/v1/repartidores")
 @RequiredArgsConstructor
 @Slf4j
-@Tag(name = "Módulo de Repartidor", description = "Operaciones exclusivas para el rol Repartidor (RF-82 a RF-85)")
+@Tag(name = "Módulo de Repartidor", description = "Operaciones exclusivas para el rol Repartidor")
 public class RepartidorController {
 
     private final PedidoInterciudadService pedidoService;
 
     @GetMapping("/{repartidorId}/asignaciones")
-    @Operation(summary = "RF-82: Visualizar entregas a domicilio y traslados asignados",
+    @Operation(summary = "Visualizar entregas a domicilio y traslados asignados",
             description = "Muestra las entregas a domicilio asignadas al repartidor (EN_TRANSITO) y los traslados pendientes de retorno (DEVUELTO_PENDIENTE_TRASLADO, EN_CAMINO_SEDE_ORIGEN).")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Listado de tareas asignadas al repartidor",
@@ -44,7 +44,7 @@ public class RepartidorController {
     }
 
     @PostMapping("/{repartidorId}/pedidos/{pedidoId}/confirmar-entrega")
-    @Operation(summary = "RF-83: Confirmar entrega de un libro a domicilio",
+    @Operation(summary = "Confirmar entrega de un libro a domicilio",
             description = "Cambia el estado del pedido a ENTREGADO, inicia el plazo de devolución de 14 días y notifica al usuario la fecha límite y sede de devolución.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Entrega a domicilio confirmada exitosamente",
@@ -62,7 +62,7 @@ public class RepartidorController {
     }
 
     @PostMapping("/{repartidorId}/pedidos/{pedidoId}/no-recibido")
-    @Operation(summary = "RF-84: Registrar que el usuario no recibió el pedido",
+    @Operation(summary = "Registrar que el usuario no recibió el pedido",
             description = "Si el usuario no recibe el libro en la fecha/hora indicadas, cambia el estado a NO_RECIBIDO, aplica el recargo fijo ($15,000) y notifica el traslado a la sede de devolución.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Intento fallido registrado y recargo aplicado",
@@ -80,7 +80,7 @@ public class RepartidorController {
     }
 
     @PostMapping("/{repartidorId}/pedidos/{pedidoId}/iniciar-traslado")
-    @Operation(summary = "RF-85: Recoger libro devuelto en sede de devolución e iniciar retorno a sede de origen",
+    @Operation(summary = "Recoger libro devuelto en sede de devolución e iniciar retorno a sede de origen",
             description = "Cambia el estado de DEVUELTO_PENDIENTE_TRASLADO a EN_CAMINO_SEDE_ORIGEN, asigna al repartidor como responsable y notifica a la sede de origen.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Traslado de retorno iniciado correctamente",

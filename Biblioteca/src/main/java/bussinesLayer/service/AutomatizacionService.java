@@ -1,7 +1,7 @@
 package bussinesLayer.service;
 
 /**
- * Procesos automaticos (RF-39, RF-75, RF-76) que dependen del paso del tiempo.
+ * Procesos automaticos que dependen del paso del tiempo.
  * Los invoca {@code TareasProgramadas}; cada metodo devuelve cuantos registros proceso.
  */
 public interface AutomatizacionService {

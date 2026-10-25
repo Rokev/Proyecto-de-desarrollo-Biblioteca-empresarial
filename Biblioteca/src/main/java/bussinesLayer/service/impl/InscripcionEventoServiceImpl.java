@@ -126,7 +126,7 @@ public class InscripcionEventoServiceImpl implements InscripcionEventoService {
     }
 
     /**
-     * RF-30: las inscripciones a eventos exclusivos no se mantienen si el usuario ya no tiene
+     * las inscripciones a eventos exclusivos no se mantienen si el usuario ya no tiene
      * suscripcion vigente. Cancela las inscripciones a eventos exclusivos que aun no han empezado
      * y libera los cupos. Una suscripcion cancelada pero con fechaFin por venir sigue siendo vigente.
      */

@@ -27,6 +27,6 @@ public interface DevolucionService {
     /** El usuario solicita devolver un prestamo en cualquier sede; genera el codigo QR. */
     DevolucionDTO solicitarDevolucion(SolicitudDevolucionDTO solicitud);
 
-    /** El bibliotecario de la sede receptora confirma la devolucion presentando el codigo QR (RF-62). */
+    /** El bibliotecario de la sede receptora confirma la devolucion presentando el codigo QR. */
     DevolucionDTO confirmarDevolucion(String codigoQr, Long bibliotecarioId);
 }

@@ -8,7 +8,7 @@ import lombok.Builder;
 
 import java.time.LocalDateTime;
 /**
- * Sesión activa de un usuario (RF-02, RF-03).
+ * Sesión activa de un usuario.
  * Se crea al iniciar sesión y se cierra al cerrar sesión o al expirar.
  */
 @Entity

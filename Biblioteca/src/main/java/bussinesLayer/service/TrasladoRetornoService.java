@@ -5,7 +5,7 @@ import bussinesLayer.dto.TrasladoRetornoDTO;
 import java.util.List;
 
 /**
- * Regreso de los ejemplares a su sede de origen tras una devolucion en otra sede (RF-08).
+ * Regreso de los ejemplares a su sede de origen tras una devolucion en otra sede.
  */
 public interface TrasladoRetornoService {
 

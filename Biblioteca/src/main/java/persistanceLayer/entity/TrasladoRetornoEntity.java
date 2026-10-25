@@ -9,7 +9,7 @@ import lombok.NoArgsConstructor;
 import java.time.LocalDateTime;
 
 /**
- * Regreso de un ejemplar a su sede de origen despues de una devolucion en otra sede (RF-08).
+ * Regreso de un ejemplar a su sede de origen despues de una devolucion en otra sede
  */
 @Entity
 @Table(name = "traslados_retorno")

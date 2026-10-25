@@ -11,7 +11,7 @@ import lombok.NoArgsConstructor;
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-@Schema(description = "DTO para la creación de una cuenta con rol Repartidor por parte del Administrador (RF-58)")
+@Schema(description = "DTO para la creación de una cuenta con rol Repartidor por parte del Administrador")
 public class CrearRepartidorDTO {
 
     @NotBlank(message = "El nombre es obligatorio")

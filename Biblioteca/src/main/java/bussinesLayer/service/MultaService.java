@@ -2,10 +2,11 @@ package bussinesLayer.service;
 
 import bussinesLayer.dto.MultaDTO;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 /**
- * Logica de negocio para la gestion de multas de los usuarios.
+ * Lógica de negocio para la gestión de multas y recargos de usuarios.
  */
 public interface MultaService {
 
@@ -18,4 +19,10 @@ public interface MultaService {
     MultaDTO actualizarMulta(Long id, MultaDTO multaDTO);
 
     void eliminarMulta(Long id);
+
+    List<MultaDTO> obtenerMultasPorUsuario(Long usuarioId, String estado);
+
+    BigDecimal obtenerSaldoPendienteUsuario(Long usuarioId);
+
+    MultaDTO generarMultaPorDanioOPerdida(Long usuarioId, Long prestamoId, BigDecimal monto, String motivo);
 }

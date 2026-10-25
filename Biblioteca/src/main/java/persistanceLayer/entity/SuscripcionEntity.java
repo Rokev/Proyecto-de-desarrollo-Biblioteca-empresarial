@@ -15,7 +15,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Suscripción de un usuario a un {@link PlanSuscripcionEntity} (RF-23, RF-24, RF-25).
+ * Suscripción de un usuario a un {@link PlanSuscripcionEntity}.
  * Da descuento en salas, plazo extendido de devolución, libros a domicilio,
  * entrada a eventos y un mes gratis tras 5 meses consecutivos.
  */
@@ -57,7 +57,7 @@ public class SuscripcionEntity {
     private Boolean renovacionAutomatica = true;
 
     /** Fecha en que el usuario solicitó cancelar. Los beneficios se mantienen hasta
-     *  {@code fechaFin} (RF-25). */
+     *  {@code fechaFin}. */
     private LocalDateTime fechaCancelacion;
 
     /** Meses consecutivos pagados; al llegar a 5 se otorga un mes gratis. */
