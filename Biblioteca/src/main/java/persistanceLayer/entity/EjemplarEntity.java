@@ -31,7 +31,7 @@ public class EjemplarEntity {
     @Column(nullable = false, unique = true, length = 40)
     private String codigoBarras;
 
-    /** DISPONIBLE, RESERVADO, PRESTADO, EN_TRANSITO, DANADO, etc. */
+    /** DISPONIBLE, RESERVADO, PRESTADO, EN_TRANSITO, DANADO, PERDIDO, etc. */
     @Column(nullable = false, length = 20)
     @Builder.Default
     private String estado = "DISPONIBLE";
