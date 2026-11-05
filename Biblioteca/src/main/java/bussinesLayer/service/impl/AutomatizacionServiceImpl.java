@@ -61,7 +61,7 @@ public class AutomatizacionServiceImpl implements AutomatizacionService {
     private static final String MOTIVO_NO_RECOGIDO = "Pedido interciudad no recogido a tiempo";
     private static final String MOTIVO_SANCION_NO_RECOGIDO = "No recogio el pedido interciudad a tiempo";
 
-    /** Tipos de sancion configurables ( 74) que el sistema levanta o finaliza automaticamente. */
+    /** Tipos de sancion configurables que el sistema levanta o finaliza automaticamente. */
     private static final List<String> TIPOS_SANCION = InfraccionSancion.TipoSancion.TODOS;
     private static final int MINUTOS_PAGO_RESERVA_SALA = 30;
 

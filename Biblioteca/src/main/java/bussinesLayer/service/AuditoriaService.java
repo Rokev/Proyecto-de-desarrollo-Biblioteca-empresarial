@@ -6,7 +6,7 @@ import persistanceLayer.dao.AuditoriaDAO;
 import java.time.LocalDate;
 
 /**
- * Lógica de negocio del log de auditoría ( 79 y el registro de acciones de  59,  63,  65,  77...).
+ * Lógica de negocio del log de auditoría.
  */
 public interface AuditoriaService {
 

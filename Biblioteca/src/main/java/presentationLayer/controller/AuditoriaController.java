@@ -24,12 +24,12 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 
-/**  79: el administrador consulta el historial de auditoría del sistema. */
+/**  el administrador consulta el historial de auditoría del sistema. */
 @RestController
 @RequestMapping("/api/v1/auditoria")
 @RequiredArgsConstructor
 @Slf4j
-@Tag(name = "Auditoría", description = "Consulta del historial de auditoría del sistema ( 79)")
+@Tag(name = "Auditoría", description = "Consulta del historial de auditoría del sistema ")
 public class AuditoriaController {
 
     private final AuditoriaService auditoriaService;

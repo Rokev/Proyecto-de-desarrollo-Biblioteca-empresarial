@@ -17,12 +17,12 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
-/**  74,  75 y  76: configuración de políticas de sanción, multas y plazos (rol administrador). */
+/** configuración de políticas de sanción, multas y plazos (rol administrador). */
 @RestController
 @RequestMapping("/api/v1/configuracion")
 @RequiredArgsConstructor
 @Slf4j
-@Tag(name = "Configuración del sistema", description = "Políticas de sanción, multas y plazos ( 74,  75,  76)")
+@Tag(name = "Configuración del sistema", description = "Políticas de sanción, multas y plazos")
 public class ConfiguracionSistemaController {
 
     private final ConfiguracionSistemaService configuracionService;

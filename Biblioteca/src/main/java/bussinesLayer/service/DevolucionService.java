@@ -35,7 +35,7 @@ public interface DevolucionService {
     /**
      *  41: el bibliotecario registra que el libro de un prestamo ACTIVO o VENCIDO se devolvio danado o se perdio.
      * El ejemplar pasa a DANADO o PERDIDO (sale del stock disponible), el prestamo se cierra, se aplica la multa
-     * configurada ( 75) y la sancion si su politica esta activa ( 74), y se notifica al usuario.
+     * configurad y la sancion si su politica esta activa, y se notifica al usuario.
      *
      * @param tipo  DANADO o PERDIDO
      * @param monto opcional; si es nulo se cobra el monto configurado

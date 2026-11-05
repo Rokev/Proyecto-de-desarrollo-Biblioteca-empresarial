@@ -31,9 +31,9 @@ public class LibroServiceImpl implements LibroService {
     private final PrestamoDAO prestamoDAO;
     private final ReservaLibroDAO reservaLibroDAO;
 
-    /** Prestamos que cuentan como activos ( 35). */
+    /** Prestamos que cuentan como activos. */
     private static final List<String> PRESTAMOS_ACTIVOS = List.of("SOLICITADO", "ACTIVO", "VENCIDO");
-    /** Reservas de libro que cuentan como pendientes ( 35). */
+    /** Reservas de libro que cuentan como pendientes. */
     private static final List<String> RESERVAS_PENDIENTES = List.of("EN_ESPERA", "NOTIFICADA");
 
     @Override

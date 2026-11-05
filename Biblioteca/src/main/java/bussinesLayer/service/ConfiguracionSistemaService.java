@@ -13,7 +13,7 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * Configuración de políticas de sanción ( 74), multas ( 75) y plazos ( 76).
+ * Configuración de políticas de sanción, multas y plazos.
  * El resto de servicios consultan aquí los valores en lugar de tenerlos escritos en el código.
  */
 public interface ConfiguracionSistemaService {

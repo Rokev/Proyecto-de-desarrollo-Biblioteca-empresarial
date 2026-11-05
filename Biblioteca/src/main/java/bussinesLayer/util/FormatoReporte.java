@@ -4,7 +4,7 @@ import bussinesLayer.exception.BusinessValidationException;
 
 import java.util.Arrays;
 
-/** Formatos de exportación de los reportes ( 78). */
+/** Formatos de exportación de los reportes. */
 public enum FormatoReporte {
 
     PDF("application/pdf", "pdf"),

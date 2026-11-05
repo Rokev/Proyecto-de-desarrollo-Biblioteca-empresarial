@@ -11,7 +11,7 @@ import java.time.LocalDateTime;
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-@Schema(description = "Plazo configurable del sistema ( 76)")
+@Schema(description = "Plazo configurable del sistema")
 public class PlazoSistemaDTO {
 
     @Schema(description = "id único del plazo", example = "1", accessMode = Schema.AccessMode.READ_ONLY)

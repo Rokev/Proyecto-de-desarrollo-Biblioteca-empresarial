@@ -4,7 +4,7 @@ import bussinesLayer.exception.BusinessValidationException;
 
 import java.util.Arrays;
 
-/** Tipos de reporte que puede generar el administrador ( 78). */
+/** Tipos de reporte que puede generar el administrador. */
 public enum TipoReporte {
 
     USO("Reporte de uso del sistema"),
