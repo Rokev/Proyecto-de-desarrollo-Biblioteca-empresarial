@@ -146,4 +146,9 @@ public class UsuarioDAO {
     public List<UsuarioDTO> filtrar(String rol, Long sedeId, Boolean activo) {
         return usuarioRepository.filtrar(rol, sedeId, activo).stream().map(mapper::usuarioToDto).toList();
     }
+
+    /** Devuelve el hash BCrypt guardado (el Mapper no lo copia al DTO). */
+    public Optional<String> findContrasenaHashById(Long id) {
+        return usuarioRepository.findById(id).map(UsuarioEntity::getContrasena);
+    }
 }

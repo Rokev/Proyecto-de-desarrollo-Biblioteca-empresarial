@@ -28,4 +28,10 @@ public interface SesionRepository extends JpaRepository<SesionEntity, Long> {
     @Modifying
     @Query("UPDATE SesionEntity s SET s.activa = false, s.fechaCierre = :ahora WHERE s.activa = true AND s.fechaExpiracion < :ahora")
     int cerrarExpiradas(@Param("ahora") LocalDateTime ahora);
+
+    boolean existsByTokenAndActivaTrue(String token);
+
+    @Modifying
+    @Query("UPDATE SesionEntity s SET s.activa = false, s.fechaCierre = :ahora WHERE s.usuario.id = :usuarioId AND s.activa = true")
+    int cerrarSesionesDeUsuario(@Param("usuarioId") Long usuarioId, @Param("ahora") LocalDateTime ahora);
 }

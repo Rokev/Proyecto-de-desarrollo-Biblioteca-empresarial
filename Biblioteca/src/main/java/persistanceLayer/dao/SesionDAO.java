@@ -95,4 +95,13 @@ public class SesionDAO {
         referencia.setId(idUsuario);
         return referencia;
     }
+
+    public boolean existsActivaByToken(String token) {
+        return sesionRepository.existsByTokenAndActivaTrue(token);
+    }
+
+    @Transactional
+    public int cerrarSesionesDeUsuario(Long usuarioId, LocalDateTime ahora) {
+        return sesionRepository.cerrarSesionesDeUsuario(usuarioId, ahora);
+    }
 }
