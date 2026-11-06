@@ -1,5 +1,4 @@
 package presentationLayer.controller;
-import org.springframework.web.bind.annotation.RequestParam;
 
 import bussinesLayer.dto.PlanSuscripcionDTO;
 import bussinesLayer.service.PlanSuscripcionService;
