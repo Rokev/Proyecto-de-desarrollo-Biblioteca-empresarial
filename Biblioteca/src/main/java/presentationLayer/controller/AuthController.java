@@ -1,0 +1,76 @@
+package presentationLayer.controller;
+
+import bussinesLayer.dto.AuthResponseDTO;
+import bussinesLayer.dto.LoginRequestDTO;
+import bussinesLayer.dto.RecuperarContrasenaDTO;
+import bussinesLayer.dto.RegistroDTO;
+import bussinesLayer.dto.RestablecerContrasenaDTO;
+import bussinesLayer.dto.UsuarioDTO;
+import bussinesLayer.service.AuthService;
+import bussinesLayer.service.UsuarioService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+import java.util.Map;
+
+@RestController
+@RequestMapping("/api/v1/auth")
+@RequiredArgsConstructor
+@Tag(name = "Autenticacion", description = "Inicio de sesion, registro, cierre de sesion y recuperacion de contrasena")
+public class AuthController {
+
+    private final AuthService authService;
+    private final UsuarioService usuarioService;
+
+    @PostMapping("/login")
+    @Operation(summary = "Iniciar sesion", description = "Valida correo y contrasena y devuelve un token JWT")
+    public ResponseEntity<AuthResponseDTO> login(@Valid @RequestBody LoginRequestDTO request) {
+        return ResponseEntity.ok(authService.login(request));
+    }
+
+    @PostMapping("/registro")
+    @Operation(summary = "Registrar cliente", description = "Crea una cuenta con rol CLIENTE")
+    public ResponseEntity<UsuarioDTO> registro(@Valid @RequestBody RegistroDTO registro) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(authService.registrar(registro));
+    }
+
+    @PostMapping("/logout")
+    @Operation(summary = "Cerrar sesion", description = "Invalida el token con el que se hace la peticion")
+    public ResponseEntity<Void> logout(@AuthenticationPrincipal Jwt jwt) {
+        authService.logout(jwt.getId());
+        return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/recuperar")
+    @Operation(summary = "Solicitar recuperacion de contrasena", description = "Genera un token de 24 horas para restablecer la contrasena")
+    public ResponseEntity<Map<String, String>> recuperar(@Valid @RequestBody RecuperarContrasenaDTO dto) {
+        authService.solicitarRecuperacion(dto.getCorreo());
+        return ResponseEntity.ok(Map.of("mensaje",
+                "Si el correo esta registrado, se genero un token de recuperacion"));
+    }
+
+    @PostMapping("/restablecer")
+    @Operation(summary = "Restablecer contrasena", description = "Cambia la contrasena usando el token de recuperacion")
+    public ResponseEntity<Map<String, String>> restablecer(@Valid @RequestBody RestablecerContrasenaDTO dto) {
+        authService.restablecerContrasena(dto);
+        return ResponseEntity.ok(Map.of("mensaje", "Contrasena actualizada correctamente"));
+    }
+
+    @GetMapping("/me")
+    @Operation(summary = "Mi perfil", description = "Devuelve los datos del usuario autenticado")
+    public ResponseEntity<UsuarioDTO> me(@AuthenticationPrincipal Jwt jwt) {
+        Number uid = jwt.getClaim("uid");
+        return ResponseEntity.ok(usuarioService.obtenerUsuarioPorId(uid.longValue()));
+    }
+}
