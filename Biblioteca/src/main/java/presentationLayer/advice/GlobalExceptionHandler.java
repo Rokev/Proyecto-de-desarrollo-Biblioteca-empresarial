@@ -87,4 +87,16 @@ public class GlobalExceptionHandler {
         ApiError body = new ApiError(LocalDateTime.now(), status, reason, message, request.getRequestURI());
         return ResponseEntity.status(status).body(body);
     }
+
+    // Manejo de errores de seguridad (acceso denegado y autenticacion fallida) con esto ya no se devuelve un 500
+    @ExceptionHandler(AccessDeniedException.class)
+    public ResponseEntity<ApiError> handleAccessDenied(AccessDeniedException ex, HttpServletRequest request) {
+        return build(HttpStatus.FORBIDDEN, "No tienes permisos para realizar esta operacion", request);
+    }
+
+    @ExceptionHandler(AuthenticationException.class)
+    public ResponseEntity<ApiError> handleAuthentication(AuthenticationException ex, HttpServletRequest request) {
+        return build(HttpStatus.UNAUTHORIZED, ex.getMessage(), request);
+    }
+
 }

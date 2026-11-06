@@ -91,7 +91,7 @@ public class SecurityConfig {
                         // ---- Repartidores
                         .requestMatchers("/api/v1/repartidores/**").hasAnyRole(REPARTIDOR, ADMIN)
 
-                        // ---- Datos del cliente (el cliente solo los suyos: se afina en el paso 13)
+                        // ---- Datos del cliente (el cliente solo los suyos)
                         .requestMatchers("/api/v1/prestamos/**", "/api/v1/reservas-libro/**",
                                 "/api/v1/reservas-sala/**", "/api/v1/pagos/**", "/api/v1/suscripciones/**",
                                 "/api/v1/multas/**", "/api/v1/notificaciones/**", "/api/v1/metodos-pago/**",
