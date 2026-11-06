@@ -9,8 +9,9 @@ import org.aspectj.lang.JoinPoint;
 import org.aspectj.lang.annotation.AfterReturning;
 import org.aspectj.lang.annotation.Aspect;
 import org.springframework.stereotype.Component;
-import org.springframework.web.context.request.RequestContextHolder;
-import org.springframework.web.context.request.ServletRequestAttributes;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.oauth2.jwt.Jwt;
 
 import java.lang.reflect.Method;
 import java.util.Map;
@@ -105,18 +106,14 @@ public class AuditoriaAspect {
     }
 
     private Long usuarioDeLaPeticion() {
-        if (!(RequestContextHolder.getRequestAttributes() instanceof ServletRequestAttributes attrs)) {
-            return null; // fuera de una petición HTTP (tarea programada, pruebas...)
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth != null && auth.getPrincipal() instanceof Jwt jwt) {
+            Object uid = jwt.getClaim("uid");
+            if (uid instanceof Number n) {
+                return n.longValue();
+            }
         }
-        String valor = attrs.getRequest().getParameter("administradorId");
-        if (valor == null || valor.isBlank()) {
-            valor = attrs.getRequest().getHeader("X-Usuario-Id");
-        }
-        try {
-            return valor == null || valor.isBlank() ? null : Long.valueOf(valor.trim());
-        } catch (NumberFormatException e) {
-            return null;
-        }
+        return null; // SISTEMA: tareas programadas, arranque o pruebas
     }
 
     private Long extraerId(Object objeto) {
