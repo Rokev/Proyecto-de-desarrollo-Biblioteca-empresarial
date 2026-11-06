@@ -3,6 +3,9 @@ package bussinesLayer.service.impl;
 import bussinesLayer.dto.UsuarioDTO;
 import bussinesLayer.exception.BusinessValidationException;
 import bussinesLayer.exception.ResourceNotFoundException;
+import org.springframework.security.crypto.password.PasswordEncoder;
+
+import persistanceLayer.dao.SesionDAO;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -41,6 +44,8 @@ class UsuarioServiceImplTest {
     @Mock private UsuarioDAO usuarioDAO;
     @Mock private RolDAO rolDAO;
     @Mock private SedeDAO sedeDAO;
+    @Mock private PasswordEncoder passwordEncoder;
+    @Mock private SesionDAO sesionDAO;
 
     @InjectMocks
     private UsuarioServiceImpl service;
