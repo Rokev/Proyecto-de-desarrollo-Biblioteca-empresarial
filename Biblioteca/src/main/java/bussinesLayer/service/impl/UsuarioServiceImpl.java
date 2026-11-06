@@ -3,7 +3,9 @@ import java.util.Set;
 import persistanceLayer.dao.NotificacionDAO;
 import bussinesLayer.dto.NotificacionDTO;
 import bussinesLayer.service.SuscripcionService;
+import org.springframework.security.crypto.password.PasswordEncoder;
 
+import persistanceLayer.dao.SesionDAO;
 import bussinesLayer.dto.UsuarioDTO;
 import bussinesLayer.exception.BusinessValidationException;
 import bussinesLayer.exception.ResourceNotFoundException;
@@ -30,6 +32,8 @@ public class UsuarioServiceImpl implements UsuarioService {
     private final SedeDAO sedeDAO;
     private final SuscripcionService suscripcionService;
     private final NotificacionDAO notificacionDAO;
+    private final PasswordEncoder passwordEncoder;
+    private final SesionDAO sesionDAO;
 
     private static final Set<String> ROLES_PERSONAL = Set.of("BIBLIOTECARIO", "REPARTIDOR");
     private static final Set<String> ROLES_INTERNOS = Set.of("BIBLIOTECARIO", "REPARTIDOR", "ADMINISTRADOR", "ADMIN");
@@ -58,7 +62,7 @@ public class UsuarioServiceImpl implements UsuarioService {
         if (dto.getFechaRegistro() == null) {
             dto.setFechaRegistro(LocalDateTime.now());
         }
-        // TODO: cifrar dto.getContrasena() (p. ej. BCrypt con PasswordEncoder) antes de persistir.
+        dto.setContrasena(passwordEncoder.encode(dto.getContrasena()));
 
         UsuarioDTO guardado = usuarioDAO.save(dto);
         log.info("Usuario creado con ID: {}", guardado.getId());
@@ -101,6 +105,12 @@ public class UsuarioServiceImpl implements UsuarioService {
                     throw new BusinessValidationException("Ya existe otro usuario con el documento: " + dto.getDocumento());
                 });
         validarReferencias(dto);
+
+        if (dto.getContrasena() != null && !dto.getContrasena().isBlank()) {
+            dto.setContrasena(passwordEncoder.encode(dto.getContrasena()));
+        } else {
+            dto.setContrasena(null); // null = conservar la contrasena actual
+        }
 
         UsuarioDTO actualizado = usuarioDAO.update(id, dto)
                 .orElseThrow(() -> new ResourceNotFoundException("Usuario no encontrado con ID: " + id));
@@ -185,8 +195,13 @@ public class UsuarioServiceImpl implements UsuarioService {
 
     private UsuarioDTO cambiarEstadoCuenta(UsuarioDTO usuario, boolean activo) {
         usuario.setActivo(activo);
-        return usuarioDAO.update(usuario.getId(), usuario)
+        UsuarioDTO actualizado = usuarioDAO.update(usuario.getId(), usuario)
                 .orElseThrow(() -> new ResourceNotFoundException("Usuario no encontrado con ID: " + usuario.getId()));
+        if (!activo) {
+            // Cuenta suspendida o desactivada: sus tokens dejan de valer de inmediato
+            sesionDAO.cerrarSesionesDeUsuario(usuario.getId(), LocalDateTime.now());
+        }
+        return actualizado;
     }
 
     private void notificar(Long usuarioId, String tipo, String titulo, String mensaje) {
