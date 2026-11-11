@@ -1,6 +1,7 @@
 package bussinesLayer.service.impl;
 import java.util.Set;
 import persistanceLayer.dao.NotificacionDAO;
+import bussinesLayer.dto.ActualizarPerfilDTO;
 import bussinesLayer.dto.NotificacionDTO;
 import bussinesLayer.service.SuscripcionService;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -182,6 +183,18 @@ public class UsuarioServiceImpl implements UsuarioService {
         UsuarioDTO reactivado = cambiarEstadoCuenta(usuario, true);
         notificar(id, "CUENTA_REACTIVADA", "Tu cuenta fue reactivada", "Tu cuenta fue reactivada y ya puedes usarla de nuevo.");
         return reactivado;
+    }
+
+    @Override
+    public UsuarioDTO actualizarPerfil(Long id, ActualizarPerfilDTO perfil) {
+        UsuarioDTO usuario = buscarUsuario(id);
+        usuario.setNombre(perfil.getNombre());
+        usuario.setApellido(perfil.getApellido());
+        usuario.setTelefono(perfil.getTelefono());
+        usuario.setDireccion(perfil.getDireccion());
+        usuario.setContrasena(null); // null = conservar la contrasena actual
+        return usuarioDAO.update(id, usuario)
+                .orElseThrow(() -> new ResourceNotFoundException("Usuario no encontrado con ID: " + id));
     }
 
     private UsuarioDTO buscarUsuario(Long id) {

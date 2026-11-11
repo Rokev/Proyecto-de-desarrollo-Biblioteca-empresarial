@@ -16,7 +16,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
 import presentationLayer.advice.ApiError;
+import presentationLayer.security.AccesoUsuario;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -29,6 +31,7 @@ import java.util.List;
 public class MultaController {
 
     private final MultaService multaService;
+        private final AccesoUsuario acceso;
 
     @PostMapping
     @Operation(summary = "Crear una multa", description = "Registra una nueva multa asociada a un usuario y a un préstamo")
@@ -59,7 +62,8 @@ public class MultaController {
     public ResponseEntity<List<MultaDTO>> obtenerPorUsuario(
             @Parameter(description = "ID del usuario", required = true, example = "1") @PathVariable Long usuarioId,
             @Parameter(description = "Estado opcional (PENDIENTE, PAGADA)", example = "PENDIENTE") @RequestParam(required = false) String estado) {
-        return ResponseEntity.ok(multaService.obtenerMultasPorUsuario(usuarioId, estado));
+                acceso.validarPropietario(usuarioId);
+                return ResponseEntity.ok(multaService.obtenerMultasPorUsuario(usuarioId, estado));
     }
 
     @GetMapping("/usuario/{usuarioId}/saldo-pendiente")
@@ -71,6 +75,7 @@ public class MultaController {
     })
     public ResponseEntity<BigDecimal> obtenerSaldoPendiente(
             @Parameter(description = "ID del usuario", required = true, example = "1") @PathVariable Long usuarioId) {
+        acceso.validarPropietario(usuarioId);
         return ResponseEntity.ok(multaService.obtenerSaldoPendienteUsuario(usuarioId));
     }
 
@@ -104,7 +109,9 @@ public class MultaController {
     })
     public ResponseEntity<MultaDTO> obtenerPorId(
             @Parameter(description = "ID de la multa", required = true, example = "1") @PathVariable Long id) {
-        return ResponseEntity.ok(multaService.obtenerMultaPorId(id));
+        var multa = multaService.obtenerMultaPorId(id);
+        acceso.validarPropietario(multa.getUsuarioId());
+        return ResponseEntity.ok(multa);
     }
 
     @GetMapping

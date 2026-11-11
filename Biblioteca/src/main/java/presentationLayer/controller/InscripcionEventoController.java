@@ -27,7 +27,9 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import presentationLayer.advice.ApiError;
+import presentationLayer.security.AccesoUsuario;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 
@@ -39,6 +41,7 @@ import java.util.Map;
 public class InscripcionEventoController {
 
     private final InscripcionEventoService inscripcionEventoService;
+        private final AccesoUsuario acceso;
 
     @PostMapping
     @Operation(summary = "Crear una inscripcion a evento", description = "Inscribe a un usuario en un evento")
@@ -55,6 +58,10 @@ public class InscripcionEventoController {
     public ResponseEntity<InscripcionEventoDTO> crearInscripcionEvento(
             @Parameter(description = "Datos de la inscripcion a evento a crear", required = true)
             @Valid @RequestBody InscripcionEventoDTO inscripcionEventoDTO) {
+        acceso.validarPropietario(inscripcionEventoDTO.getUsuarioId());
+                if (!acceso.esPersonal()) {
+                        inscripcionEventoDTO.setFechaInscripcion(LocalDateTime.now());
+        }
         log.info("POST /api/v1/inscripciones-evento - eventoId: {}, usuarioId: {}", inscripcionEventoDTO.getEventoId(), inscripcionEventoDTO.getUsuarioId());
         InscripcionEventoDTO creada = inscripcionEventoService.crearInscripcionEvento(inscripcionEventoDTO);
         return ResponseEntity.status(HttpStatus.CREATED).body(creada);
@@ -72,7 +79,9 @@ public class InscripcionEventoController {
             @Parameter(description = "ID de la inscripcion a evento", required = true, example = "1")
             @PathVariable Long id) {
         log.debug("GET /api/v1/inscripciones-evento/{}", id);
-        return ResponseEntity.ok(inscripcionEventoService.obtenerInscripcionEventoPorId(id));
+        var inscripcion = inscripcionEventoService.obtenerInscripcionEventoPorId(id);
+        acceso.validarPropietario(inscripcion.getUsuarioId());
+        return ResponseEntity.ok(inscripcion);
     }
 
     @GetMapping
@@ -81,7 +90,7 @@ public class InscripcionEventoController {
             content = @Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = InscripcionEventoDTO.class))))
     public ResponseEntity<List<InscripcionEventoDTO>> obtenerTodos() {
         log.debug("GET /api/v1/inscripciones-evento");
-        return ResponseEntity.ok(inscripcionEventoService.obtenerTodasLasInscripcionesEvento());
+        return ResponseEntity.ok(acceso.soloPropios(inscripcionEventoService.obtenerTodasLasInscripcionesEvento(), InscripcionEventoDTO::getUsuarioId));
     }
 
     @PutMapping("/{id}")
@@ -115,6 +124,7 @@ public class InscripcionEventoController {
     public ResponseEntity<Void> eliminar(
             @Parameter(description = "ID de la inscripcion a evento a eliminar", required = true, example = "1")
             @PathVariable Long id) {
+        acceso.validarPropietario(inscripcionEventoService.obtenerInscripcionEventoPorId(id).getUsuarioId());
         log.info("DELETE /api/v1/inscripciones-evento/{}", id);
         inscripcionEventoService.eliminarInscripcionEvento(id);
         return ResponseEntity.noContent().build();

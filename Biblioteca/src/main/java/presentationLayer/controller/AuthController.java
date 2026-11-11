@@ -1,5 +1,6 @@
 package presentationLayer.controller;
 
+import bussinesLayer.dto.ActualizarPerfilDTO;
 import bussinesLayer.dto.AuthResponseDTO;
 import bussinesLayer.dto.LoginRequestDTO;
 import bussinesLayer.dto.RecuperarContrasenaDTO;
@@ -18,6 +19,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -72,5 +74,13 @@ public class AuthController {
     public ResponseEntity<UsuarioDTO> me(@AuthenticationPrincipal Jwt jwt) {
         Number uid = jwt.getClaim("uid");
         return ResponseEntity.ok(usuarioService.obtenerUsuarioPorId(uid.longValue()));
+    }
+
+    @PutMapping("/me")
+    @Operation(summary = "Actualizar mi perfil", description = "Actualiza nombre, apellido, telefono y direccion del usuario autenticado")
+    public ResponseEntity<UsuarioDTO> actualizarMiPerfil(@AuthenticationPrincipal Jwt jwt,
+                                                        @Valid @RequestBody ActualizarPerfilDTO perfil) {
+        Number uid = jwt.getClaim("uid");
+        return ResponseEntity.ok(usuarioService.actualizarPerfil(uid.longValue(), perfil));
     }
 }

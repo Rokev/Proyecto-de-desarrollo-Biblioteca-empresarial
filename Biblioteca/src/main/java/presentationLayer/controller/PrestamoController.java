@@ -27,7 +27,9 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import presentationLayer.advice.ApiError;
+import presentationLayer.security.AccesoUsuario;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @RestController
@@ -37,107 +39,117 @@ import java.util.List;
 @Tag(name = "Prestamos", description = "Operaciones CRUD para la gestion de prestamos de ejemplares")
 public class PrestamoController {
 
-    private final PrestamoService prestamoService;
+        private final PrestamoService prestamoService;
+        private final AccesoUsuario acceso;
 
-    @PostMapping
-    @Operation(summary = "Crear un prestamo", description = "Registra un nuevo prestamo de un ejemplar a un usuario (modalidad SEDE, DOMICILIO o INTERCIUDAD)")
-    @ApiResponses({
-            @ApiResponse(responseCode = "201", description = "Prestamo creado exitosamente",
-                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = PrestamoDTO.class))),
-            @ApiResponse(responseCode = "400", description = "Datos invalidos, usuario con bloqueo o maximo de prestamos vigentes, ejemplar no disponible, modalidad invalida, falta direccion de entrega o fecha de vencimiento anterior a la solicitud",
-                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = ApiError.class))),
-            @ApiResponse(responseCode = "404", description = "Usuario, ejemplar o sede de retiro no encontrado",
-                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = ApiError.class))),
-            @ApiResponse(responseCode = "500", description = "Error interno del servidor",
-                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = ApiError.class)))
-    })
-    public ResponseEntity<PrestamoDTO> crearPrestamo(
-            @Parameter(description = "Datos del prestamo a crear", required = true)
-            @Valid @RequestBody PrestamoDTO prestamoDTO) {
+        @PostMapping
+        @Operation(summary = "Crear un prestamo", description = "Registra un nuevo prestamo de un ejemplar a un usuario (modalidad SEDE, DOMICILIO o INTERCIUDAD)")
+        @ApiResponses({
+                @ApiResponse(responseCode = "201", description = "Prestamo creado exitosamente",
+                        content = @Content(mediaType = "application/json", schema = @Schema(implementation = PrestamoDTO.class))),
+                @ApiResponse(responseCode = "400", description = "Datos invalidos, usuario con bloqueo o maximo de prestamos vigentes, ejemplar no disponible, modalidad invalida, falta direccion de entrega o fecha de vencimiento anterior a la solicitud",
+                        content = @Content(mediaType = "application/json", schema = @Schema(implementation = ApiError.class))),
+                @ApiResponse(responseCode = "404", description = "Usuario, ejemplar o sede de retiro no encontrado",
+                        content = @Content(mediaType = "application/json", schema = @Schema(implementation = ApiError.class))),
+                @ApiResponse(responseCode = "500", description = "Error interno del servidor",
+                        content = @Content(mediaType = "application/json", schema = @Schema(implementation = ApiError.class)))
+        })
+        public ResponseEntity<PrestamoDTO> crearPrestamo(
+                @Parameter(description = "Datos del prestamo a crear", required = true)
+                @Valid @RequestBody PrestamoDTO prestamoDTO) {
+        acceso.validarPropietario(prestamoDTO.getUsuarioId());
+                if (!acceso.esPersonal()) {
+                        prestamoDTO.setFechaSolicitud(LocalDateTime.now());
+                        prestamoDTO.setFechaEntrega(null);
+                        prestamoDTO.setFechaVencimiento(null); // el servicio la calcula con el plazo configurado
+                }
         log.info("POST /api/v1/prestamos - usuarioId: {}, ejemplarId: {}", prestamoDTO.getUsuarioId(), prestamoDTO.getEjemplarId());
         PrestamoDTO creado = prestamoService.crearPrestamo(prestamoDTO);
         return ResponseEntity.status(HttpStatus.CREATED).body(creado);
-    }
+        }
 
-    @GetMapping("/{id}")
-    @Operation(summary = "Buscar prestamo por ID", description = "Obtiene la informacion de un prestamo especifico")
-    @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "Prestamo encontrado",
-                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = PrestamoDTO.class))),
-            @ApiResponse(responseCode = "404", description = "Prestamo no encontrado",
-                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = ApiError.class)))
-    })
-    public ResponseEntity<PrestamoDTO> obtenerPorId(
-            @Parameter(description = "ID del prestamo", required = true, example = "1")
-            @PathVariable Long id) {
+        @GetMapping("/{id}")
+        @Operation(summary = "Buscar prestamo por ID", description = "Obtiene la informacion de un prestamo especifico")
+        @ApiResponses({
+                @ApiResponse(responseCode = "200", description = "Prestamo encontrado",
+                        content = @Content(mediaType = "application/json", schema = @Schema(implementation = PrestamoDTO.class))),
+                @ApiResponse(responseCode = "404", description = "Prestamo no encontrado",
+                        content = @Content(mediaType = "application/json", schema = @Schema(implementation = ApiError.class)))
+        })
+        public ResponseEntity<PrestamoDTO> obtenerPorId(
+                @Parameter(description = "ID del prestamo", required = true, example = "1")
+                @PathVariable Long id) {
         log.debug("GET /api/v1/prestamos/{}", id);
-        return ResponseEntity.ok(prestamoService.obtenerPrestamoPorId(id));
-    }
+        var prestamo = prestamoService.obtenerPrestamoPorId(id);
+        acceso.validarPropietario(prestamo.getUsuarioId());
+        return ResponseEntity.ok(prestamo);
+        }
 
-    @GetMapping
-    @Operation(summary = "Listar todos los prestamos", description = "Obtiene la lista completa de prestamos registrados")
-    @ApiResponse(responseCode = "200", description = "Lista de prestamos obtenida exitosamente",
-            content = @Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = PrestamoDTO.class))))
-    public ResponseEntity<List<PrestamoDTO>> obtenerTodos() {
+        @GetMapping
+        @Operation(summary = "Listar todos los prestamos", description = "Obtiene la lista completa de prestamos registrados")
+        @ApiResponse(responseCode = "200", description = "Lista de prestamos obtenida exitosamente",
+                content = @Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = PrestamoDTO.class))))
+        public ResponseEntity<List<PrestamoDTO>> obtenerTodos() {
         log.debug("GET /api/v1/prestamos");
         return ResponseEntity.ok(prestamoService.obtenerTodosLosPrestamos());
-    }
+        }
 
-    @PutMapping("/{id}")
-    @Operation(summary = "Actualizar prestamo", description = "Actualiza los datos de un prestamo existente")
-    @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "Prestamo actualizado exitosamente",
-                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = PrestamoDTO.class))),
-            @ApiResponse(responseCode = "400", description = "Datos invalidos, intento de cambiar usuario o ejemplar, modalidad invalida o fechas inconsistentes",
-                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = ApiError.class))),
-            @ApiResponse(responseCode = "404", description = "Prestamo o sede de retiro no encontrado",
-                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = ApiError.class)))
-    })
-    public ResponseEntity<PrestamoDTO> actualizar(
-            @Parameter(description = "ID del prestamo a actualizar", required = true, example = "1")
-            @PathVariable Long id,
-            @Parameter(description = "Nuevos datos del prestamo", required = true)
-            @Valid @RequestBody PrestamoDTO prestamoDTO) {
+        @PutMapping("/{id}")
+        @Operation(summary = "Actualizar prestamo", description = "Actualiza los datos de un prestamo existente")
+        @ApiResponses({
+                @ApiResponse(responseCode = "200", description = "Prestamo actualizado exitosamente",
+                        content = @Content(mediaType = "application/json", schema = @Schema(implementation = PrestamoDTO.class))),
+                @ApiResponse(responseCode = "400", description = "Datos invalidos, intento de cambiar usuario o ejemplar, modalidad invalida o fechas inconsistentes",
+                        content = @Content(mediaType = "application/json", schema = @Schema(implementation = ApiError.class))),
+                @ApiResponse(responseCode = "404", description = "Prestamo o sede de retiro no encontrado",
+                        content = @Content(mediaType = "application/json", schema = @Schema(implementation = ApiError.class)))
+        })
+        public ResponseEntity<PrestamoDTO> actualizar(
+                @Parameter(description = "ID del prestamo a actualizar", required = true, example = "1")
+                @PathVariable Long id,
+                @Parameter(description = "Nuevos datos del prestamo", required = true)
+                @Valid @RequestBody PrestamoDTO prestamoDTO) {
         log.info("PUT /api/v1/prestamos/{}", id);
         return ResponseEntity.ok(prestamoService.actualizarPrestamo(id, prestamoDTO));
-    }
+        }
 
-    @DeleteMapping("/{id}")
-    @Operation(summary = "Eliminar prestamo", description = "Elimina un prestamo del sistema")
-    @ApiResponses({
-            @ApiResponse(responseCode = "204", description = "Prestamo eliminado exitosamente"),
-            @ApiResponse(responseCode = "404", description = "Prestamo no encontrado",
-                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = ApiError.class))),
-            @ApiResponse(responseCode = "409", description = "No se puede eliminar porque esta relacionado con otros datos",
-                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = ApiError.class)))
-    })
-    public ResponseEntity<Void> eliminar(
-            @Parameter(description = "ID del prestamo a eliminar", required = true, example = "1")
-            @PathVariable Long id) {
+        @DeleteMapping("/{id}")
+        @Operation(summary = "Eliminar prestamo", description = "Elimina un prestamo del sistema")
+        @ApiResponses({
+                @ApiResponse(responseCode = "204", description = "Prestamo eliminado exitosamente"),
+                @ApiResponse(responseCode = "404", description = "Prestamo no encontrado",
+                        content = @Content(mediaType = "application/json", schema = @Schema(implementation = ApiError.class))),
+                @ApiResponse(responseCode = "409", description = "No se puede eliminar porque esta relacionado con otros datos",
+                        content = @Content(mediaType = "application/json", schema = @Schema(implementation = ApiError.class)))
+        })
+        public ResponseEntity<Void> eliminar(
+                @Parameter(description = "ID del prestamo a eliminar", required = true, example = "1")
+                @PathVariable Long id) {
         log.info("DELETE /api/v1/prestamos/{}", id);
         prestamoService.eliminarPrestamo(id);
         return ResponseEntity.noContent().build();
-    }
+        }
 
-    @GetMapping("/usuario/{usuarioId}")
-    @Operation(summary = "Consultar prestamos de un usuario", description = "Lista los prestamos del usuario con libro, sede, estado y fecha limite de devolucion")
-    @ApiResponse(responseCode = "200", description = "Consulta realizada exitosamente",
-            content = @Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = PrestamoDetalleDTO.class))))
-    public ResponseEntity<List<PrestamoDetalleDTO>> obtenerPorUsuario(
-            @Parameter(description = "ID del usuario", example = "1") @PathVariable Long usuarioId,
-            @Parameter(description = "Filtro opcional por estado") @RequestParam(required = false) String estado) {
-        return ResponseEntity.ok(prestamoService.obtenerPrestamosDeUsuario(usuarioId, estado));
-    }
+        @GetMapping("/usuario/{usuarioId}")
+        @Operation(summary = "Consultar prestamos de un usuario", description = "Lista los prestamos del usuario con libro, sede, estado y fecha limite de devolucion")
+        @ApiResponse(responseCode = "200", description = "Consulta realizada exitosamente",
+                content = @Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = PrestamoDetalleDTO.class))))
+        public ResponseEntity<List<PrestamoDetalleDTO>> obtenerPorUsuario(
+                @Parameter(description = "ID del usuario", example = "1") @PathVariable Long usuarioId,
+                @Parameter(description = "Filtro opcional por estado") @RequestParam(required = false) String estado) {
+                acceso.validarPropietario(usuarioId);
+                return ResponseEntity.ok(prestamoService.obtenerPrestamosDeUsuario(usuarioId, estado));
+        }
 
-    @GetMapping("/sede/{sedeId}")
-    @Operation(summary = "Consultar prestamos de una sede", description = "Lista los prestamos de la sede, filtrables por estado, usuario y libro")
-    @ApiResponse(responseCode = "200", description = "Consulta realizada exitosamente",
-            content = @Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = PrestamoDetalleDTO.class))))
-    public ResponseEntity<List<PrestamoDetalleDTO>> obtenerPorSede(
-            @Parameter(description = "ID de la sede", example = "1") @PathVariable Long sedeId,
-            @Parameter(description = "Filtro opcional por estado") @RequestParam(required = false) String estado,
-            @Parameter(description = "Filtro opcional por usuario") @RequestParam(required = false) Long usuarioId,
-            @Parameter(description = "Filtro opcional por libro") @RequestParam(required = false) Long libroId) {
+        @GetMapping("/sede/{sedeId}")
+        @Operation(summary = "Consultar prestamos de una sede", description = "Lista los prestamos de la sede, filtrables por estado, usuario y libro")
+        @ApiResponse(responseCode = "200", description = "Consulta realizada exitosamente",
+                content = @Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = PrestamoDetalleDTO.class))))
+        public ResponseEntity<List<PrestamoDetalleDTO>> obtenerPorSede(
+                @Parameter(description = "ID de la sede", example = "1") @PathVariable Long sedeId,
+                @Parameter(description = "Filtro opcional por estado") @RequestParam(required = false) String estado,
+                @Parameter(description = "Filtro opcional por usuario") @RequestParam(required = false) Long usuarioId,
+                @Parameter(description = "Filtro opcional por libro") @RequestParam(required = false) Long libroId) {
         return ResponseEntity.ok(prestamoService.obtenerPrestamosDeSede(sedeId, estado, usuarioId, libroId));
-    }
+        }
 }

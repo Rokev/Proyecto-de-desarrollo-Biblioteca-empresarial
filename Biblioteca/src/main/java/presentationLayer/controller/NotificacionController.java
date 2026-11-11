@@ -25,6 +25,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import presentationLayer.advice.ApiError;
+import presentationLayer.security.AccesoUsuario;
 
 import java.util.List;
 
@@ -36,6 +37,7 @@ import java.util.List;
 public class NotificacionController {
 
     private final NotificacionService notificacionService;
+        private final AccesoUsuario acceso;
 
     @PostMapping
     @Operation(summary = "Crear una notificacion", description = "Registra una nueva notificacion dirigida a un usuario")
@@ -69,7 +71,9 @@ public class NotificacionController {
             @Parameter(description = "ID de la notificacion", required = true, example = "1")
             @PathVariable Long id) {
         log.debug("GET /api/v1/notificaciones/{}", id);
-        return ResponseEntity.ok(notificacionService.obtenerNotificacionPorId(id));
+        var notificacion = notificacionService.obtenerNotificacionPorId(id);
+        acceso.validarPropietario(notificacion.getUsuarioId());
+        return ResponseEntity.ok(notificacion);
     }
 
     @GetMapping
@@ -78,7 +82,7 @@ public class NotificacionController {
             content = @Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = NotificacionDTO.class))))
     public ResponseEntity<List<NotificacionDTO>> obtenerTodos() {
         log.debug("GET /api/v1/notificaciones");
-        return ResponseEntity.ok(notificacionService.obtenerTodasLasNotificaciones());
+        return ResponseEntity.ok(acceso.soloPropios(notificacionService.obtenerTodasLasNotificaciones(), NotificacionDTO::getUsuarioId));
     }
 
     @PutMapping("/{id}")
@@ -96,6 +100,12 @@ public class NotificacionController {
             @PathVariable Long id,
             @Parameter(description = "Nuevos datos de la notificacion", required = true)
             @Valid @RequestBody NotificacionDTO notificacionDTO) {
+        var actual = notificacionService.obtenerNotificacionPorId(id);
+        acceso.validarPropietario(actual.getUsuarioId());
+        if (!acceso.esPersonal()) {
+                actual.setLeida(notificacionDTO.getLeida()); // el cliente solo marca como leida
+                notificacionDTO = actual;
+        }
         log.info("PUT /api/v1/notificaciones/{}", id);
         return ResponseEntity.ok(notificacionService.actualizarNotificacion(id, notificacionDTO));
     }

@@ -29,6 +29,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import presentationLayer.advice.ApiError;
+import presentationLayer.security.AccesoUsuario;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -41,6 +42,7 @@ import java.util.List;
 public class DevolucionController {
 
     private final DevolucionService devolucionService;
+    private final AccesoUsuario acceso;
 
     @PostMapping
     @Operation(summary = "Crear una devolucion", description = "Registra una nueva devolucion asociada a un prestamo")
@@ -151,6 +153,7 @@ public class DevolucionController {
     public ResponseEntity<DevolucionDTO> solicitar(
             @Parameter(description = "Datos de la solicitud", required = true)
             @Valid @RequestBody SolicitudDevolucionDTO solicitud) {
+        acceso.validarPropietario(solicitud.getUsuarioId());
         log.info("POST /api/v1/devoluciones/solicitar - prestamoId: {}", solicitud.getPrestamoId());
         return ResponseEntity.status(HttpStatus.CREATED).body(devolucionService.solicitarDevolucion(solicitud));
     }
@@ -169,6 +172,7 @@ public class DevolucionController {
     public ResponseEntity<DevolucionDTO> confirmar(
             @Parameter(description = "Codigo QR de la devolucion", required = true, example = "DEV-0b1f...") @RequestParam String codigoQr,
             @Parameter(description = "ID del bibliotecario", required = true, example = "2") @RequestParam Long bibliotecarioId) {
+        acceso.validarActor(bibliotecarioId);
         log.info("POST /api/v1/devoluciones/confirmar - bibliotecarioId: {}", bibliotecarioId);
         return ResponseEntity.ok(devolucionService.confirmarDevolucion(codigoQr, bibliotecarioId));
     }
@@ -191,6 +195,7 @@ public class DevolucionController {
             @Parameter(description = "ID del bibliotecario", required = true, example = "2") @RequestParam Long bibliotecarioId,
             @Parameter(description = "Monto de la multa (opcional: si se omite se usa el configurado)", example = "30000.00") @RequestParam(required = false) BigDecimal monto,
             @Parameter(description = "Observaciones (opcional)", example = "Portada rota y paginas mojadas") @RequestParam(required = false) String observaciones) {
+        acceso.validarActor(bibliotecarioId);
         log.info("POST /api/v1/devoluciones/danio-perdida - prestamoId: {}, tipo: {}", prestamoId, tipo);
         return ResponseEntity.ok(devolucionService.registrarDanioOPerdida(prestamoId, tipo, bibliotecarioId, monto, observaciones));
     }

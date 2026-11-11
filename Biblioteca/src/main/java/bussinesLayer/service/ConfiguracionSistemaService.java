@@ -18,21 +18,21 @@ import java.util.Optional;
  */
 public interface ConfiguracionSistemaService {
 
-    // ----------------  74: sanciones (administración)
+    // ----------------  sanciones (administración)
     List<PoliticaSancionDTO> listarPoliticasSancion();
 
     PoliticaSancionDTO obtenerPoliticaSancion(String infraccion);
 
     PoliticaSancionDTO actualizarPoliticaSancion(String infraccion, PoliticaSancionDTO dto);
 
-    // ----------------  75: multas (administración)
+    // ---------------- multas (administración)
     List<PoliticaMultaDTO> listarPoliticasMulta();
 
     PoliticaMultaDTO obtenerPoliticaMulta(String concepto);
 
     PoliticaMultaDTO actualizarPoliticaMulta(String concepto, PoliticaMultaDTO dto);
 
-    // ----------------  76: plazos (administración)
+    // ---------------- plazos (administración)
     List<PlazoSistemaDTO> listarPlazos();
 
     PlazoSistemaDTO obtenerPlazo(String clave);

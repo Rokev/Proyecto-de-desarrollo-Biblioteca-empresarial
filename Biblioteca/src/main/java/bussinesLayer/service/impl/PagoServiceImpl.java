@@ -124,6 +124,12 @@ public class PagoServiceImpl implements PagoService {
         if (!usuarioDAO.existsById(solicitud.getUsuarioId())) {
             throw new ResourceNotFoundException("Usuario no encontrado con ID: " + solicitud.getUsuarioId());
         }
+        String conceptoSolicitado = solicitud.getConcepto().toUpperCase();
+        if (!List.of(CONCEPTO_MULTA, CONCEPTO_RECARGO, CONCEPTO_SUSCRIPCION,
+                CONCEPTO_RESERVA_SALA, CONCEPTO_ENVIO_INTERCIUDAD).contains(conceptoSolicitado)) {
+            throw new BusinessValidationException("Concepto de pago no soportado: " + solicitud.getConcepto()
+                    + ". Valores permitidos: MULTA, RECARGO, SUSCRIPCION, RESERVA_SALA, ENVIO_INTERCIUDAD");
+        }
         if (CONCEPTO_ENVIO_INTERCIUDAD.equalsIgnoreCase(solicitud.getConcepto())) {
             PedidoInterciudadDTO pedido = validarPagoEnvio(
                     solicitud.getUsuarioId(), solicitud.getPedidoInterciudadId(), solicitud.getMonto());
@@ -158,9 +164,17 @@ public class PagoServiceImpl implements PagoService {
         pago.setUsuarioId(solicitud.getUsuarioId());
         pago.setMetodoPagoId(1L); // Método de pago por defecto para la pasarela simulada
 
-        if (solicitud.getMultaId() != null) pago.setMultaId(solicitud.getMultaId());
-        if (suscripcionPorPagar != null) pago.setSuscripcionId(suscripcionPorPagar.getId());
-        if (solicitud.getReservaSalaId() != null) pago.setReservaSalaId(solicitud.getReservaSalaId());
+        // Solo se enlaza el recurso que corresponde al concepto (ya validado arriba)
+        if (CONCEPTO_MULTA.equalsIgnoreCase(solicitud.getConcepto())
+                || CONCEPTO_RECARGO.equalsIgnoreCase(solicitud.getConcepto())) {
+            pago.setMultaId(solicitud.getMultaId());
+        }
+        if (suscripcionPorPagar != null) {
+            pago.setSuscripcionId(suscripcionPorPagar.getId());
+        }
+        if (CONCEPTO_RESERVA_SALA.equalsIgnoreCase(solicitud.getConcepto())) {
+            pago.setReservaSalaId(solicitud.getReservaSalaId());
+        }
         if (CONCEPTO_ENVIO_INTERCIUDAD.equalsIgnoreCase(solicitud.getConcepto())) {
             pago.setPedidoInterciudadId(solicitud.getPedidoInterciudadId());
         }

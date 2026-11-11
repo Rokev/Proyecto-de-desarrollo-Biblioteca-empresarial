@@ -21,11 +21,11 @@ public interface EventoService {
 
     void eliminarEvento(Long id);
 
-    /**  17: eventos proximos no cancelados, filtrables por sede, fecha y tipo (exclusivo o general). */
+    /**  eventos proximos no cancelados, filtrables por sede, fecha y tipo (exclusivo o general). */
     List<EventoDTO> buscarEventosProximos(Long sedeId, LocalDate fecha, Boolean exclusivo);
 
     /**
-     *  47: sin inscripciones el evento se elimina (Optional vacio, sin notificar); con inscripciones se liberan
+     * sin inscripciones el evento se elimina (Optional vacio, sin notificar); con inscripciones se liberan
      * los cupos, se notifica a los asistentes y el evento queda CANCELADO.
      */
     Optional<EventoDTO> cancelarEvento(Long id);

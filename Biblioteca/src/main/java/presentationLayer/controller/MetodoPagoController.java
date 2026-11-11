@@ -25,6 +25,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import presentationLayer.advice.ApiError;
+import presentationLayer.security.AccesoUsuario;
 
 import java.util.List;
 
@@ -36,6 +37,7 @@ import java.util.List;
 public class MetodoPagoController {
 
     private final MetodoPagoService metodoPagoService;
+        private final AccesoUsuario acceso;
 
     @PostMapping
     @Operation(summary = "Crear un metodo de pago", description = "Registra un nuevo metodo de pago asociado a un usuario")
@@ -52,6 +54,7 @@ public class MetodoPagoController {
     public ResponseEntity<MetodoPagoDTO> crearMetodoPago(
             @Parameter(description = "Datos del metodo de pago a crear", required = true)
             @Valid @RequestBody MetodoPagoDTO metodoPagoDTO) {
+        acceso.validarPropietario(metodoPagoDTO.getUsuarioId());
         log.info("POST /api/v1/metodos-pago - usuarioId: {}", metodoPagoDTO.getUsuarioId());
         MetodoPagoDTO creado = metodoPagoService.crearMetodoPago(metodoPagoDTO);
         return ResponseEntity.status(HttpStatus.CREATED).body(creado);
@@ -69,7 +72,9 @@ public class MetodoPagoController {
             @Parameter(description = "ID del metodo de pago", required = true, example = "1")
             @PathVariable Long id) {
         log.debug("GET /api/v1/metodos-pago/{}", id);
-        return ResponseEntity.ok(metodoPagoService.obtenerMetodoPagoPorId(id));
+        var metodo = metodoPagoService.obtenerMetodoPagoPorId(id);
+        acceso.validarPropietario(metodo.getUsuarioId());
+        return ResponseEntity.ok(metodo);
     }
 
     @GetMapping
@@ -78,7 +83,7 @@ public class MetodoPagoController {
             content = @Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = MetodoPagoDTO.class))))
     public ResponseEntity<List<MetodoPagoDTO>> obtenerTodos() {
         log.debug("GET /api/v1/metodos-pago");
-        return ResponseEntity.ok(metodoPagoService.obtenerTodosLosMetodosPago());
+        return ResponseEntity.ok(acceso.soloPropios(metodoPagoService.obtenerTodosLosMetodosPago(), MetodoPagoDTO::getUsuarioId));
     }
 
     @PutMapping("/{id}")
@@ -96,6 +101,8 @@ public class MetodoPagoController {
             @PathVariable Long id,
             @Parameter(description = "Nuevos datos del metodo de pago", required = true)
             @Valid @RequestBody MetodoPagoDTO metodoPagoDTO) {
+        acceso.validarPropietario(metodoPagoService.obtenerMetodoPagoPorId(id).getUsuarioId());
+        acceso.validarPropietario(metodoPagoDTO.getUsuarioId());
         log.info("PUT /api/v1/metodos-pago/{}", id);
         return ResponseEntity.ok(metodoPagoService.actualizarMetodoPago(id, metodoPagoDTO));
     }
@@ -112,6 +119,7 @@ public class MetodoPagoController {
     public ResponseEntity<Void> eliminar(
             @Parameter(description = "ID del metodo de pago a eliminar", required = true, example = "1")
             @PathVariable Long id) {
+        acceso.validarPropietario(metodoPagoService.obtenerMetodoPagoPorId(id).getUsuarioId());
         log.info("DELETE /api/v1/metodos-pago/{}", id);
         metodoPagoService.eliminarMetodoPago(id);
         return ResponseEntity.noContent().build();

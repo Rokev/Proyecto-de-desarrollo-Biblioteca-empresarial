@@ -27,7 +27,9 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import presentationLayer.advice.ApiError;
+import presentationLayer.security.AccesoUsuario;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @RestController
@@ -37,7 +39,8 @@ import java.util.List;
 @Tag(name = "Reservas de libro", description = "Operaciones CRUD para la gestion de reservas de libros")
 public class ReservaLibroController {
 
-    private final ReservaLibroService reservaLibroService;
+        private final ReservaLibroService reservaLibroService;
+        private final AccesoUsuario acceso;
 
     @PostMapping
     @Operation(summary = "Crear una reserva de libro", description = "Registra una nueva reserva de un libro para un usuario en una sede")
@@ -54,10 +57,19 @@ public class ReservaLibroController {
     public ResponseEntity<ReservaLibroDTO> crearReservaLibro(
             @Parameter(description = "Datos de la reserva de libro a crear", required = true)
             @Valid @RequestBody ReservaLibroDTO reservaLibroDTO) {
+        acceso.validarPropietario(reservaLibroDTO.getUsuarioId());
+                if (!acceso.esPersonal()) {
+                        reservaLibroDTO.setEstado(null); // el servicio la deja EN_ESPERA
+                        reservaLibroDTO.setEjemplarId(null);
+                        reservaLibroDTO.setFechaNotificacion(null);
+                        reservaLibroDTO.setFechaLimiteRetiro(null);
+                        reservaLibroDTO.setFechaCancelacion(null);
+                        reservaLibroDTO.setFechaReserva(LocalDateTime.now());
+        }
         log.info("POST /api/v1/reservas-libro - usuarioId: {}, libroId: {}", reservaLibroDTO.getUsuarioId(), reservaLibroDTO.getLibroId());
         ReservaLibroDTO creada = reservaLibroService.crearReservaLibro(reservaLibroDTO);
         return ResponseEntity.status(HttpStatus.CREATED).body(creada);
-    }
+        }
 
     @GetMapping("/{id}")
     @Operation(summary = "Buscar reserva de libro por ID", description = "Obtiene la informacion de una reserva de libro especifica")
@@ -71,7 +83,9 @@ public class ReservaLibroController {
             @Parameter(description = "ID de la reserva de libro", required = true, example = "1")
             @PathVariable Long id) {
         log.debug("GET /api/v1/reservas-libro/{}", id);
-        return ResponseEntity.ok(reservaLibroService.obtenerReservaLibroPorId(id));
+        var reserva = reservaLibroService.obtenerReservaLibroPorId(id);
+        acceso.validarPropietario(reserva.getUsuarioId());
+        return ResponseEntity.ok(reserva);
     }
 
     @GetMapping
@@ -126,6 +140,7 @@ public class ReservaLibroController {
     public ResponseEntity<List<ReservaLibroDetalleDTO>> obtenerPorUsuario(
             @Parameter(description = "ID del usuario", example = "1") @PathVariable Long usuarioId,
             @Parameter(description = "Filtro opcional por estado") @RequestParam(required = false) String estado) {
+        acceso.validarPropietario(usuarioId);
         return ResponseEntity.ok(reservaLibroService.obtenerReservasDeUsuario(usuarioId, estado));
     }
 

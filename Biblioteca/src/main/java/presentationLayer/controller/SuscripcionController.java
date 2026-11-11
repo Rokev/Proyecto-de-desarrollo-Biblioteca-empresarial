@@ -27,6 +27,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import presentationLayer.advice.ApiError;
+import presentationLayer.security.AccesoUsuario;
 
 import java.util.List;
 
@@ -38,6 +39,7 @@ import java.util.List;
 public class SuscripcionController {
 
         private final SuscripcionService suscripcionService;
+        private final AccesoUsuario acceso;
 
         @PostMapping
         @Operation(summary = "Crear una suscripcion (administrativo)", description = "Alta administrativa sin pago. Para que un usuario compre una suscripcion use POST /api/v1/suscripciones/comprar")
@@ -76,10 +78,12 @@ public class SuscripcionController {
         public ResponseEntity<SuscripcionDTO> comprarSuscripcion(
                 @Parameter(description = "Datos de la compra", required = true)
                 @Valid @RequestBody CompraSuscripcionDTO compra) {
+        acceso.validarPropietario(compra.getUsuarioId());
         log.info("POST /api/v1/suscripciones/comprar - usuarioId: {}, planId: {}", compra.getUsuarioId(), compra.getPlanId());
         SuscripcionDTO comprada = suscripcionService.comprarSuscripcion(compra);
         return ResponseEntity.status(HttpStatus.CREATED).body(comprada);
-        }       
+        }    
+        
         @PostMapping("/{id}/cancelar")
         @Operation(summary = "Cancelar una suscripcion",
                 description = "Cancela la suscripcion y desactiva la renovacion automatica. "
@@ -97,9 +101,11 @@ public class SuscripcionController {
                 @PathVariable Long id,
                 @Parameter(description = "ID del usuario dueño de la suscripcion", required = true, example = "1")
                 @RequestParam Long usuarioId) {
-        log.info("POST /api/v1/suscripciones/{}/cancelar - usuarioId: {}", id, usuarioId);
-        return ResponseEntity.ok(suscripcionService.cancelarSuscripcion(id, usuarioId));
-        }       
+                acceso.validarPropietario(usuarioId);
+                log.info("POST /api/v1/suscripciones/{}/cancelar - usuarioId: {}", id, usuarioId);
+                return ResponseEntity.ok(suscripcionService.cancelarSuscripcion(id, usuarioId));
+                }  
+
         @GetMapping("/usuario/{usuarioId}/vigente")
         @Operation(summary = "Consultar la suscripcion vigente de un usuario",
                 description = "Devuelve la suscripcion ACTIVA, o CANCELADA con fechaFin aun por venir. Responde 404 si el usuario no tiene suscripcion vigente.")
@@ -112,6 +118,7 @@ public class SuscripcionController {
         public ResponseEntity<SuscripcionDTO> obtenerVigente(
                 @Parameter(description = "ID del usuario", required = true, example = "1")
                 @PathVariable Long usuarioId) {
+        acceso.validarPropietario(usuarioId);
         log.debug("GET /api/v1/suscripciones/usuario/{}/vigente", usuarioId);
         return ResponseEntity.ok(suscripcionService.obtenerSuscripcionVigente(usuarioId));
         }
@@ -129,7 +136,9 @@ public class SuscripcionController {
                 @Parameter(description = "ID de la suscripcion", required = true, example = "1")
                 @PathVariable Long id) {
         log.debug("GET /api/v1/suscripciones/{}", id);
-        return ResponseEntity.ok(suscripcionService.obtenerSuscripcionPorId(id));
+        var suscripcion = suscripcionService.obtenerSuscripcionPorId(id);
+        acceso.validarPropietario(suscripcion.getUsuarioId());
+        return ResponseEntity.ok(suscripcion);
         }
 
         @GetMapping

@@ -1,5 +1,6 @@
 package bussinesLayer.service;
 
+import bussinesLayer.dto.ActualizarPerfilDTO;
 import bussinesLayer.dto.UsuarioDTO;
 
 import java.util.List;
@@ -19,15 +20,18 @@ public interface UsuarioService {
 
     void eliminarUsuario(Long id);
 
-    /**  61 y  62: filtra por rol, sede, estado y suscripcion vigente; los filtros nulos se ignoran. */
+    /** filtra por rol, sede, estado y suscripcion vigente; los filtros nulos se ignoran. */
     List<UsuarioDTO> filtrarUsuarios(String rol, Long sedeId, Boolean activo, Boolean conSuscripcion);
 
-    /**  60: desactiva (sin borrar historial) la cuenta de un bibliotecario o repartidor. */
+    /** desactiva (sin borrar historial) la cuenta de un bibliotecario o repartidor. */
     UsuarioDTO desactivarPersonal(Long id);
 
-    /**  64: suspende la cuenta de un usuario y le notifica. */
+    /** suspende la cuenta de un usuario y le notifica. */
     UsuarioDTO suspenderUsuario(Long id);
 
-    /**  65: reactiva una cuenta suspendida o desactivada, conservando su historial, y le notifica. */
+    /** reactiva una cuenta suspendida o desactivada, conservando su historial, y le notifica. */
     UsuarioDTO reactivarCuenta(Long id);
+
+    /** El propio usuario actualiza nombre, apellido, telefono y direccion. */
+    UsuarioDTO actualizarPerfil(Long id, ActualizarPerfilDTO perfil);
 }

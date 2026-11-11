@@ -59,7 +59,7 @@ public class SecurityConfig {
                         .authenticationEntryPoint(authenticationEntryPoint)
                         .accessDeniedHandler(accessDeniedHandler)
                         .jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuthenticationConverter)))
-                .authorizeHttpRequests(auth -> auth
+                                .authorizeHttpRequests(auth -> auth
 
                         // ---- Publico (sin login)
                         .requestMatchers("/error").permitAll()
@@ -75,7 +75,7 @@ public class SecurityConfig {
                                 "/api/v1/eventos/**", "/api/v1/planes-suscripcion/**",
                                 "/api/v1/tarifas-envio/cotizar").hasAnyRole(CLIENTE, BIBLIOTECARIO, ADMIN)
 
-                        // ---- Escritura: bibliotecario y admin
+                        // ---- Escritura de catalogo: bibliotecario y admin
                         .requestMatchers("/api/v1/libros/**", "/api/v1/autores/**", "/api/v1/generos/**",
                                 "/api/v1/ejemplares/**", "/api/v1/salas-estudio/**", "/api/v1/eventos/**")
                         .hasAnyRole(BIBLIOTECARIO, ADMIN)
@@ -84,19 +84,50 @@ public class SecurityConfig {
                         .requestMatchers("/api/v1/sedes/**", "/api/v1/planes-suscripcion/**",
                                 "/api/v1/preguntas-frecuentes/**").hasRole(ADMIN)
 
-                        // ---- Operacion de biblioteca
-                        .requestMatchers("/api/v1/devoluciones/**", "/api/v1/traslados-retorno/**",
-                                "/api/v1/sanciones/**").hasAnyRole(BIBLIOTECARIO, ADMIN)
+                        // ---- CLIENTE: solo estos endpoints (cada uno valida en el controller que el dato sea suyo)
+                        .requestMatchers(HttpMethod.POST,
+                                "/api/v1/prestamos", "/api/v1/reservas-libro", "/api/v1/reservas-sala",
+                                "/api/v1/metodos-pago", "/api/v1/inscripciones-evento",
+                                "/api/v1/pagos/procesar",
+                                "/api/v1/suscripciones/comprar", "/api/v1/suscripciones/*/cancelar",
+                                "/api/v1/pedidos-interciudad", "/api/v1/pedidos-interciudad/*/cancelar",
+                                "/api/v1/devoluciones/solicitar")
+                        .hasAnyRole(CLIENTE, BIBLIOTECARIO, ADMIN)
+                        .requestMatchers(HttpMethod.GET,
+                                "/api/v1/prestamos/*", "/api/v1/prestamos/usuario/*",
+                                "/api/v1/reservas-libro/*", "/api/v1/reservas-libro/usuario/*",
+                                "/api/v1/reservas-sala", "/api/v1/reservas-sala/*",
+                                "/api/v1/pagos/comprobante/*", "/api/v1/pagos/usuario/*",
+                                "/api/v1/suscripciones/*", "/api/v1/suscripciones/usuario/*/vigente",
+                                "/api/v1/multas/*", "/api/v1/multas/usuario/**",
+                                "/api/v1/notificaciones", "/api/v1/notificaciones/*",
+                                "/api/v1/metodos-pago", "/api/v1/metodos-pago/*",
+                                "/api/v1/inscripciones-evento", "/api/v1/inscripciones-evento/*",
+                                "/api/v1/pedidos-interciudad/*", "/api/v1/pedidos-interciudad/usuario/*",
+                                "/api/v1/devoluciones/sede-sugerida")
+                        .hasAnyRole(CLIENTE, BIBLIOTECARIO, ADMIN)
+                        .requestMatchers(HttpMethod.PUT, "/api/v1/notificaciones/*", "/api/v1/metodos-pago/*")
+                        .hasAnyRole(CLIENTE, BIBLIOTECARIO, ADMIN)
+                        .requestMatchers(HttpMethod.DELETE, "/api/v1/metodos-pago/*", "/api/v1/inscripciones-evento/*")
+                        .hasAnyRole(CLIENTE, BIBLIOTECARIO, ADMIN)
 
-                        // ---- Repartidores
+                        // ---- REPARTIDOR: entregas (tambien existen dentro de /pedidos-interciudad)
+                        .requestMatchers(HttpMethod.GET, "/api/v1/pedidos-interciudad/repartidor/*")
+                        .hasAnyRole(REPARTIDOR, ADMIN)
+                        .requestMatchers(HttpMethod.POST, "/api/v1/pedidos-interciudad/*/confirmar-entrega",
+                                "/api/v1/pedidos-interciudad/*/registrar-no-recibido",
+                                "/api/v1/pedidos-interciudad/*/iniciar-traslado-retorno")
+                        .hasAnyRole(REPARTIDOR, ADMIN)
                         .requestMatchers("/api/v1/repartidores/**").hasAnyRole(REPARTIDOR, ADMIN)
 
-                        // ---- Datos del cliente (el cliente solo los suyos)
-                        .requestMatchers("/api/v1/prestamos/**", "/api/v1/reservas-libro/**",
-                                "/api/v1/reservas-sala/**", "/api/v1/pagos/**", "/api/v1/suscripciones/**",
-                                "/api/v1/multas/**", "/api/v1/notificaciones/**", "/api/v1/metodos-pago/**",
+                        // ---- Personal de biblioteca: lo demas de estos modulos (CRUD generico, listados, operaciones)
+                        .requestMatchers("/api/v1/devoluciones/**", "/api/v1/traslados-retorno/**",
+                                "/api/v1/sanciones/**",
+                                "/api/v1/prestamos/**", "/api/v1/reservas-libro/**", "/api/v1/reservas-sala/**",
+                                "/api/v1/pagos/**", "/api/v1/suscripciones/**", "/api/v1/multas/**",
+                                "/api/v1/notificaciones/**", "/api/v1/metodos-pago/**",
                                 "/api/v1/pedidos-interciudad/**", "/api/v1/inscripciones-evento/**")
-                        .hasAnyRole(CLIENTE, BIBLIOTECARIO, ADMIN)
+                        .hasAnyRole(BIBLIOTECARIO, ADMIN)
 
                         // ---- Administracion
                         .requestMatchers("/api/v1/usuarios/**", "/api/v1/roles/**", "/api/v1/tarifas-envio/**",

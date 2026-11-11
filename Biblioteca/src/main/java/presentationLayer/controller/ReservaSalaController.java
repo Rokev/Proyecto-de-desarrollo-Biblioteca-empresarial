@@ -25,6 +25,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import presentationLayer.advice.ApiError;
+import presentationLayer.security.AccesoUsuario;
 
 import java.util.List;
 
@@ -36,6 +37,7 @@ import java.util.List;
 public class ReservaSalaController {
 
     private final ReservaSalaService reservaSalaService;
+        private final AccesoUsuario acceso;
 
     @PostMapping
     @Operation(summary = "Crear una reserva de sala", description = "Registra una nueva reserva de una sala de estudio para un usuario, el valor base y el descuento por suscripcion los calcula el servidor")
@@ -52,6 +54,11 @@ public class ReservaSalaController {
     public ResponseEntity<ReservaSalaDTO> crearReservaSala(
             @Parameter(description = "Datos de la reserva de sala a crear", required = true)
             @Valid @RequestBody ReservaSalaDTO reservaSalaDTO) {
+        acceso.validarPropietario(reservaSalaDTO.getUsuarioId());
+        if (!acceso.esPersonal()){
+                reservaSalaDTO.setEstado(null); //el servicio la deja en PENDIENTE_PAGO
+                reservaSalaDTO.setFechaCancelacion(null);
+        }
         log.info("POST /api/v1/reservas-sala - usuarioId: {}, salaId: {}", reservaSalaDTO.getUsuarioId(), reservaSalaDTO.getSalaId());
         ReservaSalaDTO creada = reservaSalaService.crearReservaSala(reservaSalaDTO);
         return ResponseEntity.status(HttpStatus.CREATED).body(creada);
@@ -69,7 +76,9 @@ public class ReservaSalaController {
             @Parameter(description = "ID de la reserva de sala", required = true, example = "1")
             @PathVariable Long id) {
         log.debug("GET /api/v1/reservas-sala/{}", id);
-        return ResponseEntity.ok(reservaSalaService.obtenerReservaSalaPorId(id));
+        var reserva = reservaSalaService.obtenerReservaSalaPorId(id);
+        acceso.validarPropietario(reserva.getUsuarioId());
+        return ResponseEntity.ok(reserva);
     }
 
     @GetMapping
@@ -78,7 +87,7 @@ public class ReservaSalaController {
             content = @Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = ReservaSalaDTO.class))))
     public ResponseEntity<List<ReservaSalaDTO>> obtenerTodos() {
         log.debug("GET /api/v1/reservas-sala");
-        return ResponseEntity.ok(reservaSalaService.obtenerTodasLasReservasSala());
+        return ResponseEntity.ok(acceso.soloPropios(reservaSalaService.obtenerTodasLasReservasSala(), ReservaSalaDTO::getUsuarioId));
     }
 
     @PutMapping("/{id}")

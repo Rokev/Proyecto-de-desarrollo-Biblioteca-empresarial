@@ -33,7 +33,7 @@ public interface DevolucionService {
     DevolucionDTO confirmarDevolucion(String codigoQr, Long bibliotecarioId);
 
     /**
-     *  41: el bibliotecario registra que el libro de un prestamo ACTIVO o VENCIDO se devolvio danado o se perdio.
+     *  el bibliotecario registra que el libro de un prestamo ACTIVO o VENCIDO se devolvio danado o se perdio.
      * El ejemplar pasa a DANADO o PERDIDO (sale del stock disponible), el prestamo se cierra, se aplica la multa
      * configurad y la sancion si su politica esta activa, y se notifica al usuario.
      *

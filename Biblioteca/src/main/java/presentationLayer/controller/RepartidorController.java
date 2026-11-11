@@ -14,7 +14,9 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
 import presentationLayer.advice.ApiError;
+import presentationLayer.security.AccesoUsuario;
 
 import java.util.List;
 
@@ -26,6 +28,7 @@ import java.util.List;
 public class RepartidorController {
 
     private final PedidoInterciudadService pedidoService;
+    private final AccesoUsuario acceso;
 
     @GetMapping("/{repartidorId}/asignaciones")
     @Operation(summary = "Visualizar entregas a domicilio y traslados asignados",
@@ -39,6 +42,7 @@ public class RepartidorController {
     public ResponseEntity<List<PedidoInterciudadDTO>> obtenerAsignaciones(
             @Parameter(description = "ID del repartidor", required = true, example = "5") 
             @PathVariable Long repartidorId) {
+        acceso.validarActor(repartidorId);
         log.info("GET /api/v1/repartidores/{}/asignaciones", repartidorId);
         return ResponseEntity.ok(pedidoService.obtenerAsignacionesRepartidor(repartidorId));
     }
@@ -57,6 +61,7 @@ public class RepartidorController {
     public ResponseEntity<PedidoInterciudadDTO> confirmarEntregaDomicilio(
             @Parameter(description = "ID del repartidor", required = true, example = "5") @PathVariable Long repartidorId,
             @Parameter(description = "ID del pedido interciudad", required = true, example = "1") @PathVariable Long pedidoId) {
+        acceso.validarActor(repartidorId);
         log.info("POST /api/v1/repartidores/{}/pedidos/{}/confirmar-entrega", repartidorId, pedidoId);
         return ResponseEntity.ok(pedidoService.confirmarEntregaDomicilio(pedidoId, repartidorId));
     }
@@ -75,6 +80,7 @@ public class RepartidorController {
     public ResponseEntity<PedidoInterciudadDTO> registrarUsuarioNoRecibio(
             @Parameter(description = "ID del repartidor", required = true, example = "5") @PathVariable Long repartidorId,
             @Parameter(description = "ID del pedido interciudad", required = true, example = "1") @PathVariable Long pedidoId) {
+        acceso.validarActor(repartidorId);
         log.info("POST /api/v1/repartidores/{}/pedidos/{}/no-recibido", repartidorId, pedidoId);
         return ResponseEntity.ok(pedidoService.registrarUsuarioNoRecibio(pedidoId, repartidorId));
     }
@@ -93,6 +99,7 @@ public class RepartidorController {
     public ResponseEntity<PedidoInterciudadDTO> iniciarTrasladoRetorno(
             @Parameter(description = "ID del repartidor", required = true, example = "5") @PathVariable Long repartidorId,
             @Parameter(description = "ID del pedido interciudad", required = true, example = "1") @PathVariable Long pedidoId) {
+        acceso.validarActor(repartidorId);
         log.info("POST /api/v1/repartidores/{}/pedidos/{}/iniciar-traslado", repartidorId, pedidoId);
         return ResponseEntity.ok(pedidoService.iniciarTrasladoRetorno(pedidoId, repartidorId));
     }
