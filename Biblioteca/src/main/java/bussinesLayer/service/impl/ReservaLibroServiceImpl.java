@@ -125,6 +125,31 @@ public class ReservaLibroServiceImpl implements ReservaLibroService {
     }
 
     @Override
+    public ReservaLibroDTO cancelarReservaLibro(Long reservaId, Long usuarioId) {
+        // 'antes' conserva el estado original (NOTIFICADA) para poder liberar el ejemplar apartado
+        ReservaLibroDTO antes = reservaLibroDAO.findById(reservaId)
+                .orElseThrow(() -> new ResourceNotFoundException("Reserva de libro no encontrada con ID: " + reservaId));
+        if (!antes.getUsuarioId().equals(usuarioId)) {
+            throw new BusinessValidationException("La reserva no pertenece al usuario " + usuarioId);
+        }
+        if (!esVigente(antes)) {
+            throw new BusinessValidationException(
+                    "Solo se puede cancelar una reserva EN_ESPERA o NOTIFICADA (estado actual: " + antes.getEstado() + ")");
+        }
+
+        ReservaLibroDTO cancelada = reservaLibroDAO.findById(reservaId)
+                .orElseThrow(() -> new ResourceNotFoundException("Reserva de libro no encontrada con ID: " + reservaId));
+        cancelada.setEstado(ESTADO_CANCELADA);
+        cancelada.setFechaCancelacion(LocalDateTime.now());
+        ReservaLibroDTO guardada = reservaLibroDAO.update(reservaId, cancelada)
+                .orElseThrow(() -> new ResourceNotFoundException("Reserva de libro no encontrada con ID: " + reservaId));
+
+        liberarEjemplarDeReserva(antes);
+        log.info("Reserva de libro cancelada ID: {}", reservaId);
+        return guardada;
+    }
+
+    @Override
     public void avisarDevolucionEnCamino(Long libroId, Long sedeOrigenId, String nombreSedeActual) {
         reservaLibroDAO.findFirstByLibroIdAndSedeIdAndEstadoIgnoreCaseOrderByFechaReservaAsc(
                 libroId, sedeOrigenId, ESTADO_EN_ESPERA).ifPresent(reserva ->

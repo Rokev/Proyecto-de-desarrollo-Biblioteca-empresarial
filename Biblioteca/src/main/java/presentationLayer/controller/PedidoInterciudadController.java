@@ -90,7 +90,8 @@ public class PedidoInterciudadController {
             @Parameter(description = "ID del usuario", required = true, example = "1") @PathVariable Long usuarioId,
             @Parameter(description = "Filtro opcional por estado (ej: SOLICITADO, EN_TRANSITO, ENTREGADO)", example = "EN_TRANSITO") @RequestParam(required = false) String estado) {
         acceso.validarPropietario(usuarioId);
-        return ResponseEntity.ok(pedidoService.obtenerPedidosDeUsuario(usuarioId, estado));
+        return ResponseEntity.ok(acceso.visibles(pedidoService.obtenerPedidosDeUsuario(usuarioId, estado),
+        PedidoInterciudadDTO::getUsuarioId, p -> acceso.sedes(p.getSedeOrigenId(), p.getSedeDevolucionId())));
     }
 
     @GetMapping("/{id}")
@@ -104,7 +105,7 @@ public class PedidoInterciudadController {
     public ResponseEntity<PedidoInterciudadDTO> obtenerPorId(
             @Parameter(description = "ID del pedido", required = true, example = "1") @PathVariable Long id) {
         var pedido = pedidoService.obtenerPedidoPorId(id);
-        acceso.validarPropietario(pedido.getUsuarioId());
+        acceso.validarPropietarioOSede(pedido.getUsuarioId(), pedido.getSedeOrigenId(), pedido.getSedeDevolucionId());
         return ResponseEntity.ok(pedido);
     }
 
@@ -123,6 +124,7 @@ public class PedidoInterciudadController {
     })
     public ResponseEntity<List<PedidoInterciudadDTO>> obtenerPedidosSedeOrigen(
             @Parameter(description = "ID de la sede de origen", required = true, example = "1") @PathVariable Long sedeId) {
+        acceso.validarSede(sedeId);
         return ResponseEntity.ok(pedidoService.obtenerPedidosSedeOrigen(sedeId));
     }
 
@@ -137,7 +139,8 @@ public class PedidoInterciudadController {
         })
         public ResponseEntity<List<PedidoInterciudadDTO>> obtenerPedidosSedeDevolucion(
                 @Parameter(description = "ID de la sede de devolución", required = true, example = "2") @PathVariable Long sedeId) {
-            return ResponseEntity.ok(pedidoService.obtenerPedidosSedeDevolucion(sedeId));
+                acceso.validarSede(sedeId);
+                return ResponseEntity.ok(pedidoService.obtenerPedidosSedeDevolucion(sedeId));
         }
 
     @PostMapping("/{id}/despachar")
@@ -156,6 +159,7 @@ public class PedidoInterciudadController {
             @Parameter(description = "ID del bibliotecario que registra el despacho", required = true, example = "2") @RequestParam Long bibliotecarioId,
             @Parameter(description = "ID del repartidor asignado", required = true, example = "5") @RequestParam Long repartidorId) {
         acceso.validarActor(bibliotecarioId);
+        acceso.validarSede(pedidoService.obtenerPedidoPorId(id).getSedeOrigenId());
         return ResponseEntity.ok(pedidoService.despacharPedido(id, bibliotecarioId, repartidorId));
     }
 
@@ -174,6 +178,7 @@ public class PedidoInterciudadController {
             @Parameter(description = "ID del pedido", required = true, example = "1") @PathVariable Long id,
             @Parameter(description = "ID del bibliotecario de la sede de devolución", required = true, example = "2") @RequestParam Long bibliotecarioId) {
         acceso.validarActor(bibliotecarioId);
+        acceso.validarSede(pedidoService.obtenerPedidoPorId(id).getSedeDevolucionId());
         return ResponseEntity.ok(pedidoService.registrarRecepcionNoRecibido(id, bibliotecarioId));
     }
 
@@ -192,6 +197,7 @@ public class PedidoInterciudadController {
             @Parameter(description = "ID del pedido", required = true, example = "1") @PathVariable Long id,
             @Parameter(description = "ID del bibliotecario", required = true, example = "2") @RequestParam Long bibliotecarioId) {
         acceso.validarActor(bibliotecarioId);
+        acceso.validarSede(pedidoService.obtenerPedidoPorId(id).getSedeDevolucionId());
         return ResponseEntity.ok(pedidoService.registrarEntregaEnSede(id, bibliotecarioId));
     }
 
@@ -211,6 +217,7 @@ public class PedidoInterciudadController {
             @Parameter(description = "ID del bibliotecario receptor", required = true, example = "2") @RequestParam Long bibliotecarioId,
             @Parameter(description = "ID de la sede donde se realiza la devolución", required = true, example = "2") @RequestParam Long sedeId) {
         acceso.validarActor(bibliotecarioId);
+        acceso.validarSede(sedeId);
         return ResponseEntity.ok(pedidoService.registrarDevolucionEnSede(id, bibliotecarioId, sedeId));
     }
 
@@ -229,6 +236,7 @@ public class PedidoInterciudadController {
             @Parameter(description = "ID del pedido", required = true, example = "1") @PathVariable Long id,
             @Parameter(description = "ID del bibliotecario de la sede de origen", required = true, example = "2") @RequestParam Long bibliotecarioId) {
         acceso.validarActor(bibliotecarioId);
+        acceso.validarSede(pedidoService.obtenerPedidoPorId(id).getSedeOrigenId());
         return ResponseEntity.ok(pedidoService.registrarRecepcionEnSedeOrigen(id, bibliotecarioId));
     }
 

@@ -33,4 +33,7 @@ public interface ReservaLibroService {
 
     /** reservas de la sede, filtrables por estado, usuario y libro. */
     List<ReservaLibroDetalleDTO> obtenerReservasDeSede(Long sedeId, String estado, Long usuarioId, Long libroId);
+    
+    /** Solo cancela las reservas en espera o notificada*/
+    ReservaLibroDTO cancelarReservaLibro(Long reservaId, Long usuarioId);
 }

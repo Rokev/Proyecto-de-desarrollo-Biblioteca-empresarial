@@ -7,6 +7,7 @@ import bussinesLayer.dto.RestablecerContrasenaDTO;
 import bussinesLayer.dto.SesionDTO;
 import bussinesLayer.dto.TokenRecuperacionDTO;
 import bussinesLayer.dto.UsuarioDTO;
+import bussinesLayer.dto.CambiarContrasenaDTO;
 import bussinesLayer.exception.BusinessValidationException;
 import bussinesLayer.exception.ResourceNotFoundException;
 import bussinesLayer.security.JwtService;
@@ -129,6 +130,23 @@ public class AuthServiceImpl implements AuthService {
         sesionDAO.cerrarSesionesDeUsuario(token.getUsuarioId(), LocalDateTime.now());
         log.info("Contrasena restablecida para el usuario ID: {}", token.getUsuarioId());
     }
+
+    @Override
+    public void cambiarContrasena(Long usuarioId, CambiarContrasenaDTO dto) {
+        String hash = usuarioDAO.findContrasenaHashById(usuarioId)
+                .orElseThrow(() -> new ResourceNotFoundException("Usuario no encontrado con ID: " + usuarioId));
+
+        if (!passwordEncoder.matches(dto.getContrasenaActual(), hash)) {
+            throw new BusinessValidationException("La contrasena actual es incorrecta");
+        }
+        if (dto.getContrasenaActual().equals(dto.getNuevaContrasena())) {
+            throw new BusinessValidationException("La nueva contrasena debe ser diferente a la actual");
+        }
+
+        usuarioDAO.updateContrasena(usuarioId, passwordEncoder.encode(dto.getNuevaContrasena()));
+        sesionDAO.cerrarSesionesDeUsuario(usuarioId, LocalDateTime.now()); // obliga a iniciar sesion de nuevo
+        log.info("Contrasena cambiada por el usuario ID: {}", usuarioId);
+    }    
 
     private String nombreRol(UsuarioDTO usuario) {
         return rolDAO.findById(usuario.getRolId())

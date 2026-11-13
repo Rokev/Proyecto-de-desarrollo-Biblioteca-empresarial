@@ -2,6 +2,7 @@ package presentationLayer.controller;
 
 import bussinesLayer.dto.ReservaSalaDTO;
 import bussinesLayer.service.ReservaSalaService;
+import bussinesLayer.service.SalaEstudioService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.ArraySchema;
@@ -23,9 +24,11 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.RequestParam;
 
 import presentationLayer.advice.ApiError;
 import presentationLayer.security.AccesoUsuario;
+
 
 import java.util.List;
 
@@ -36,8 +39,9 @@ import java.util.List;
 @Tag(name = "Reservas de sala", description = "Operaciones CRUD para la gestion de reservas de salas de estudio")
 public class ReservaSalaController {
 
-    private final ReservaSalaService reservaSalaService;
+        private final ReservaSalaService reservaSalaService;
         private final AccesoUsuario acceso;
+        private final SalaEstudioService salaEstudioService;
 
     @PostMapping
     @Operation(summary = "Crear una reserva de sala", description = "Registra una nueva reserva de una sala de estudio para un usuario, el valor base y el descuento por suscripcion los calcula el servidor")
@@ -77,7 +81,7 @@ public class ReservaSalaController {
             @PathVariable Long id) {
         log.debug("GET /api/v1/reservas-sala/{}", id);
         var reserva = reservaSalaService.obtenerReservaSalaPorId(id);
-        acceso.validarPropietario(reserva.getUsuarioId());
+        acceso.validarPropietarioOSede(reserva.getUsuarioId(), sedeDeLaReserva(reserva));
         return ResponseEntity.ok(reserva);
     }
 
@@ -87,7 +91,8 @@ public class ReservaSalaController {
             content = @Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = ReservaSalaDTO.class))))
     public ResponseEntity<List<ReservaSalaDTO>> obtenerTodos() {
         log.debug("GET /api/v1/reservas-sala");
-        return ResponseEntity.ok(acceso.soloPropios(reservaSalaService.obtenerTodasLasReservasSala(), ReservaSalaDTO::getUsuarioId));
+        return ResponseEntity.ok(acceso.visibles(reservaSalaService.obtenerTodasLasReservasSala(),
+        ReservaSalaDTO::getUsuarioId, r -> acceso.sedes(sedeDeLaReserva(r))));
     }
 
     @PutMapping("/{id}")
@@ -106,6 +111,7 @@ public class ReservaSalaController {
             @Parameter(description = "Nuevos datos de la reserva de sala", required = true)
             @Valid @RequestBody ReservaSalaDTO reservaSalaDTO) {
         log.info("PUT /api/v1/reservas-sala/{}", id);
+        acceso.validarSede(sedeDeLaReserva(reservaSalaService.obtenerReservaSalaPorId(id)));
         return ResponseEntity.ok(reservaSalaService.actualizarReservaSala(id, reservaSalaDTO));
     }
 
@@ -122,7 +128,22 @@ public class ReservaSalaController {
             @Parameter(description = "ID de la reserva de sala a eliminar", required = true, example = "1")
             @PathVariable Long id) {
         log.info("DELETE /api/v1/reservas-sala/{}", id);
+        acceso.validarSede(sedeDeLaReserva(reservaSalaService.obtenerReservaSalaPorId(id)));
         reservaSalaService.eliminarReservaSala(id);
         return ResponseEntity.noContent().build();
+    }
+
+        @PostMapping("/{id}/cancelar")
+    @Operation(summary = "Cancelar reserva de sala", description = "Cancela una reserva PENDIENTE_PAGO o CONFIRMADA y libera la sala (RF-24)")
+    public ResponseEntity<ReservaSalaDTO> cancelarReservaSala(
+            @Parameter(description = "ID de la reserva", required = true, example = "1") @PathVariable Long id,
+            @Parameter(description = "ID del usuario propietario de la reserva", required = true, example = "1") @RequestParam Long usuarioId) {
+        var reserva = reservaSalaService.obtenerReservaSalaPorId(id);
+        acceso.validarPropietarioOSede(usuarioId, sedeDeLaReserva(reserva));
+        return ResponseEntity.ok(reservaSalaService.cancelarReservaSala(id, usuarioId));
+    }
+
+    private Long sedeDeLaReserva(ReservaSalaDTO reserva) {
+        return salaEstudioService.obtenerSalaEstudioPorId(reserva.getSalaId()).getSedeId();
     }
 }

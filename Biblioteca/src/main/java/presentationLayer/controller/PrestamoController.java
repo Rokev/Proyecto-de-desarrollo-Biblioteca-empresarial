@@ -81,7 +81,7 @@ public class PrestamoController {
                 @PathVariable Long id) {
         log.debug("GET /api/v1/prestamos/{}", id);
         var prestamo = prestamoService.obtenerPrestamoPorId(id);
-        acceso.validarPropietario(prestamo.getUsuarioId());
+        acceso.validarPropietarioOSede(prestamo.getUsuarioId(), prestamo.getSedeRetiroId());
         return ResponseEntity.ok(prestamo);
         }
 
@@ -91,7 +91,8 @@ public class PrestamoController {
                 content = @Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = PrestamoDTO.class))))
         public ResponseEntity<List<PrestamoDTO>> obtenerTodos() {
         log.debug("GET /api/v1/prestamos");
-        return ResponseEntity.ok(prestamoService.obtenerTodosLosPrestamos());
+        return ResponseEntity.ok(acceso.visibles(prestamoService.obtenerTodosLosPrestamos(),
+        PrestamoDTO::getUsuarioId, p -> acceso.sedes(p.getSedeRetiroId())));
         }
 
         @PutMapping("/{id}")
@@ -110,6 +111,7 @@ public class PrestamoController {
                 @Parameter(description = "Nuevos datos del prestamo", required = true)
                 @Valid @RequestBody PrestamoDTO prestamoDTO) {
         log.info("PUT /api/v1/prestamos/{}", id);
+        acceso.validarSede(prestamoService.obtenerPrestamoPorId(id).getSedeRetiroId());
         return ResponseEntity.ok(prestamoService.actualizarPrestamo(id, prestamoDTO));
         }
 
@@ -127,6 +129,7 @@ public class PrestamoController {
                 @PathVariable Long id) {
         log.info("DELETE /api/v1/prestamos/{}", id);
         prestamoService.eliminarPrestamo(id);
+        acceso.validarSede(prestamoService.obtenerPrestamoPorId(id).getSedeRetiroId());
         return ResponseEntity.noContent().build();
         }
 
@@ -138,7 +141,8 @@ public class PrestamoController {
                 @Parameter(description = "ID del usuario", example = "1") @PathVariable Long usuarioId,
                 @Parameter(description = "Filtro opcional por estado") @RequestParam(required = false) String estado) {
                 acceso.validarPropietario(usuarioId);
-                return ResponseEntity.ok(prestamoService.obtenerPrestamosDeUsuario(usuarioId, estado));
+                return ResponseEntity.ok(acceso.visibles(prestamoService.obtenerPrestamosDeUsuario(usuarioId, estado),
+                PrestamoDetalleDTO::getUsuarioId, d -> acceso.sedes(d.getSedeId())));
         }
 
         @GetMapping("/sede/{sedeId}")
@@ -150,6 +154,7 @@ public class PrestamoController {
                 @Parameter(description = "Filtro opcional por estado") @RequestParam(required = false) String estado,
                 @Parameter(description = "Filtro opcional por usuario") @RequestParam(required = false) Long usuarioId,
                 @Parameter(description = "Filtro opcional por libro") @RequestParam(required = false) Long libroId) {
-        return ResponseEntity.ok(prestamoService.obtenerPrestamosDeSede(sedeId, estado, usuarioId, libroId));
+                acceso.validarSede(sedeId);
+                return ResponseEntity.ok(prestamoService.obtenerPrestamosDeSede(sedeId, estado, usuarioId, libroId));
         }
 }

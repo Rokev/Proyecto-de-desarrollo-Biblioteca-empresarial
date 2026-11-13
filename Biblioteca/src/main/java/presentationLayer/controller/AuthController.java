@@ -7,6 +7,7 @@ import bussinesLayer.dto.RecuperarContrasenaDTO;
 import bussinesLayer.dto.RegistroDTO;
 import bussinesLayer.dto.RestablecerContrasenaDTO;
 import bussinesLayer.dto.UsuarioDTO;
+import bussinesLayer.dto.CambiarContrasenaDTO;
 import bussinesLayer.service.AuthService;
 import bussinesLayer.service.UsuarioService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -82,5 +83,14 @@ public class AuthController {
                                                         @Valid @RequestBody ActualizarPerfilDTO perfil) {
         Number uid = jwt.getClaim("uid");
         return ResponseEntity.ok(usuarioService.actualizarPerfil(uid.longValue(), perfil));
+    }
+
+    @PutMapping("/me/contrasena")
+    @Operation(summary = "Cambiar mi contrasena", description = "Requiere la contrasena actual. Cierra todas las sesiones del usuario")
+    public ResponseEntity<Map<String, String>> cambiarContrasena(@AuthenticationPrincipal Jwt jwt,
+                                                                @Valid @RequestBody CambiarContrasenaDTO dto) {
+        Number uid = jwt.getClaim("uid");
+        authService.cambiarContrasena(uid.longValue(), dto);
+        return ResponseEntity.ok(Map.of("mensaje", "Contrasena actualizada. Inicia sesion de nuevo"));
     }
 }

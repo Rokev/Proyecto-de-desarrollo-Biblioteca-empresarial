@@ -26,6 +26,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import presentationLayer.advice.ApiError;
+import presentationLayer.security.AccesoUsuario;
 
 import java.util.List;
 
@@ -37,6 +38,7 @@ import java.util.List;
 public class SancionController {
 
     private final SancionService sancionService;
+    private final AccesoUsuario acceso;
 
     @PostMapping
     @Operation(summary = "Crear una sancion", description = "Registra una nueva sancion a un usuario")
@@ -125,6 +127,7 @@ public class SancionController {
     public ResponseEntity<List<SancionDTO>> obtenerPorUsuario(
             @Parameter(description = "ID del usuario", example = "1") @PathVariable Long usuarioId,
             @Parameter(description = "Estado de la sancion (ACTIVA por defecto, TODAS para todas)") @RequestParam(defaultValue = "ACTIVA") String estado) {
+        acceso.validarPropietario(usuarioId);
         return ResponseEntity.ok(sancionService.obtenerSancionesDeUsuario(usuarioId, estado));
     }
 }

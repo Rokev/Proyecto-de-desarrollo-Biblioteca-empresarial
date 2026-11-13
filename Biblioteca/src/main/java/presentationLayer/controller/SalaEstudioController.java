@@ -29,6 +29,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import presentationLayer.advice.ApiError;
+import presentationLayer.security.AccesoUsuario;
 
 import java.util.List;
 
@@ -40,6 +41,7 @@ import java.util.List;
 public class SalaEstudioController {
 
     private final SalaEstudioService salaEstudioService;
+    private final AccesoUsuario acceso;
 
     @PostMapping
     @Operation(summary = "Crear una sala de estudio", description = "Registra una nueva sala de estudio en una sede")
@@ -57,6 +59,7 @@ public class SalaEstudioController {
             @Parameter(description = "Datos de la sala de estudio a crear", required = true)
             @Valid @RequestBody SalaEstudioDTO salaEstudioDTO) {
         log.info("POST /api/v1/salas-estudio - nombre: {}, sedeId: {}", salaEstudioDTO.getNombre(), salaEstudioDTO.getSedeId());
+        acceso.validarSede(salaEstudioDTO.getSedeId());
         SalaEstudioDTO creada = salaEstudioService.crearSalaEstudio(salaEstudioDTO);
         return ResponseEntity.status(HttpStatus.CREATED).body(creada);
     }
@@ -101,6 +104,8 @@ public class SalaEstudioController {
             @Parameter(description = "Nuevos datos de la sala de estudio", required = true)
             @Valid @RequestBody SalaEstudioDTO salaEstudioDTO) {
         log.info("PUT /api/v1/salas-estudio/{}", id);
+        acceso.validarSede(salaEstudioService.obtenerSalaEstudioPorId(id).getSedeId());
+        acceso.validarSede(salaEstudioDTO.getSedeId());
         return ResponseEntity.ok(salaEstudioService.actualizarSalaEstudio(id, salaEstudioDTO));
     }
 
@@ -117,6 +122,7 @@ public class SalaEstudioController {
             @Parameter(description = "ID de la sala de estudio a eliminar", required = true, example = "1")
             @PathVariable Long id) {
         log.info("DELETE /api/v1/salas-estudio/{}", id);
+        acceso.validarSede(salaEstudioService.obtenerSalaEstudioPorId(id).getSedeId());
         salaEstudioService.eliminarSalaEstudio(id);
         return ResponseEntity.noContent().build();
     }

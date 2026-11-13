@@ -84,7 +84,7 @@ public class ReservaLibroController {
             @PathVariable Long id) {
         log.debug("GET /api/v1/reservas-libro/{}", id);
         var reserva = reservaLibroService.obtenerReservaLibroPorId(id);
-        acceso.validarPropietario(reserva.getUsuarioId());
+        acceso.validarPropietarioOSede(reserva.getUsuarioId(), reserva.getSedeId());
         return ResponseEntity.ok(reserva);
     }
 
@@ -94,7 +94,8 @@ public class ReservaLibroController {
             content = @Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = ReservaLibroDTO.class))))
     public ResponseEntity<List<ReservaLibroDTO>> obtenerTodos() {
         log.debug("GET /api/v1/reservas-libro");
-        return ResponseEntity.ok(reservaLibroService.obtenerTodasLasReservasLibro());
+        return ResponseEntity.ok(acceso.visibles(reservaLibroService.obtenerTodasLasReservasLibro(),
+        ReservaLibroDTO::getUsuarioId, r -> acceso.sedes(r.getSedeId())));
     }
 
     @PutMapping("/{id}")
@@ -113,6 +114,7 @@ public class ReservaLibroController {
             @Parameter(description = "Nuevos datos de la reserva de libro", required = true)
             @Valid @RequestBody ReservaLibroDTO reservaLibroDTO) {
         log.info("PUT /api/v1/reservas-libro/{}", id);
+        acceso.validarSede(reservaLibroService.obtenerReservaLibroPorId(id).getSedeId());
         return ResponseEntity.ok(reservaLibroService.actualizarReservaLibro(id, reservaLibroDTO));
     }
 
@@ -130,6 +132,7 @@ public class ReservaLibroController {
             @PathVariable Long id) {
         log.info("DELETE /api/v1/reservas-libro/{}", id);
         reservaLibroService.eliminarReservaLibro(id);
+        acceso.validarSede(reservaLibroService.obtenerReservaLibroPorId(id).getSedeId());
         return ResponseEntity.noContent().build();
     }
 
@@ -141,7 +144,8 @@ public class ReservaLibroController {
             @Parameter(description = "ID del usuario", example = "1") @PathVariable Long usuarioId,
             @Parameter(description = "Filtro opcional por estado") @RequestParam(required = false) String estado) {
         acceso.validarPropietario(usuarioId);
-        return ResponseEntity.ok(reservaLibroService.obtenerReservasDeUsuario(usuarioId, estado));
+        return ResponseEntity.ok(acceso.visibles(reservaLibroService.obtenerReservasDeUsuario(usuarioId, estado),
+        ReservaLibroDetalleDTO::getUsuarioId, d -> acceso.sedes(d.getSedeId())));
     }
 
     @GetMapping("/sede/{sedeId}")
@@ -153,6 +157,17 @@ public class ReservaLibroController {
             @Parameter(description = "Filtro opcional por estado") @RequestParam(required = false) String estado,
             @Parameter(description = "Filtro opcional por usuario") @RequestParam(required = false) Long usuarioId,
             @Parameter(description = "Filtro opcional por libro") @RequestParam(required = false) Long libroId) {
+        acceso.validarSede(sedeId);
         return ResponseEntity.ok(reservaLibroService.obtenerReservasDeSede(sedeId, estado, usuarioId, libroId));
+    }
+
+    @PostMapping("/{id}/cancelar")
+    @Operation(summary = "Cancelar reserva de libro", description = "Cancela una reserva EN_ESPERA o NOTIFICADA y libera el ejemplar apartado (RF-09)")
+    public ResponseEntity<ReservaLibroDTO> cancelarReservaLibro(
+            @Parameter(description = "ID de la reserva", required = true, example = "1") @PathVariable Long id,
+            @Parameter(description = "ID del usuario propietario de la reserva", required = true, example = "1") @RequestParam Long usuarioId) {
+        var reserva = reservaLibroService.obtenerReservaLibroPorId(id);
+        acceso.validarPropietarioOSede(usuarioId, reserva.getSedeId());
+        return ResponseEntity.ok(reservaLibroService.cancelarReservaLibro(id, usuarioId));
     }
 }

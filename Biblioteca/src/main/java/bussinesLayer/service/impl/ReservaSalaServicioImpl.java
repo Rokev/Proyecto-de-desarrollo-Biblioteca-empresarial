@@ -30,6 +30,7 @@ class ReservaSalaServiceImpl implements ReservaSalaService {
 
     private static final String ESTADO_INICIAL = "PENDIENTE_PAGO";
     private static final String ESTADO_CANCELADA = "CANCELADA";
+    private static final String ESTADO_CONFIRMADA = "CONFIRMADA";
     private static final BigDecimal MINUTOS_POR_HORA = BigDecimal.valueOf(60);
 
     private final ReservaSalaDAO reservaSalaDAO;
@@ -139,6 +140,28 @@ class ReservaSalaServiceImpl implements ReservaSalaService {
         if (!dto.getFechaFin().isAfter(dto.getFechaInicio())) {
             throw new BusinessValidationException("La fechaFin debe ser posterior a la fechaInicio");
         }
+    }
+
+        @Override
+    public ReservaSalaDTO cancelarReservaSala(Long reservaId, Long usuarioId) {
+        ReservaSalaDTO reserva = reservaSalaDAO.findById(reservaId)
+                .orElseThrow(() -> new ResourceNotFoundException("Reserva de sala no encontrada con ID: " + reservaId));
+
+        if (!reserva.getUsuarioId().equals(usuarioId)) {
+            throw new BusinessValidationException("La reserva no pertenece al usuario " + usuarioId);
+        }
+        if (!ESTADO_INICIAL.equalsIgnoreCase(reserva.getEstado())
+                && !ESTADO_CONFIRMADA.equalsIgnoreCase(reserva.getEstado())) {
+            throw new BusinessValidationException(
+                    "Solo se puede cancelar una reserva PENDIENTE_PAGO o CONFIRMADA (estado actual: " + reserva.getEstado() + ")");
+        }
+
+        reserva.setEstado(ESTADO_CANCELADA);
+        reserva.setFechaCancelacion(LocalDateTime.now());
+        ReservaSalaDTO cancelada = reservaSalaDAO.update(reservaId, reserva)
+                .orElseThrow(() -> new ResourceNotFoundException("Reserva de sala no encontrada con ID: " + reservaId));
+        log.info("Reserva de sala cancelada ID: {}", reservaId);
+        return cancelada;
     }
 
     /**

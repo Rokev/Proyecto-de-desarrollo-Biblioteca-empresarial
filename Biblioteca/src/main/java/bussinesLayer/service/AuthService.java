@@ -5,6 +5,7 @@ import bussinesLayer.dto.LoginRequestDTO;
 import bussinesLayer.dto.RegistroDTO;
 import bussinesLayer.dto.RestablecerContrasenaDTO;
 import bussinesLayer.dto.UsuarioDTO;
+import bussinesLayer.dto.CambiarContrasenaDTO;
 
 /** Inicio de sesion, registro de clientes, cierre de sesion y recuperacion de contrasena. */
 public interface AuthService {
@@ -18,4 +19,6 @@ public interface AuthService {
     void solicitarRecuperacion(String correo);
 
     void restablecerContrasena(RestablecerContrasenaDTO dto);
+
+    void cambiarContrasena(Long usuarioId, CambiarContrasenaDTO dto);
 }

@@ -18,4 +18,6 @@ public interface ReservaSalaService {
     ReservaSalaDTO actualizarReservaSala(Long id, ReservaSalaDTO reservaSalaDTO);
 
     void eliminarReservaSala(Long id);
+
+    ReservaSalaDTO cancelarReservaSala(Long reservaId, Long usuarioId);
 }

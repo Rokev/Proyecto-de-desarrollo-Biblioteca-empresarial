@@ -59,7 +59,7 @@ public class SecurityConfig {
                         .authenticationEntryPoint(authenticationEntryPoint)
                         .accessDeniedHandler(accessDeniedHandler)
                         .jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuthenticationConverter)))
-                                .authorizeHttpRequests(auth -> auth
+                                                .authorizeHttpRequests(auth -> auth
 
                         // ---- Publico (sin login)
                         .requestMatchers("/error").permitAll()
@@ -67,12 +67,14 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/v1/auth/login", "/api/v1/auth/registro",
                                 "/api/v1/auth/recuperar", "/api/v1/auth/restablecer").permitAll()
                         .requestMatchers("/api/v1/chatbot/**").permitAll()
+                        // RF-07: publicamente solo las sedes activas
                         .requestMatchers(HttpMethod.GET, "/api/v1/libros/**", "/api/v1/autores/**",
-                                "/api/v1/generos/**", "/api/v1/sedes/**", "/api/v1/preguntas-frecuentes/**").permitAll()
+                                "/api/v1/generos/**", "/api/v1/sedes/activas",
+                                "/api/v1/preguntas-frecuentes/**").permitAll()
 
                         // ---- Lectura para usuarios con sesion
-                        .requestMatchers(HttpMethod.GET, "/api/v1/ejemplares/**", "/api/v1/salas-estudio/**",
-                                "/api/v1/eventos/**", "/api/v1/planes-suscripcion/**",
+                        .requestMatchers(HttpMethod.GET, "/api/v1/sedes/*", "/api/v1/ejemplares/**",
+                                "/api/v1/salas-estudio/**", "/api/v1/eventos/**", "/api/v1/planes-suscripcion/**",
                                 "/api/v1/tarifas-envio/cotizar").hasAnyRole(CLIENTE, BIBLIOTECARIO, ADMIN)
 
                         // ---- Escritura de catalogo: bibliotecario y admin
@@ -80,7 +82,7 @@ public class SecurityConfig {
                                 "/api/v1/ejemplares/**", "/api/v1/salas-estudio/**", "/api/v1/eventos/**")
                         .hasAnyRole(BIBLIOTECARIO, ADMIN)
 
-                        // ---- Escritura: solo admin
+                        // ---- Escritura: solo admin (RF-66 a RF-73, RF-69 lista completa de sedes, RF-81)
                         .requestMatchers("/api/v1/sedes/**", "/api/v1/planes-suscripcion/**",
                                 "/api/v1/preguntas-frecuentes/**").hasRole(ADMIN)
 
@@ -91,7 +93,8 @@ public class SecurityConfig {
                                 "/api/v1/pagos/procesar",
                                 "/api/v1/suscripciones/comprar", "/api/v1/suscripciones/*/cancelar",
                                 "/api/v1/pedidos-interciudad", "/api/v1/pedidos-interciudad/*/cancelar",
-                                "/api/v1/devoluciones/solicitar")
+                                "/api/v1/devoluciones/solicitar",
+                                "/api/v1/reservas-libro/*/cancelar", "/api/v1/reservas-sala/*/cancelar")
                         .hasAnyRole(CLIENTE, BIBLIOTECARIO, ADMIN)
                         .requestMatchers(HttpMethod.GET,
                                 "/api/v1/prestamos/*", "/api/v1/prestamos/usuario/*",
@@ -100,6 +103,7 @@ public class SecurityConfig {
                                 "/api/v1/pagos/comprobante/*", "/api/v1/pagos/usuario/*",
                                 "/api/v1/suscripciones/*", "/api/v1/suscripciones/usuario/*/vigente",
                                 "/api/v1/multas/*", "/api/v1/multas/usuario/**",
+                                "/api/v1/sanciones/usuario/*",
                                 "/api/v1/notificaciones", "/api/v1/notificaciones/*",
                                 "/api/v1/metodos-pago", "/api/v1/metodos-pago/*",
                                 "/api/v1/inscripciones-evento", "/api/v1/inscripciones-evento/*",
@@ -120,18 +124,19 @@ public class SecurityConfig {
                         .hasAnyRole(REPARTIDOR, ADMIN)
                         .requestMatchers("/api/v1/repartidores/**").hasAnyRole(REPARTIDOR, ADMIN)
 
-                        // ---- Personal de biblioteca: lo demas de estos modulos (CRUD generico, listados, operaciones)
+                        // ---- Personal de biblioteca: lo demas de estos modulos
                         .requestMatchers("/api/v1/devoluciones/**", "/api/v1/traslados-retorno/**",
                                 "/api/v1/sanciones/**",
                                 "/api/v1/prestamos/**", "/api/v1/reservas-libro/**", "/api/v1/reservas-sala/**",
-                                "/api/v1/pagos/**", "/api/v1/suscripciones/**", "/api/v1/multas/**",
+                                "/api/v1/suscripciones/**", "/api/v1/multas/**",
                                 "/api/v1/notificaciones/**", "/api/v1/metodos-pago/**",
                                 "/api/v1/pedidos-interciudad/**", "/api/v1/inscripciones-evento/**")
                         .hasAnyRole(BIBLIOTECARIO, ADMIN)
 
-                        // ---- Administracion
+                        // ---- Administracion (RF-58 a RF-65, RF-77 a RF-80)
                         .requestMatchers("/api/v1/usuarios/**", "/api/v1/roles/**", "/api/v1/tarifas-envio/**",
                                 "/api/v1/configuracion/**", "/api/v1/reportes/**", "/api/v1/auditoria/**",
+                                "/api/v1/pagos/**",
                                 "/api/v1/sesiones/**", "/api/v1/tokens-recuperacion/**").hasRole(ADMIN)
 
                         // ---- Resto de /auth (logout, me) y cualquier otra ruta: solo con sesion
