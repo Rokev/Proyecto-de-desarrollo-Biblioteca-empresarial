@@ -346,6 +346,56 @@ class EventoServiceImplTest {
         assertEquals(25, resultado.getCuposDisponibles());
     }
 
+    @Test
+    @DisplayName("actualizarEvento: notifica a cada asistente con inscripcion ACTIVA")
+    void actualizarEvento_notificaALosAsistentes() {
+        dto.setExclusivo(null);
+        when(eventoDAO.findById(EVENTO_ID)).thenReturn(Optional.of(eventoActual(false)));
+        when(sedeDAO.existsById(SEDE_ID)).thenReturn(true);
+        when(inscripcionEventoDAO.findByEventoIdAndEstadoIgnoreCase(EVENTO_ID, "ACTIVA"))
+                .thenReturn(List.of(inscripcion(1L, 5L, 2, "ACTIVA"), inscripcion(2L, 6L, 1, "ACTIVA")));
+        when(eventoDAO.update(EVENTO_ID, dto)).thenReturn(Optional.of(dto));
+
+        service.actualizarEvento(EVENTO_ID, dto);
+
+        ArgumentCaptor<NotificacionDTO> captor = ArgumentCaptor.forClass(NotificacionDTO.class);
+        verify(notificacionDAO, times(2)).save(captor.capture());
+        List<NotificacionDTO> enviadas = captor.getAllValues();
+        assertEquals(List.of(5L, 6L), enviadas.stream().map(NotificacionDTO::getUsuarioId).toList());
+        assertTrue(enviadas.stream().allMatch(n -> "EVENTO_ACTUALIZADO".equals(n.getTipo())));
+        assertTrue(enviadas.stream().allMatch(n -> n.getMensaje().contains("Taller de lectura")));
+        assertTrue(enviadas.stream().noneMatch(n -> Boolean.TRUE.equals(n.getLeida())));
+    }
+
+    @Test
+    @DisplayName("actualizarEvento: sin asistentes no envia notificaciones")
+    void actualizarEvento_sinAsistentes_noNotifica() {
+        dto.setExclusivo(null);
+        when(eventoDAO.findById(EVENTO_ID)).thenReturn(Optional.of(eventoActual(false)));
+        when(sedeDAO.existsById(SEDE_ID)).thenReturn(true);
+        when(inscripcionEventoDAO.findByEventoIdAndEstadoIgnoreCase(EVENTO_ID, "ACTIVA")).thenReturn(List.of());
+        when(eventoDAO.update(EVENTO_ID, dto)).thenReturn(Optional.of(dto));
+
+        service.actualizarEvento(EVENTO_ID, dto);
+
+        verify(notificacionDAO, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("actualizarEvento: si la actualizacion falla no se notifica a nadie")
+    void actualizarEvento_fallaElGuardado_noNotifica() {
+        dto.setExclusivo(null);
+        when(eventoDAO.findById(EVENTO_ID)).thenReturn(Optional.of(eventoActual(false)));
+        when(sedeDAO.existsById(SEDE_ID)).thenReturn(true);
+        when(inscripcionEventoDAO.findByEventoIdAndEstadoIgnoreCase(EVENTO_ID, "ACTIVA"))
+                .thenReturn(List.of(inscripcion(1L, 5L, 2, "ACTIVA")));
+        when(eventoDAO.update(EVENTO_ID, dto)).thenReturn(Optional.empty());
+
+        assertThrows(ResourceNotFoundException.class, () -> service.actualizarEvento(EVENTO_ID, dto));
+
+        verify(notificacionDAO, never()).save(any());
+    }
+
     // ---------------------------------------------------------------- eliminarEvento (misma regla que cancelarEvento)
 
     @Test

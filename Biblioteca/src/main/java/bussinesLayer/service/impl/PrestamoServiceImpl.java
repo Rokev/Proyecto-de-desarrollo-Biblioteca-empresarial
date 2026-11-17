@@ -4,6 +4,7 @@ import bussinesLayer.dto.PrestamoDetalleDTO;
 
 import bussinesLayer.dto.EjemplarDTO;
 import bussinesLayer.dto.PrestamoDTO;
+import bussinesLayer.dto.ReservaLibroDTO;
 import bussinesLayer.exception.BusinessValidationException;
 import bussinesLayer.exception.ResourceNotFoundException;
 import bussinesLayer.service.ConfiguracionSistemaService;
@@ -19,6 +20,7 @@ import persistanceLayer.dao.PrestamoDAO;
 import persistanceLayer.dao.SancionDAO;
 import persistanceLayer.dao.SedeDAO;
 import persistanceLayer.dao.UsuarioDAO;
+import persistanceLayer.dao.ReservaLibroDAO;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -38,9 +40,12 @@ public class PrestamoServiceImpl implements PrestamoService {
     private static final String ESTADO_DEVUELTO = "DEVUELTO";
     private static final String ESTADO_CANCELADO = "CANCELADO";
     private static final List<String> ESTADOS_VIGENTES = List.of(ESTADO_SOLICITADO, ESTADO_ACTIVO, ESTADO_VENCIDO);
-
+    
     private static final String EJEMPLAR_DISPONIBLE = "DISPONIBLE";
     private static final String EJEMPLAR_PRESTADO = "PRESTADO";
+    private static final String EJEMPLAR_RESERVADO = "RESERVADO";
+    private static final String RESERVA_NOTIFICADA = "NOTIFICADA";
+    private static final String RESERVA_RETIRADA = "RETIRADA";
 
     private static final String MODALIDAD_SEDE = "SEDE";
     private static final String MODALIDAD_DOMICILIO = "DOMICILIO";
@@ -52,6 +57,7 @@ public class PrestamoServiceImpl implements PrestamoService {
     private final SedeDAO sedeDAO;
     private final LibroDAO libroDAO;
     private final SancionDAO sancionDAO;
+    private final ReservaLibroDAO reservaLibroDAO;
     private final ValidadorUsuarioService validadorUsuarioService;
     private final ConfiguracionSistemaService configuracionService;
 
@@ -75,24 +81,39 @@ public class PrestamoServiceImpl implements PrestamoService {
             throw new BusinessValidationException(
                     "El usuario alcanzo el maximo de " + MAX_PRESTAMOS_VIGENTES + " prestamos vigentes");
         }
-        if (!EJEMPLAR_DISPONIBLE.equalsIgnoreCase(ejemplar.getEstado())
-                || prestamoDAO.existsByEjemplarIdAndEstadoIn(dto.getEjemplarId(), ESTADOS_VIGENTES)) {
+        // Un ejemplar RESERVADO solo lo puede pedir el usuario al que se le aparto (reserva NOTIFICADA vigente)
+        ReservaLibroDTO reservaApartada = null;
+        if (EJEMPLAR_RESERVADO.equalsIgnoreCase(ejemplar.getEstado())) {
+            LocalDateTime ahora = LocalDateTime.now();
+            reservaApartada = reservaLibroDAO
+                    .findByUsuarioIdAndEstadoIgnoreCase(dto.getUsuarioId(), RESERVA_NOTIFICADA).stream()
+                    .filter(r -> dto.getEjemplarId().equals(r.getEjemplarId()))
+                    .filter(r -> r.getFechaLimiteRetiro() == null || r.getFechaLimiteRetiro().isAfter(ahora))
+                    .findFirst()
+                    .orElseThrow(() -> new BusinessValidationException(
+                            "El ejemplar esta apartado para otro usuario o la reserva ya vencio"));
+        } else if (!EJEMPLAR_DISPONIBLE.equalsIgnoreCase(ejemplar.getEstado())) {
             throw new BusinessValidationException("El ejemplar no esta disponible para prestamo");
         }
-
+        if (prestamoDAO.existsByEjemplarIdAndEstadoIn(dto.getEjemplarId(), ESTADOS_VIGENTES)) {
+            throw new BusinessValidationException("El ejemplar no esta disponible para prestamo");
+        }
+        
         normalizarModalidad(dto);
         dto.setEstado(ESTADO_SOLICITADO);
         dto.setVecesRenovado(0);
         dto.setFechaDevolucion(null);
-        if (dto.getFechaVencimiento() == null) {
-            dto.setFechaVencimiento(LocalDate.now().plusDays(configuracionService.plazo(ClavePlazo.DIAS_PRESTAMO)));
-        } else if (dto.getFechaVencimiento().isBefore(dto.getFechaSolicitud().toLocalDate())) {
-            throw new BusinessValidationException("La fechaVencimiento no puede ser anterior a la fechaSolicitud");
-        }
+        //el plazo de devolucion se fija al registrar la entrega, no al solicitar
+        dto.setFechaVencimiento(null);  
 
         cambiarEstadoEjemplar(ejemplar, EJEMPLAR_PRESTADO);
 
         PrestamoDTO guardado = prestamoDAO.save(dto);
+
+        if (reservaApartada != null) {
+            reservaApartada.setEstado(RESERVA_RETIRADA);
+            reservaLibroDAO.update(reservaApartada.getId(), reservaApartada);
+        }
         log.info("Prestamo creado con ID: {}", guardado.getId());
         return guardado;
     }
@@ -137,9 +158,12 @@ public class PrestamoServiceImpl implements PrestamoService {
         if (ESTADO_DEVUELTO.equalsIgnoreCase(dto.getEstado()) && dto.getFechaDevolucion() == null) {
             dto.setFechaDevolucion(LocalDateTime.now());
         }
-        if (ESTADO_ACTIVO.equalsIgnoreCase(dto.getEstado()) && dto.getFechaEntrega() == null
-                && actual.getFechaEntrega() == null) {
-            dto.setFechaEntrega(LocalDateTime.now());
+        // al registrar la entrega (paso a ACTIVO) empieza el plazo de devolucion
+        if (ESTADO_ACTIVO.equalsIgnoreCase(dto.getEstado()) && actual.getFechaEntrega() == null) {
+            LocalDateTime entrega = dto.getFechaEntrega() != null ? dto.getFechaEntrega() : LocalDateTime.now();
+            dto.setFechaEntrega(entrega);
+            dto.setFechaVencimiento(entrega.toLocalDate()
+                    .plusDays(configuracionService.plazo(ClavePlazo.DIAS_PRESTAMO)));
         }
         if (estabaVigente && cierra) {
             ejemplarDAO.findById(actual.getEjemplarId())

@@ -5,6 +5,7 @@ import bussinesLayer.dto.LibroDTO;
 import bussinesLayer.dto.PrestamoDTO;
 import bussinesLayer.dto.PrestamoDetalleDTO;
 import bussinesLayer.dto.SedeDTO;
+import bussinesLayer.dto.ReservaLibroDTO;
 import bussinesLayer.exception.BusinessValidationException;
 import bussinesLayer.exception.ResourceNotFoundException;
 import bussinesLayer.service.ConfiguracionSistemaService;
@@ -24,6 +25,7 @@ import persistanceLayer.dao.PrestamoDAO;
 import persistanceLayer.dao.SancionDAO;
 import persistanceLayer.dao.SedeDAO;
 import persistanceLayer.dao.UsuarioDAO;
+import persistanceLayer.dao.ReservaLibroDAO;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -60,6 +62,7 @@ class PrestamoServiceImplTest {
     @Mock private SancionDAO sancionDAO;
     @Mock private ValidadorUsuarioService validadorUsuarioService;
     @Mock private ConfiguracionSistemaService configuracionService;
+     @Mock private ReservaLibroDAO reservaLibroDAO;
 
     @InjectMocks
     private PrestamoServiceImpl service;
@@ -89,10 +92,6 @@ class PrestamoServiceImplTest {
         when(prestamoDAO.existsByEjemplarIdAndEstadoIn(eq(EJEMPLAR_ID), anyCollection())).thenReturn(false);
     }
 
-    /** El plazo de prestamo ya no es fijo: sale de la configuracion del sistema. */
-    private void plazoPrestamo14Dias() {
-        when(configuracionService.plazo(ClavePlazo.DIAS_PRESTAMO)).thenReturn(14);
-    }
 
     private PrestamoDTO prestamoExistente(String estado) {
         PrestamoDTO p = new PrestamoDTO();
@@ -105,13 +104,30 @@ class PrestamoServiceImplTest {
         return p;
     }
 
+    private ReservaLibroDTO reservaNotificada(Long usuarioId, Long ejemplarId, LocalDateTime limiteRetiro) {
+        ReservaLibroDTO r = new ReservaLibroDTO();
+        r.setId(50L);
+        r.setUsuarioId(usuarioId);
+        r.setEjemplarId(ejemplarId);
+        r.setEstado("NOTIFICADA");
+        r.setFechaLimiteRetiro(limiteRetiro);
+        return r;
+    }
+
+    private void prepararEjemplarReservado() {
+        ejemplar.setEstado("RESERVADO");
+        when(usuarioDAO.existsById(USUARIO_ID)).thenReturn(true);
+        when(sedeDAO.existsById(SEDE_ID)).thenReturn(true);
+        when(ejemplarDAO.findById(EJEMPLAR_ID)).thenReturn(Optional.of(ejemplar));
+        when(prestamoDAO.countByUsuarioIdAndEstadoIn(eq(USUARIO_ID), anyCollection())).thenReturn(0L);
+    }
+
     // ---------------------------------------------------------------- crearPrestamo
 
     @Test
     @DisplayName("crearPrestamo: guarda el prestamo con valores por defecto (plazo configurado) y marca el ejemplar como PRESTADO")
     void crearPrestamo_valido_aplicaDefaultsYReservaEjemplar() {
         prepararCreacionValida();
-        plazoPrestamo14Dias();
         when(prestamoDAO.save(any(PrestamoDTO.class))).thenAnswer(inv -> {
             PrestamoDTO p = inv.getArgument(0);
             p.setId(PRESTAMO_ID);
@@ -125,31 +141,17 @@ class PrestamoServiceImplTest {
         assertEquals("SEDE", resultado.getModalidad());
         assertEquals(0, resultado.getVecesRenovado());
         assertNull(resultado.getFechaDevolucion());
-        assertEquals(LocalDate.now().plusDays(14), resultado.getFechaVencimiento());
-
+        assertNull(resultado.getFechaVencimiento());
         ArgumentCaptor<EjemplarDTO> captor = ArgumentCaptor.forClass(EjemplarDTO.class);
         verify(ejemplarDAO).update(eq(EJEMPLAR_ID), captor.capture());
         assertEquals("PRESTADO", captor.getValue().getEstado());
     }
 
-    @Test
-    @DisplayName("crearPrestamo: respeta una fechaVencimiento valida enviada por el usuario")
-    void crearPrestamo_conFechaVencimientoValida_laConserva() {
-        prepararCreacionValida();
-        LocalDate vencimiento = LocalDate.now().plusDays(5);
-        dto.setFechaVencimiento(vencimiento);
-        when(prestamoDAO.save(any(PrestamoDTO.class))).thenAnswer(inv -> inv.getArgument(0));
-
-        PrestamoDTO resultado = service.crearPrestamo(dto);
-
-        assertEquals(vencimiento, resultado.getFechaVencimiento());
-    }
 
     @Test
     @DisplayName("crearPrestamo: normaliza la modalidad a mayusculas")
     void crearPrestamo_modalidadDomicilioConDireccion_laNormaliza() {
         prepararCreacionValida();
-        plazoPrestamo14Dias();
         dto.setModalidad("domicilio");
         dto.setDireccionEntrega("Calle 35 # 34-57");
         when(prestamoDAO.save(any(PrestamoDTO.class))).thenAnswer(inv -> inv.getArgument(0));
@@ -219,7 +221,6 @@ class PrestamoServiceImplTest {
     @Test
     @DisplayName("crearPrestamo: con 2 prestamos vigentes todavia permite crear uno nuevo")
     void crearPrestamo_conDosVigentes_aunPermite() {
-        plazoPrestamo14Dias();
         when(usuarioDAO.existsById(USUARIO_ID)).thenReturn(true);
         when(sedeDAO.existsById(SEDE_ID)).thenReturn(true);
         when(ejemplarDAO.findById(EJEMPLAR_ID)).thenReturn(Optional.of(ejemplar));
@@ -281,15 +282,81 @@ class PrestamoServiceImplTest {
     }
 
     @Test
-    @DisplayName("crearPrestamo: fechaVencimiento anterior a la solicitud lanza BusinessValidationException")
-    void crearPrestamo_vencimientoAnteriorASolicitud_lanzaBusinessValidation() {
-        prepararCreacionValida();
-        dto.setFechaVencimiento(LocalDate.now().minusDays(1));
+    @DisplayName("crearPrestamo: el usuario con reserva NOTIFICADA puede prestar el ejemplar apartado y la reserva pasa a RETIRADA")
+    void crearPrestamo_ejemplarReservadoParaElUsuario_marcaReservaRetirada() {
+        prepararEjemplarReservado();
+        when(prestamoDAO.existsByEjemplarIdAndEstadoIn(eq(EJEMPLAR_ID), anyCollection())).thenReturn(false);
+        when(reservaLibroDAO.findByUsuarioIdAndEstadoIgnoreCase(USUARIO_ID, "NOTIFICADA"))
+                .thenReturn(List.of(reservaNotificada(USUARIO_ID, EJEMPLAR_ID, LocalDateTime.now().plusHours(5))));
+        when(prestamoDAO.save(any(PrestamoDTO.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        PrestamoDTO resultado = service.crearPrestamo(dto);
+
+        assertNotNull(resultado);
+        ArgumentCaptor<ReservaLibroDTO> reserva = ArgumentCaptor.forClass(ReservaLibroDTO.class);
+        verify(reservaLibroDAO).update(eq(50L), reserva.capture());
+        assertEquals("RETIRADA", reserva.getValue().getEstado());
+        ArgumentCaptor<EjemplarDTO> ej = ArgumentCaptor.forClass(EjemplarDTO.class);
+        verify(ejemplarDAO).update(eq(EJEMPLAR_ID), ej.capture());
+        assertEquals("PRESTADO", ej.getValue().getEstado());
+    }
+
+    @Test
+    @DisplayName("crearPrestamo: un ejemplar RESERVADO para otro usuario lanza BusinessValidationException")
+    void crearPrestamo_ejemplarReservadoParaOtro_lanzaBusinessValidation() {
+        prepararEjemplarReservado();
+        when(reservaLibroDAO.findByUsuarioIdAndEstadoIgnoreCase(USUARIO_ID, "NOTIFICADA")).thenReturn(List.of());
 
         assertThrows(BusinessValidationException.class, () -> service.crearPrestamo(dto));
 
         verify(prestamoDAO, never()).save(any());
-        verify(ejemplarDAO, never()).update(any(), any());
+        verify(reservaLibroDAO, never()).update(any(), any());
+    }
+
+    @Test
+    @DisplayName("crearPrestamo: si la reserva NOTIFICADA ya vencio el ejemplar no se puede retirar")
+    void crearPrestamo_reservaVencida_lanzaBusinessValidation() {
+        prepararEjemplarReservado();
+        when(reservaLibroDAO.findByUsuarioIdAndEstadoIgnoreCase(USUARIO_ID, "NOTIFICADA"))
+                .thenReturn(List.of(reservaNotificada(USUARIO_ID, EJEMPLAR_ID, LocalDateTime.now().minusHours(1))));
+
+        assertThrows(BusinessValidationException.class, () -> service.crearPrestamo(dto));
+
+        verify(prestamoDAO, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("crearPrestamo: la reserva NOTIFICADA de otro ejemplar no da derecho a este ejemplar")
+    void crearPrestamo_reservaDeOtroEjemplar_lanzaBusinessValidation() {
+        prepararEjemplarReservado();
+        when(reservaLibroDAO.findByUsuarioIdAndEstadoIgnoreCase(USUARIO_ID, "NOTIFICADA"))
+                .thenReturn(List.of(reservaNotificada(USUARIO_ID, 99L, LocalDateTime.now().plusHours(5))));
+
+        assertThrows(BusinessValidationException.class, () -> service.crearPrestamo(dto));
+
+        verify(prestamoDAO, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("crearPrestamo: un ejemplar DISPONIBLE normal no consulta ni modifica reservas")
+    void crearPrestamo_ejemplarDisponible_noTocaReservas() {
+        prepararCreacionValida();
+        when(prestamoDAO.save(any(PrestamoDTO.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        service.crearPrestamo(dto);
+
+        verifyNoInteractions(reservaLibroDAO);
+    }
+
+
+    @Test
+    @DisplayName("crearPrestamo: la solicitud no fija el vencimiento aunque el cliente lo envie")
+    void crearPrestamo_ignoraLaFechaVencimientoEnviada() {
+        prepararCreacionValida();
+        dto.setFechaVencimiento(LocalDate.now().plusDays(5));
+        when(prestamoDAO.save(any(PrestamoDTO.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        assertNull(service.crearPrestamo(dto).getFechaVencimiento());
     }
 
     // ---------------------------------------------------------------- consultas
@@ -438,6 +505,60 @@ class PrestamoServiceImplTest {
         assertThrows(ResourceNotFoundException.class, () -> service.actualizarPrestamo(PRESTAMO_ID, dto));
     }
 
+    @Test
+    @DisplayName("actualizarPrestamo: al pasar a ACTIVO el vencimiento es la fecha de entrega + los dias de prestamo configurados")
+    void actualizarPrestamo_activar_fijaVencimientoDesdeLaEntrega() {
+        when(prestamoDAO.findById(PRESTAMO_ID)).thenReturn(Optional.of(prestamoExistente("SOLICITADO")));
+        when(sedeDAO.existsById(SEDE_ID)).thenReturn(true);
+        when(configuracionService.plazo(ClavePlazo.DIAS_PRESTAMO)).thenReturn(30);
+        when(prestamoDAO.update(eq(PRESTAMO_ID), any(PrestamoDTO.class)))
+                .thenAnswer(inv -> Optional.of(inv.getArgument(1)));
+        dto.setEstado("ACTIVO");
+
+        PrestamoDTO resultado = service.actualizarPrestamo(PRESTAMO_ID, dto);
+
+        assertNotNull(resultado.getFechaEntrega());
+        assertEquals(resultado.getFechaEntrega().toLocalDate().plusDays(30), resultado.getFechaVencimiento());
+    }
+
+    @Test
+    @DisplayName("actualizarPrestamo: si el bibliotecario informa la fechaEntrega, el plazo se cuenta desde esa fecha")
+    void actualizarPrestamo_activar_respetaLaFechaDeEntregaEnviada() {
+        when(prestamoDAO.findById(PRESTAMO_ID)).thenReturn(Optional.of(prestamoExistente("SOLICITADO")));
+        when(sedeDAO.existsById(SEDE_ID)).thenReturn(true);
+        when(configuracionService.plazo(ClavePlazo.DIAS_PRESTAMO)).thenReturn(14);
+        when(prestamoDAO.update(eq(PRESTAMO_ID), any(PrestamoDTO.class)))
+                .thenAnswer(inv -> Optional.of(inv.getArgument(1)));
+        LocalDateTime entrega = LocalDateTime.now().minusDays(1);
+        dto.setEstado("ACTIVO");
+        dto.setFechaEntrega(entrega);
+
+        PrestamoDTO resultado = service.actualizarPrestamo(PRESTAMO_ID, dto);
+
+        assertEquals(entrega, resultado.getFechaEntrega());
+        assertEquals(entrega.toLocalDate().plusDays(14), resultado.getFechaVencimiento());
+    }
+
+    @Test
+    @DisplayName("actualizarPrestamo: un prestamo que ya tenia entrega no recalcula el vencimiento")
+    void actualizarPrestamo_yaEntregado_noRecalculaVencimiento() {
+        PrestamoDTO actual = prestamoExistente("ACTIVO");
+        actual.setFechaEntrega(LocalDateTime.now().minusDays(2));
+        actual.setFechaVencimiento(LocalDate.now().plusDays(12));
+        when(prestamoDAO.findById(PRESTAMO_ID)).thenReturn(Optional.of(actual));
+        when(sedeDAO.existsById(SEDE_ID)).thenReturn(true);
+        when(prestamoDAO.update(eq(PRESTAMO_ID), any(PrestamoDTO.class)))
+                .thenAnswer(inv -> Optional.of(inv.getArgument(1)));
+        dto.setEstado("ACTIVO");
+        dto.setFechaVencimiento(LocalDate.now().plusDays(12));
+
+        PrestamoDTO resultado = service.actualizarPrestamo(PRESTAMO_ID, dto);
+
+        assertEquals(LocalDate.now().plusDays(12), resultado.getFechaVencimiento());
+        verify(configuracionService, never()).plazo(any());
+    }
+
+
     // ---------------------------------------------------------------- eliminarPrestamo
 
     @Test
@@ -478,17 +599,6 @@ class PrestamoServiceImplTest {
 
     // ---------------------------------------------------------------- consultas con detalle
 
-    @Test
-    @DisplayName("crearPrestamo: usa el plazo configurado por el administrador, no un valor fijo")
-    void crearPrestamo_usaElPlazoConfigurado() {
-        prepararCreacionValida();
-        when(configuracionService.plazo(ClavePlazo.DIAS_PRESTAMO)).thenReturn(30);
-        when(prestamoDAO.save(any(PrestamoDTO.class))).thenAnswer(inv -> inv.getArgument(0));
-
-        PrestamoDTO resultado = service.crearPrestamo(dto);
-
-        assertEquals(LocalDate.now().plusDays(30), resultado.getFechaVencimiento());
-    }
 
     @Test
     @DisplayName("obtenerPrestamosDeUsuario: usuario inexistente lanza ResourceNotFoundException")

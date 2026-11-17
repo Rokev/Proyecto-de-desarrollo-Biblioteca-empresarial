@@ -13,6 +13,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import persistanceLayer.dao.EjemplarDAO;
 import persistanceLayer.dao.LibroDAO;
 import persistanceLayer.dao.SedeDAO;
+import bussinesLayer.service.ReservaLibroService;
 
 import java.util.List;
 import java.util.Optional;
@@ -24,6 +25,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.verifyNoInteractions;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayName("EjemplarServiceImpl")
@@ -38,6 +40,7 @@ class EjemplarServiceImplTest {
     @Mock private EjemplarDAO ejemplarDAO;
     @Mock private LibroDAO libroDAO;
     @Mock private SedeDAO sedeDAO;
+    @Mock private ReservaLibroService reservaLibroService;
 
     @InjectMocks
     private EjemplarServiceImpl service;
@@ -56,6 +59,19 @@ class EjemplarServiceImplTest {
         EjemplarDTO e = new EjemplarDTO();
         e.setId(id);
         return e;
+    }
+
+    private EjemplarDTO ejemplarEnEstado(String estado) {
+        EjemplarDTO e = ejemplarConId(EJEMPLAR_ID);
+        e.setEstado(estado);
+        e.setLibroId(LIBRO_ID);
+        e.setSedeId(SEDE_ID);
+        return e;
+    }
+
+    private void referenciasValidas() {
+        when(libroDAO.existsById(LIBRO_ID)).thenReturn(true);
+        when(sedeDAO.existsById(SEDE_ID)).thenReturn(true);
     }
 
     // ---------------------------------------------------------------- crearEjemplar
@@ -129,6 +145,54 @@ class EjemplarServiceImplTest {
 
         verify(ejemplarDAO, never()).save(any());
     }
+
+    @Test
+    @DisplayName("crearEjemplar: un ejemplar nuevo DISPONIBLE se ofrece a la lista de espera y se devuelve ya apartado")
+    void crearEjemplar_disponible_seOfreceALaListaDeEspera() {
+        referenciasValidas();
+        when(ejemplarDAO.save(dto)).thenAnswer(inv -> {
+            EjemplarDTO e = inv.getArgument(0);
+            e.setId(EJEMPLAR_ID);
+            return e;
+        });
+        when(reservaLibroService.asignarEjemplarAReservaEnEspera(EJEMPLAR_ID)).thenReturn(true);
+        when(ejemplarDAO.findById(EJEMPLAR_ID)).thenReturn(Optional.of(ejemplarEnEstado("RESERVADO")));
+
+        EjemplarDTO resultado = service.crearEjemplar(dto);
+
+        verify(reservaLibroService).asignarEjemplarAReservaEnEspera(EJEMPLAR_ID);
+        assertEquals("RESERVADO", resultado.getEstado());
+    }
+
+    @Test
+    @DisplayName("crearEjemplar: si nadie espera el libro, el ejemplar queda DISPONIBLE")
+    void crearEjemplar_sinListaDeEspera_quedaDisponible() {
+        referenciasValidas();
+        when(ejemplarDAO.save(dto)).thenAnswer(inv -> {
+            EjemplarDTO e = inv.getArgument(0);
+            e.setId(EJEMPLAR_ID);
+            return e;
+        });
+        when(reservaLibroService.asignarEjemplarAReservaEnEspera(EJEMPLAR_ID)).thenReturn(false);
+
+        EjemplarDTO resultado = service.crearEjemplar(dto);
+
+        assertEquals("DISPONIBLE", resultado.getEstado());
+        verify(ejemplarDAO, never()).findById(EJEMPLAR_ID);
+    }
+
+    @Test
+    @DisplayName("crearEjemplar: un ejemplar que nace en otro estado (por ejemplo MANTENIMIENTO) no avisa a nadie")
+    void crearEjemplar_noDisponible_noOfreceALaListaDeEspera() {
+        dto.setEstado("MANTENIMIENTO");
+        referenciasValidas();
+        when(ejemplarDAO.save(dto)).thenAnswer(inv -> inv.getArgument(0));
+
+        service.crearEjemplar(dto);
+
+        verifyNoInteractions(reservaLibroService);
+    }
+
 
     // ---------------------------------------------------------------- consultas
 
@@ -228,6 +292,55 @@ class EjemplarServiceImplTest {
         when(ejemplarDAO.update(EJEMPLAR_ID, dto)).thenReturn(Optional.empty());
 
         assertThrows(ResourceNotFoundException.class, () -> service.actualizarEjemplar(EJEMPLAR_ID, dto));
+    }
+
+    @Test
+    @DisplayName("actualizarEjemplar: al pasar de otro estado a DISPONIBLE se ofrece a la lista de espera")
+    void actualizarEjemplar_aDisponible_seOfreceALaListaDeEspera() {
+        dto.setEstado("DISPONIBLE");
+        dto.setId(EJEMPLAR_ID);
+        when(ejemplarDAO.existsById(EJEMPLAR_ID)).thenReturn(true);
+        when(ejemplarDAO.findByCodigoBarras(CODIGO)).thenReturn(Optional.empty());
+        referenciasValidas();
+        when(ejemplarDAO.findById(EJEMPLAR_ID))
+                .thenReturn(Optional.of(ejemplarEnEstado("DANADO")), Optional.of(ejemplarEnEstado("RESERVADO")));
+        when(ejemplarDAO.update(EJEMPLAR_ID, dto)).thenReturn(Optional.of(dto));
+        when(reservaLibroService.asignarEjemplarAReservaEnEspera(EJEMPLAR_ID)).thenReturn(true);
+
+        EjemplarDTO resultado = service.actualizarEjemplar(EJEMPLAR_ID, dto);
+
+        verify(reservaLibroService).asignarEjemplarAReservaEnEspera(EJEMPLAR_ID);
+        assertEquals("RESERVADO", resultado.getEstado());
+    }
+
+    @Test
+    @DisplayName("actualizarEjemplar: si ya estaba DISPONIBLE no se vuelve a ofrecer")
+    void actualizarEjemplar_yaDisponible_noSeOfrece() {
+        dto.setEstado("DISPONIBLE");
+        when(ejemplarDAO.existsById(EJEMPLAR_ID)).thenReturn(true);
+        when(ejemplarDAO.findByCodigoBarras(CODIGO)).thenReturn(Optional.empty());
+        referenciasValidas();
+        when(ejemplarDAO.findById(EJEMPLAR_ID)).thenReturn(Optional.of(ejemplarEnEstado("DISPONIBLE")));
+        when(ejemplarDAO.update(EJEMPLAR_ID, dto)).thenReturn(Optional.of(dto));
+
+        service.actualizarEjemplar(EJEMPLAR_ID, dto);
+
+        verifyNoInteractions(reservaLibroService);
+    }
+
+    @Test
+    @DisplayName("actualizarEjemplar: pasar a un estado distinto de DISPONIBLE no avisa a nadie")
+    void actualizarEjemplar_aDanado_noSeOfrece() {
+        dto.setEstado("DANADO");
+        when(ejemplarDAO.existsById(EJEMPLAR_ID)).thenReturn(true);
+        when(ejemplarDAO.findByCodigoBarras(CODIGO)).thenReturn(Optional.empty());
+        referenciasValidas();
+        when(ejemplarDAO.findById(EJEMPLAR_ID)).thenReturn(Optional.of(ejemplarEnEstado("DISPONIBLE")));
+        when(ejemplarDAO.update(EJEMPLAR_ID, dto)).thenReturn(Optional.of(dto));
+
+        service.actualizarEjemplar(EJEMPLAR_ID, dto);
+
+        verifyNoInteractions(reservaLibroService);
     }
 
     // ---------------------------------------------------------------- eliminarEjemplar

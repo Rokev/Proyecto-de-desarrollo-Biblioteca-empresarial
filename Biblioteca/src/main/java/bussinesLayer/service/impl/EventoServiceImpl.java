@@ -70,8 +70,9 @@ public class EventoServiceImpl implements EventoService {
                 .orElseThrow(() -> new ResourceNotFoundException("Evento no encontrado con ID: " + id));
 
         validarEvento(eventoDTO);
-        //  45: el cupo maximo no puede quedar por debajo de los cupos ya reservados (inscripciones activas).
-        int reservados = inscripcionEventoDAO.findByEventoIdAndEstadoIgnoreCase(id, "ACTIVA").stream()
+        // el cupo maximo no puede quedar por debajo de los cupos ya reservados (inscripciones activas).
+        List<InscripcionEventoDTO> activas = inscripcionEventoDAO.findByEventoIdAndEstadoIgnoreCase(id, "ACTIVA");
+        int reservados = activas.stream()
                 .mapToInt(i -> i.getCantidadCupos() == null ? 1 : i.getCantidadCupos())
                 .sum();
         if (eventoDTO.getCupoMaximo() < reservados) {
@@ -89,13 +90,26 @@ public class EventoServiceImpl implements EventoService {
         }
         EventoDTO actualizado = eventoDAO.update(id, eventoDTO)
                 .orElseThrow(() -> new ResourceNotFoundException("Evento no encontrado con ID: " + id));
+        LocalDateTime ahora = LocalDateTime.now();
+        for (InscripcionEventoDTO inscripcion : activas) {
+            NotificacionDTO n = new NotificacionDTO();
+            n.setUsuarioId(inscripcion.getUsuarioId());
+            n.setTipo("EVENTO_ACTUALIZADO");
+            n.setTitulo("Evento actualizado");
+            n.setMensaje("El evento \"" + actualizado.getTitulo() + "\" fue actualizado. Fecha de inicio: "
+                    + actualizado.getFechaInicio() + ", fin: " + actualizado.getFechaFin() + ".");
+            n.setCanal("APP");
+            n.setFechaCreacion(ahora);
+            n.setLeida(false);
+            notificacionDAO.save(n);
+        }
         log.info("Evento actualizado ID: {}", id);
         return actualizado;
     }
 
     @Override
     public void eliminarEvento(Long id) {
-        //  47: eliminar y cancelar siguen la misma regla.
+        // eliminar y cancelar siguen la misma regla.
         cancelarEvento(id);
         log.info("Evento eliminado ID: {}", id);
     }

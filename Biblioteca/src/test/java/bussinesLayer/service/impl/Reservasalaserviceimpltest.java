@@ -473,4 +473,72 @@ class ReservaSalaServiceImplTest {
 
         assertThrows(ResourceNotFoundException.class, () -> service.eliminarReservaSala(RESERVA_ID));
     }
+
+
+ // ---------------------------------------------------------------- cancelarReservaSala
+
+    @Test
+    @DisplayName("cancelarReservaSala: una reserva PENDIENTE_PAGO pasa a CANCELADA con fecha de cancelacion")
+    void cancelarReserva_pendientePago_cancela() {
+        when(reservaSalaDAO.findById(RESERVA_ID)).thenReturn(Optional.of(reservaActual("PENDIENTE_PAGO")));
+        when(reservaSalaDAO.update(any(), any(ReservaSalaDTO.class)))
+                .thenAnswer(inv -> Optional.of(inv.getArgument(1)));
+
+        ReservaSalaDTO resultado = service.cancelarReservaSala(RESERVA_ID, USUARIO_ID);
+
+        assertEquals("CANCELADA", resultado.getEstado());
+        assertNotNull(resultado.getFechaCancelacion());
+    }
+
+    @Test
+    @DisplayName("cancelarReservaSala: una reserva CONFIRMADA (pagada) tambien se puede cancelar y no se toca el pago")
+    void cancelarReserva_confirmada_cancelaSinTocarElPago() {
+        when(reservaSalaDAO.findById(RESERVA_ID)).thenReturn(Optional.of(reservaActual("CONFIRMADA")));
+        when(reservaSalaDAO.update(any(), any(ReservaSalaDTO.class)))
+                .thenAnswer(inv -> Optional.of(inv.getArgument(1)));
+
+        ReservaSalaDTO resultado = service.cancelarReservaSala(RESERVA_ID, USUARIO_ID);
+
+        assertEquals("CANCELADA", resultado.getEstado());
+        assertEquals(new BigDecimal("18000.00"), resultado.getValorTotal()); // los valores no cambian
+    }
+
+    @Test
+    @DisplayName("cancelarReservaSala: no se puede cancelar una reserva que ya esta CANCELADA")
+    void cancelarReserva_yaCancelada_lanzaBusinessValidation() {
+        when(reservaSalaDAO.findById(RESERVA_ID)).thenReturn(Optional.of(reservaActual("CANCELADA")));
+
+        assertThrows(BusinessValidationException.class, () -> service.cancelarReservaSala(RESERVA_ID, USUARIO_ID));
+
+        verify(reservaSalaDAO, never()).update(any(), any());
+    }
+
+    @Test
+    @DisplayName("cancelarReservaSala: no se puede cancelar la reserva de otro usuario")
+    void cancelarReserva_deOtroUsuario_lanzaBusinessValidation() {
+        when(reservaSalaDAO.findById(RESERVA_ID)).thenReturn(Optional.of(reservaActual("CONFIRMADA")));
+
+        assertThrows(BusinessValidationException.class,
+                () -> service.cancelarReservaSala(RESERVA_ID, OTRO_USUARIO_ID));
+
+        verify(reservaSalaDAO, never()).update(any(), any());
+    }
+
+    @Test
+    @DisplayName("cancelarReservaSala: reserva inexistente lanza ResourceNotFoundException")
+    void cancelarReserva_inexistente_lanzaNotFound() {
+        when(reservaSalaDAO.findById(RESERVA_ID)).thenReturn(Optional.empty());
+
+        assertThrows(ResourceNotFoundException.class, () -> service.cancelarReservaSala(RESERVA_ID, USUARIO_ID));
+    }
+
+    @Test
+    @DisplayName("cancelarReservaSala: si el DAO no devuelve la reserva actualizada lanza ResourceNotFoundException")
+    void cancelarReserva_daoNoActualiza_lanzaNotFound() {
+        when(reservaSalaDAO.findById(RESERVA_ID)).thenReturn(Optional.of(reservaActual("CONFIRMADA")));
+        when(reservaSalaDAO.update(any(), any(ReservaSalaDTO.class))).thenReturn(Optional.empty());
+
+        assertThrows(ResourceNotFoundException.class, () -> service.cancelarReservaSala(RESERVA_ID, USUARIO_ID));
+    }
+
 }

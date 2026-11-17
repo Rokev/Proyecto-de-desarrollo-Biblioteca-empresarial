@@ -574,7 +574,6 @@ class PagoServiceImplTest {
     @DisplayName("procesarPagoSimulado: concepto no soportado con tarjeta aprobada lanza BusinessValidationException")
     void procesar_conceptoNoSoportado_lanzaBusinessValidation() {
         usuarioExiste();
-        guardarAsignandoId();
 
         assertThrows(BusinessValidationException.class,
                 () -> service.procesarPagoSimulado(solicitud("OTRO", "1000", TARJETA_APROBADA)));

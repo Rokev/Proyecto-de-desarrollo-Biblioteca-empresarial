@@ -13,6 +13,7 @@ import bussinesLayer.exception.ResourceNotFoundException;
 import bussinesLayer.security.JwtService;
 import bussinesLayer.service.AuthService;
 import bussinesLayer.service.UsuarioService;
+import bussinesLayer.service.CorreoService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.authentication.BadCredentialsException;
@@ -41,6 +42,7 @@ public class AuthServiceImpl implements AuthService {
     private final UsuarioService usuarioService;
     private final JwtService jwtService;
     private final PasswordEncoder passwordEncoder;
+    private final CorreoService correoService;
 
     @Override
     public AuthResponseDTO login(LoginRequestDTO request) {
@@ -110,9 +112,7 @@ public class AuthServiceImpl implements AuthService {
 
             tokenRecuperacionDAO.invalidarTokensDeUsuario(usuario.getId()); // solo uno vigente
             tokenRecuperacionDAO.save(token);
-
-            // TODO: enviar este token por correo cuando exista el servicio de email
-            log.info("Token de recuperacion para {}: {}", correo, token.getToken());
+            correoService.enviarRecuperacionContrasena(usuario.getCorreo(), token.getToken());
         });
     }
 

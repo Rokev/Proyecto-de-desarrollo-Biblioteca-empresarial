@@ -131,8 +131,8 @@ public class ReservaLibroController {
             @Parameter(description = "ID de la reserva de libro a eliminar", required = true, example = "1")
             @PathVariable Long id) {
         log.info("DELETE /api/v1/reservas-libro/{}", id);
-        reservaLibroService.eliminarReservaLibro(id);
         acceso.validarSede(reservaLibroService.obtenerReservaLibroPorId(id).getSedeId());
+        reservaLibroService.eliminarReservaLibro(id);
         return ResponseEntity.noContent().build();
     }
 

@@ -4,6 +4,7 @@ import bussinesLayer.dto.EjemplarDTO;
 import bussinesLayer.exception.BusinessValidationException;
 import bussinesLayer.exception.ResourceNotFoundException;
 import bussinesLayer.service.EjemplarService;
+import bussinesLayer.service.ReservaLibroService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -25,6 +26,7 @@ public class EjemplarServiceImpl implements EjemplarService {
     private final EjemplarDAO ejemplarDAO;
     private final LibroDAO libroDAO;
     private final SedeDAO sedeDAO;
+    private final ReservaLibroService reservaLibroService;
 
     @Override
     public EjemplarDTO crearEjemplar(EjemplarDTO ejemplarDTO) {
@@ -42,7 +44,7 @@ public class EjemplarServiceImpl implements EjemplarService {
 
         EjemplarDTO guardado = ejemplarDAO.save(ejemplarDTO);
         log.info("Ejemplar creado con ID: {}", guardado.getId());
-        return guardado;
+        return ofrecerALaListaDeEspera(guardado, null);
     }
 
     @Override
@@ -72,10 +74,11 @@ public class EjemplarServiceImpl implements EjemplarService {
                 });
         validarReferencias(ejemplarDTO);
 
+        String estadoAnterior = ejemplarDAO.findById(id).map(EjemplarDTO::getEstado).orElse(null);
         EjemplarDTO actualizado = ejemplarDAO.update(id, ejemplarDTO)
                 .orElseThrow(() -> new ResourceNotFoundException("Ejemplar no encontrado con ID: " + id));
         log.info("Ejemplar actualizado ID: {}", id);
-        return actualizado;
+        return ofrecerALaListaDeEspera(actualizado, estadoAnterior);
     }
 
     @Override
@@ -93,5 +96,16 @@ public class EjemplarServiceImpl implements EjemplarService {
         if (!sedeDAO.existsById(dto.getSedeId())) {
             throw new ResourceNotFoundException("Sede no encontrada con ID: " + dto.getSedeId());
         }
+    }
+
+    /** si el ejemplar acaba de quedar DISPONIBLE, se aparta para el primero de la lista de espera. */
+    private EjemplarDTO ofrecerALaListaDeEspera(EjemplarDTO ejemplar, String estadoAnterior) {
+        boolean quedaDisponible = ESTADO_INICIAL.equalsIgnoreCase(ejemplar.getEstado());
+        boolean yaEraDisponible = ESTADO_INICIAL.equalsIgnoreCase(estadoAnterior);
+        if (quedaDisponible && !yaEraDisponible
+                && reservaLibroService.asignarEjemplarAReservaEnEspera(ejemplar.getId())) {
+            return ejemplarDAO.findById(ejemplar.getId()).orElse(ejemplar); // ahora figura RESERVADO
+        }
+        return ejemplar;
     }
 }

@@ -128,8 +128,8 @@ public class PrestamoController {
                 @Parameter(description = "ID del prestamo a eliminar", required = true, example = "1")
                 @PathVariable Long id) {
         log.info("DELETE /api/v1/prestamos/{}", id);
-        prestamoService.eliminarPrestamo(id);
         acceso.validarSede(prestamoService.obtenerPrestamoPorId(id).getSedeRetiroId());
+        prestamoService.eliminarPrestamo(id);
         return ResponseEntity.noContent().build();
         }
 

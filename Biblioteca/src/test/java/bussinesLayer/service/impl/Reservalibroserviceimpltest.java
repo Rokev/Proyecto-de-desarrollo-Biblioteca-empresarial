@@ -90,6 +90,13 @@ class ReservaLibroServiceImplTest {
         return r;
     }
 
+    private ReservaLibroDTO reservaConEjemplar(String estado, Long usuarioId) {
+        ReservaLibroDTO r = reservaExistente(estado);
+        r.setUsuarioId(usuarioId);
+        r.setEjemplarId(EJEMPLAR_ID);
+        return r;
+    }
+
     private LibroDTO libro(String titulo) {
         LibroDTO l = new LibroDTO();
         l.setId(LIBRO_ID);
@@ -443,4 +450,101 @@ class ReservaLibroServiceImplTest {
         assertEquals("LIBRO_DISPONIBLE", captor.getValue().getTipo());
         assertEquals(USUARIO_ID, captor.getValue().getUsuarioId());
     }
+
+    // ---------------------------------------------------------------- cancelarReservaLibro
+
+    @Test
+    @DisplayName("cancelarReservaLibro: una reserva EN_ESPERA pasa a CANCELADA con fecha y no toca ejemplares")
+    void cancelar_enEspera_cancelaSinTocarEjemplares() {
+        when(reservaLibroDAO.findById(RESERVA_ID))
+                .thenReturn(Optional.of(reservaExistente("EN_ESPERA")), Optional.of(reservaExistente("EN_ESPERA")));
+        when(reservaLibroDAO.update(any(), any(ReservaLibroDTO.class)))
+                .thenAnswer(inv -> Optional.of(inv.getArgument(1)));
+
+        ReservaLibroDTO resultado = service.cancelarReservaLibro(RESERVA_ID, USUARIO_ID);
+
+        assertEquals("CANCELADA", resultado.getEstado());
+        assertNotNull(resultado.getFechaCancelacion());
+        verifyNoInteractions(ejemplarDAO);
+    }
+
+    @Test
+    @DisplayName("cancelarReservaLibro: una reserva NOTIFICADA libera el ejemplar apartado")
+    void cancelar_notificada_liberaElEjemplar() {
+        when(reservaLibroDAO.findById(RESERVA_ID)).thenReturn(
+                Optional.of(reservaConEjemplar("NOTIFICADA", USUARIO_ID)),
+                Optional.of(reservaConEjemplar("NOTIFICADA", USUARIO_ID)));
+        when(reservaLibroDAO.update(any(), any(ReservaLibroDTO.class)))
+                .thenAnswer(inv -> Optional.of(inv.getArgument(1)));
+        when(ejemplarDAO.cambiarEstadoSiEs(EJEMPLAR_ID, "RESERVADO", "DISPONIBLE")).thenReturn(1);
+        // nadie mas espera: el ejemplar queda DISPONIBLE
+        when(ejemplarDAO.findById(EJEMPLAR_ID)).thenReturn(Optional.of(ejemplar()));
+        when(reservaLibroDAO.findFirstByLibroIdAndSedeIdAndEstadoIgnoreCaseOrderByFechaReservaAsc(
+                LIBRO_ID, SEDE_ID, "EN_ESPERA")).thenReturn(Optional.empty());
+
+        ReservaLibroDTO resultado = service.cancelarReservaLibro(RESERVA_ID, USUARIO_ID);
+
+        assertEquals("CANCELADA", resultado.getEstado());
+        verify(ejemplarDAO).cambiarEstadoSiEs(EJEMPLAR_ID, "RESERVADO", "DISPONIBLE");
+        verify(ejemplarDAO, never()).cambiarEstadoSiEs(EJEMPLAR_ID, "DISPONIBLE", "RESERVADO");
+    }
+
+    @Test
+    @DisplayName("cancelarReservaLibro: al cancelar una NOTIFICADA el ejemplar pasa al siguiente de la fila")
+    void cancelar_notificada_pasaAlSiguienteEnLaFila() {
+        when(reservaLibroDAO.findById(RESERVA_ID)).thenReturn(
+                Optional.of(reservaConEjemplar("NOTIFICADA", USUARIO_ID)),
+                Optional.of(reservaConEjemplar("NOTIFICADA", USUARIO_ID)));
+        when(reservaLibroDAO.update(any(), any(ReservaLibroDTO.class)))
+                .thenAnswer(inv -> Optional.of(inv.getArgument(1)));
+        ReservaLibroDTO siguiente = reservaExistente("EN_ESPERA");
+        siguiente.setId(11L);
+        siguiente.setUsuarioId(99L);
+        when(ejemplarDAO.cambiarEstadoSiEs(EJEMPLAR_ID, "RESERVADO", "DISPONIBLE")).thenReturn(1);
+        when(ejemplarDAO.findById(EJEMPLAR_ID)).thenReturn(Optional.of(ejemplar()));
+        when(reservaLibroDAO.findFirstByLibroIdAndSedeIdAndEstadoIgnoreCaseOrderByFechaReservaAsc(
+                LIBRO_ID, SEDE_ID, "EN_ESPERA")).thenReturn(Optional.of(siguiente));
+        when(ejemplarDAO.cambiarEstadoSiEs(EJEMPLAR_ID, "DISPONIBLE", "RESERVADO")).thenReturn(1);
+        when(libroDAO.findById(LIBRO_ID)).thenReturn(Optional.of(libro("Dune")));
+        when(configuracionService.plazo(ClavePlazo.HORAS_RETIRO_LIBRO)).thenReturn(48);
+
+        service.cancelarReservaLibro(RESERVA_ID, USUARIO_ID);
+
+        assertEquals("NOTIFICADA", siguiente.getEstado());
+        assertEquals(EJEMPLAR_ID, siguiente.getEjemplarId());
+        ArgumentCaptor<NotificacionDTO> notificacion = ArgumentCaptor.forClass(NotificacionDTO.class);
+        verify(notificacionDAO).save(notificacion.capture());
+        assertEquals(99L, notificacion.getValue().getUsuarioId());
+    }
+
+    @Test
+    @DisplayName("cancelarReservaLibro: no se puede cancelar la reserva de otro usuario")
+    void cancelar_deOtroUsuario_lanzaBusinessValidation() {
+        when(reservaLibroDAO.findById(RESERVA_ID)).thenReturn(Optional.of(reservaExistente("EN_ESPERA")));
+
+        assertThrows(BusinessValidationException.class, () -> service.cancelarReservaLibro(RESERVA_ID, 999L));
+
+        verify(reservaLibroDAO, never()).update(any(), any());
+    }
+
+    @Test
+    @DisplayName("cancelarReservaLibro: solo se cancelan reservas EN_ESPERA o NOTIFICADA")
+    void cancelar_estadoNoVigente_lanzaBusinessValidation() {
+        for (String estado : List.of("CANCELADA", "EXPIRADA", "RETIRADA")) {
+            when(reservaLibroDAO.findById(RESERVA_ID)).thenReturn(Optional.of(reservaExistente(estado)));
+
+            assertThrows(BusinessValidationException.class,
+                    () -> service.cancelarReservaLibro(RESERVA_ID, USUARIO_ID), estado);
+        }
+        verify(reservaLibroDAO, never()).update(any(), any());
+    }
+
+    @Test
+    @DisplayName("cancelarReservaLibro: reserva inexistente lanza ResourceNotFoundException")
+    void cancelar_inexistente_lanzaNotFound() {
+        when(reservaLibroDAO.findById(RESERVA_ID)).thenReturn(Optional.empty());
+
+        assertThrows(ResourceNotFoundException.class, () -> service.cancelarReservaLibro(RESERVA_ID, USUARIO_ID));
+    }
+
 }
