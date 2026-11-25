@@ -24,4 +24,7 @@ public class ActualizarPerfilDTO {
 
     @Size(max = 200, message = "El campo direccion no puede superar los 200 caracteres")
     private String direccion;
+    
+    @Size(max = 50, message = "El campo nombreUsuario no puede superar los 50 caracteres")
+    private String nombreUsuario;
 }

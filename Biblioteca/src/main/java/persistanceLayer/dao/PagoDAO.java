@@ -60,6 +60,11 @@ public class PagoDAO {
             existente.setSuscripcion(referenciaSuscripcion(dto.getSuscripcionId()));
             existente.setReservaSala(referenciaReservaSala(dto.getReservaSalaId()));
             existente.setPedidoInterciudad(referenciaPedidoInterciudad(dto.getPedidoInterciudadId()));
+            existente.setUltimosCuatroDigitos(dto.getUltimosCuatroDigitos());
+            existente.getMultaIds().clear();
+            if (dto.getMultaIds() != null) {
+                existente.getMultaIds().addAll(dto.getMultaIds());
+            }
             return mapper.pagoToDto(pagoRepository.save(existente));
         });
     }

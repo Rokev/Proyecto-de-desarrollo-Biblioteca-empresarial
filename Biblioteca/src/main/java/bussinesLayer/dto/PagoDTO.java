@@ -7,6 +7,7 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -62,4 +63,11 @@ public class PagoDTO {
 
     @Schema(description = "id del pedido interciudad (solo si el concepto es ENVIO_INTERCIUDAD)", example = "1")
     private Long pedidoInterciudadId;
+
+    @Size(max = 4, message = "El campo ultimosCuatroDigitos no puede superar los 4 caracteres")
+    @Schema(description = "Últimos 4 dígitos de la tarjeta", example = "1111", accessMode = Schema.AccessMode.READ_ONLY)
+    private String ultimosCuatroDigitos;
+    
+    @Schema(description = "ids de las multas cubiertas por el pago (MULTA o RECARGO)", example = "[1, 2]")
+    private List<Long> multaIds;
 }

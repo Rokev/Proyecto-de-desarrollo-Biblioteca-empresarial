@@ -3,11 +3,15 @@ package persistanceLayer.entity;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
+import lombok.ToString;
 import lombok.Builder;
+import java.util.List;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 
 /**
  * Transacción de pago. Puede corresponder a una multa, a una suscripción o a una
@@ -44,6 +48,10 @@ public class PagoEntity {
     @Column(nullable = false, unique = true, length = 60)
     private String referencia;
 
+    /** Últimos 4 dígitos de la tarjeta (nunca se guarda el número completo). */
+    @Column(length = 4)
+    private String ultimosCuatroDigitos;
+
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "usuario_id", nullable = false)
     private UsuarioEntity usuario;
@@ -67,4 +75,13 @@ public class PagoEntity {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "pedido_interciudad_id")
     private PedidoInterciudadEntity pedidoInterciudad;
+
+    /** Multas que cubre este pago (una transacción puede pagar varias). */
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
+    @ElementCollection(fetch = FetchType.LAZY)
+    @CollectionTable(name = "pago_multas", joinColumns = @JoinColumn(name = "pago_id"))
+    @Column(name = "multa_id")
+    @Builder.Default
+    private List<Long> multaIds = new ArrayList<>();
 }

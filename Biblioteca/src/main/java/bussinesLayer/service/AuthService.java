@@ -16,7 +16,8 @@ public interface AuthService {
 
     void logout(String jti);
 
-    void solicitarRecuperacion(String correo);
+    /** Genera el token de recuperación y lo devuelve (para mostrarlo en modo simulación). */
+    String solicitarRecuperacion(String correo);
 
     void restablecerContrasena(RestablecerContrasenaDTO dto);
 

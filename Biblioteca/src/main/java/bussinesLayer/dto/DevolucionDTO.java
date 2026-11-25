@@ -22,8 +22,7 @@ public class DevolucionDTO {
     @Schema(description = "Codigo alfanumerico o contenido del QR", example = "DEV-2026-0001", requiredMode = Schema.RequiredMode.REQUIRED, maxLength = 60)
     private String codigoQr;
 
-    @NotNull(message = "El campo fechaSolicitud es obligatorio")
-    @Schema(description = "Fecha de solicitud", example = "2026-10-17T10:00:00", requiredMode = Schema.RequiredMode.REQUIRED)
+    @Schema(description = "Fecha de solicitud (la asigna el servidor si no se envia)", example = "2026-10-17T10:00:00")
     private LocalDateTime fechaSolicitud;
 
     @Schema(description = "Fecha de confirmacion", example = "2026-10-18T09:00:00")

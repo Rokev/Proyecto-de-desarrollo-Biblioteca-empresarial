@@ -105,7 +105,9 @@ public class PrestamoServiceImpl implements PrestamoService {
         dto.setFechaDevolucion(null);
         //el plazo de devolucion se fija al registrar la entrega, no al solicitar
         dto.setFechaVencimiento(null);  
-
+        if (dto.getFechaSolicitud() == null) {
+            dto.setFechaSolicitud(LocalDateTime.now());
+        }
         cambiarEstadoEjemplar(ejemplar, EJEMPLAR_PRESTADO);
 
         PrestamoDTO guardado = prestamoDAO.save(dto);

@@ -99,21 +99,26 @@ public class AuthServiceImpl implements AuthService {
     }
 
     @Override
-    public void solicitarRecuperacion(String correo) {
-        // Siempre responde igual exista o no el correo (no revela que correos estan registrados)
-        usuarioDAO.findByCorreoIgnoreCase(correo.trim()).ifPresent(usuario -> {
-            LocalDateTime ahora = LocalDateTime.now();
-            TokenRecuperacionDTO token = new TokenRecuperacionDTO();
-            token.setToken(UUID.randomUUID().toString());
-            token.setFechaCreacion(ahora);
-            token.setFechaExpiracion(ahora.plusHours(24));
-            token.setUsado(false);
-            token.setUsuarioId(usuario.getId());
+    public String solicitarRecuperacion(String correo) {
+        // Responde igual exista o no el correo (no revela que correos estan registrados):
+        // si no existe, devuelve un token falso que no se guarda y falla al restablecer.
+        return usuarioDAO.findByCorreoIgnoreCase(correo.trim())
+                .map(usuario -> {
+                    LocalDateTime ahora = LocalDateTime.now();
+                    TokenRecuperacionDTO token = new TokenRecuperacionDTO();
+                    token.setToken(UUID.randomUUID().toString());
+                    token.setFechaCreacion(ahora);
+                    token.setFechaExpiracion(ahora.plusHours(24));
+                    token.setUsado(false);
+                    token.setUsuarioId(usuario.getId());
 
-            tokenRecuperacionDAO.invalidarTokensDeUsuario(usuario.getId()); // solo uno vigente
-            tokenRecuperacionDAO.save(token);
-            correoService.enviarRecuperacionContrasena(usuario.getCorreo(), token.getToken());
-        });
+                    tokenRecuperacionDAO.invalidarTokensDeUsuario(usuario.getId()); // solo uno vigente
+                    tokenRecuperacionDAO.save(token);
+
+                    correoService.enviarRecuperacionContrasena(usuario.getCorreo(), token.getToken());
+                    return token.getToken();
+                })
+                .orElseGet(() -> UUID.randomUUID().toString());
     }
 
     @Override

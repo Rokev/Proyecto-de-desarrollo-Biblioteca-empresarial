@@ -88,6 +88,10 @@ public class DevolucionServiceImpl implements DevolucionService {
             devolucionDTO.setEstado(ESTADO_INICIAL);
         }
 
+        if (devolucionDTO.getFechaSolicitud() == null) {
+            devolucionDTO.setFechaSolicitud(LocalDateTime.now());
+        }
+
         DevolucionDTO guardada = devolucionDAO.save(devolucionDTO);
         log.info("Devolucion creada con ID: {}", guardada.getId());
         return guardada;
