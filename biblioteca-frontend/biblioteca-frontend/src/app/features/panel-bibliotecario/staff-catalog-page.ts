@@ -1,22 +1,31 @@
 import { Component, inject, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
-import { AutorDTO, GeneroDTO, LibroDTO } from '../../core/models/biblioteca.models';
+import { firstValueFrom } from 'rxjs';
+import { AutorDTO, EjemplarDTO, GeneroDTO, LibroDTO } from '../../core/models/biblioteca.models';
+import { AuthService } from '../../core/services/auth.service';
 import { CatalogoService } from '../../core/services/catalogo.service';
 import { NotificacionesUiService } from '../../core/services/notificaciones-ui.service';
 import { extraerMensajeError } from '../../core/utils/errores.util';
+import { Badge } from '../../shared/ui/atoms/badge/badge';
 import { Button } from '../../shared/ui/atoms/button/button';
 import { Card } from '../../shared/ui/atoms/card/card';
+import { Alert } from '../../shared/ui/molecules/alert/alert';
 import { ConfirmDialog } from '../../shared/ui/molecules/confirm-dialog/confirm-dialog';
 import { FormField } from '../../shared/ui/molecules/form-field/form-field';
 import { PanelTemplate } from '../../shared/ui/templates/panel-template/panel-template';
 
 @Component({
   selector: 'app-staff-catalog-page',
-  imports: [FormsModule, RouterLink, PanelTemplate, Card, Button, FormField, ConfirmDialog],
+  imports: [FormsModule, RouterLink, PanelTemplate, Card, Badge, Button, FormField, ConfirmDialog, Alert],
   template: `
     <app-panel-template titulo="Gestión de Catálogo, Autores y Géneros">
-      <!-- Formularios rápidos de Géneros y Autores -->
+      @if (avisoStock()) {
+        <app-alert titulo="Stock actualizado" [mensaje]="avisoStock()!" tipo="exito">
+          <a routerLink="/notificaciones" style="font-weight:700; color: inherit;">Ver notificaciones de reservas pendientes →</a>
+        </app-alert>
+      }
+
       <div class="grid-cards" style="margin-bottom: 1.5rem;">
         <app-card>
           <h3>Crear Género Literario</h3>
@@ -41,7 +50,6 @@ import { PanelTemplate } from '../../shared/ui/templates/panel-template/panel-te
         </app-card>
       </div>
 
-      <!-- Formulario Crear / Editar Libro (Pruebas 65, 66, 67) -->
       <app-card>
         <h3>{{ editandoId() ? 'Editar Libro #' + editandoId() : 'Registrar Nuevo Libro' }}</h3>
         <form (ngSubmit)="guardarLibro()" novalidate>
@@ -49,34 +57,27 @@ import { PanelTemplate } from '../../shared/ui/templates/panel-template/panel-te
             <app-form-field etiqueta="ISBN" para="isbn" [obligatorio]="true" [error]="erroresLibro()['isbn'] || null">
               <input id="isbn" class="campo" [(ngModel)]="formLibro.isbn" name="isbn" />
             </app-form-field>
-
             <app-form-field etiqueta="Título" para="tit" [obligatorio]="true" [error]="erroresLibro()['titulo'] || null">
               <input id="tit" class="campo" [(ngModel)]="formLibro.titulo" name="tit" />
             </app-form-field>
-
             <app-form-field etiqueta="Idioma" para="idi" [obligatorio]="true" [error]="erroresLibro()['idioma'] || null">
               <input id="idi" class="campo" [(ngModel)]="formLibro.idioma" name="idi" />
             </app-form-field>
-
             <app-form-field etiqueta="Año Publicación" para="anio" [obligatorio]="true" [error]="erroresLibro()['anio'] || null">
               <input id="anio" class="campo" type="number" [(ngModel)]="formLibro.anioPublicacion" name="anio" />
             </app-form-field>
-
             <app-form-field etiqueta="Editorial" para="edi">
               <input id="edi" class="campo" [(ngModel)]="formLibro.editorial" name="edi" />
             </app-form-field>
-
             <app-form-field etiqueta="Número de páginas" para="pag">
               <input id="pag" class="campo" type="number" [(ngModel)]="formLibro.numeroPaginas" name="pag" />
             </app-form-field>
-
             <app-form-field etiqueta="Género" para="gen" [obligatorio]="true" [error]="erroresLibro()['genero'] || null">
               <select id="gen" class="campo" [(ngModel)]="formLibro.generoId" name="gen">
                 <option [ngValue]="0" disabled>Seleccione género...</option>
                 @for (g of generos(); track g.id) { <option [ngValue]="g.id">{{ g.nombre }}</option> }
               </select>
             </app-form-field>
-
             <app-form-field etiqueta="Autor" para="aut" [obligatorio]="true" [error]="erroresLibro()['autor'] || null">
               <select id="aut" class="campo" [(ngModel)]="autorId" name="aut">
                 <option [ngValue]="0" disabled>Seleccione autor...</option>
@@ -84,35 +85,31 @@ import { PanelTemplate } from '../../shared/ui/templates/panel-template/panel-te
               </select>
             </app-form-field>
           </div>
-
           <app-form-field etiqueta="Sinopsis" para="sin">
             <textarea id="sin" class="campo" rows="2" [(ngModel)]="formLibro.sinopsis" name="sin"></textarea>
           </app-form-field>
-
           <div style="display: flex; gap: 0.65rem;">
             <app-button tipo="submit" [texto]="editandoId() ? 'Actualizar Libro' : 'Guardar Libro'" />
-            @if (editandoId()) {
-              <app-button texto="Cancelar Edición" variante="contorno" (presionado)="resetFormLibro()" />
-            }
+            @if (editandoId()) { <app-button texto="Cancelar Edición" variante="contorno" (presionado)="resetFormLibro()" /> }
           </div>
         </form>
       </app-card>
 
-      <!-- Listado de Libros -->
       <div class="tabla-responsive" style="margin-top: 1.5rem;">
         <table class="tabla">
-          <thead><tr><th>ID</th><th>ISBN</th><th>Título</th><th>Idioma</th><th>Año</th><th>Editorial</th><th>Acciones</th></tr></thead>
+          <thead><tr><th>ID</th><th>ISBN</th><th>Título</th><th>Idioma</th><th>Año</th><th>Stock Sede</th><th>Acciones</th></tr></thead>
           <tbody>
             @for (l of libros(); track l.id) {
               <tr>
                 <td>{{ l.id }}</td>
                 <td>{{ l.isbn }}</td>
-                <td>{{ l.titulo }}</td>
+                <td><strong>{{ l.titulo }}</strong></td>
                 <td>{{ l.idioma }}</td>
                 <td>{{ l.anioPublicacion }}</td>
-                <td>{{ l.editorial || '-' }}</td>
+                <td><app-badge [texto]="stockLibro(l.id) + ' disp.'" [estado]="stockLibro(l.id) > 0 ? 'DISPONIBLE' : 'VENCIDO'" /></td>
                 <td style="display: flex; gap: 0.4rem; flex-wrap: wrap;">
                   <a [routerLink]="['/catalogo', l.id]" style="color: var(--color-primario); font-weight: 700; align-self: center;">Ver detalle</a>
+                  <app-button texto="Actualizar Stock" variante="secundario" tamano="pequeno" (presionado)="abrirStock(l)" />
                   <app-button texto="Editar" variante="contorno" tamano="pequeno" (presionado)="cargarEdicion(l)" />
                   <app-button texto="Eliminar" variante="peligro" tamano="pequeno" (presionado)="pedirEliminar(l)" />
                 </td>
@@ -121,6 +118,26 @@ import { PanelTemplate } from '../../shared/ui/templates/panel-template/panel-te
           </tbody>
         </table>
       </div>
+
+      <!-- Modal Actualizar Stock (Pruebas 71 y 72) -->
+      @if (libroStock(); as ls) {
+        <div class="backdrop" (click)="libroStock.set(null)">
+          <div class="dialog" (click)="$event.stopPropagation()">
+            <h3>Actualizar Stock · {{ ls.titulo }}</h3>
+            <p><strong>Sede:</strong> #{{ auth.perfil()?.sedeId || 'Sin sede' }}</p>
+            <app-form-field etiqueta="Stock actual disponible" para="stAct">
+              <input id="stAct" class="campo" [value]="stockLibro(ls.id)" disabled />
+            </app-form-field>
+            <app-form-field etiqueta="Nuevo stock disponible (≥ 0)" para="stNew" [obligatorio]="true">
+              <input id="stNew" type="number" min="0" class="campo" [(ngModel)]="nuevoStockValor" />
+            </app-form-field>
+            <div style="display:flex; justify-content:flex-end; gap:0.5rem;">
+              <app-button texto="Cancelar" variante="contorno" (presionado)="libroStock.set(null)" />
+              <app-button texto="Guardar Stock" [cargando]="guardandoStock()" (presionado)="guardarStock()" />
+            </div>
+          </div>
+        </div>
+      }
 
       <app-confirm-dialog
         [(abierto)]="confirmEliminarOpen"
@@ -135,15 +152,19 @@ import { PanelTemplate } from '../../shared/ui/templates/panel-template/panel-te
   styles: [`
     .stack { display: flex; flex-direction: column; gap: 0.6rem; }
     .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 0.75rem; }
+    .backdrop { position: fixed; inset: 0; background: rgba(15,23,42,.55); display:flex; align-items:center; justify-content:center; z-index:9500; padding:1rem; }
+    .dialog { background:#fff; padding:1.5rem; border-radius:var(--radio-lg); max-width:440px; width:100%; }
   `]
 })
 export class StaffCatalogPage implements OnInit {
   private readonly catalogo = inject(CatalogoService);
+  protected readonly auth = inject(AuthService);
   private readonly ui = inject(NotificacionesUiService);
 
   protected readonly libros = signal<LibroDTO[]>([]);
   protected readonly generos = signal<GeneroDTO[]>([]);
   protected readonly autores = signal<AutorDTO[]>([]);
+  protected readonly ejemplares = signal<EjemplarDTO[]>([]);
 
   protected nuevoGenero: GeneroDTO = { nombre: '', descripcion: '' };
   protected nuevoAutor: AutorDTO = { nombre: '', nacionalidad: '' };
@@ -161,12 +182,16 @@ export class StaffCatalogPage implements OnInit {
   protected readonly confirmEliminarOpen = signal(false);
   protected readonly libroAEliminar = signal<LibroDTO | null>(null);
 
-  ngOnInit(): void {
-    this.cargarTodo();
-  }
+  protected readonly libroStock = signal<LibroDTO | null>(null);
+  protected nuevoStockValor = 0;
+  protected readonly guardandoStock = signal(false);
+  protected readonly avisoStock = signal<string | null>(null);
+
+  ngOnInit(): void { this.cargarTodo(); }
 
   private cargarTodo(): void {
     this.catalogo.buscarLibros().subscribe((l) => this.libros.set(l));
+    this.catalogo.listarEjemplares().subscribe((e) => this.ejemplares.set(e));
     this.catalogo.listarGeneros().subscribe((g) => {
       this.generos.set(g);
       if (!this.formLibro.generoId && g[0]?.id) this.formLibro.generoId = g[0].id;
@@ -177,55 +202,73 @@ export class StaffCatalogPage implements OnInit {
     });
   }
 
-  protected crearGenero(): void {
-    if (!this.nuevoGenero.nombre.trim()) {
-      this.errGenero.set('El nombre del género es obligatorio.');
-      return;
+  protected stockLibro(libroId: number): number {
+    const sedeId = this.auth.perfil()?.sedeId;
+    return this.ejemplares().filter((e) =>
+      e.libroId === libroId && e.estado === 'DISPONIBLE' && (!sedeId || e.sedeId === sedeId)
+    ).length;
+  }
+
+  protected abrirStock(l: LibroDTO): void {
+    this.libroStock.set(l);
+    this.nuevoStockValor = this.stockLibro(l.id);
+  }
+
+  protected async guardarStock(): Promise<void> {
+    const l = this.libroStock();
+    const sedeId = this.auth.perfil()?.sedeId;
+    if (!l || !sedeId || this.nuevoStockValor < 0) return;
+
+    const actuales = this.ejemplares().filter((e) => e.libroId === l.id && e.sedeId === sedeId && e.estado === 'DISPONIBLE');
+    const diff = this.nuevoStockValor - actuales.length;
+    this.guardandoStock.set(true);
+    try {
+      if (diff > 0) {
+        for (let i = 0; i < diff; i++) {
+          const cod = `EJ-${l.id}-${sedeId}-${Date.now().toString().slice(-4)}-${i}`;
+          await firstValueFrom(this.catalogo.crearEjemplar({ codigoBarras: cod, estado: 'DISPONIBLE', libroId: l.id, sedeId }));
+        }
+      } else if (diff < 0) {
+        const aEliminar = actuales.slice(0, Math.abs(diff));
+        for (const ej of aEliminar) {
+          if (ej.id) await firstValueFrom(this.catalogo.eliminarEjemplar(ej.id));
+        }
+      }
+      this.libroStock.set(null);
+      this.avisoStock.set(`Stock de "${l.titulo}" actualizado a ${this.nuevoStockValor} unidades. Si había reservas pendientes, los usuarios fueron notificados.`);
+      this.cargarTodo();
+    } catch (e) {
+      this.ui.mostrar(extraerMensajeError(e), 'error');
+    } finally {
+      this.guardandoStock.set(false);
     }
+  }
+
+  protected crearGenero(): void {
+    if (!this.nuevoGenero.nombre.trim()) { this.errGenero.set('El nombre del género es obligatorio.'); return; }
     this.errGenero.set(null);
     this.catalogo.crearGenero(this.nuevoGenero).subscribe({
-      next: (g) => {
-        this.ui.mostrar('Género creado.', 'exito');
-        this.nuevoGenero = { nombre: '', descripcion: '' };
-        this.cargarTodo();
-        if (g.id) this.formLibro.generoId = g.id;
-      },
+      next: (g) => { this.ui.mostrar('Género creado.', 'exito'); this.nuevoGenero = { nombre: '', descripcion: '' }; this.cargarTodo(); if (g.id) this.formLibro.generoId = g.id; },
       error: (e) => this.errGenero.set(extraerMensajeError(e)),
     });
   }
 
   protected crearAutor(): void {
-    if (!this.nuevoAutor.nombre.trim()) {
-      this.errAutor.set('El nombre del autor es obligatorio.');
-      return;
-    }
+    if (!this.nuevoAutor.nombre.trim()) { this.errAutor.set('El nombre del autor es obligatorio.'); return; }
     this.errAutor.set(null);
     this.catalogo.crearAutor(this.nuevoAutor).subscribe({
-      next: (a) => {
-        this.ui.mostrar('Autor creado.', 'exito');
-        this.nuevoAutor = { nombre: '', nacionalidad: '' };
-        this.cargarTodo();
-        if (a.id) this.autorId = a.id;
-      },
+      next: (a) => { this.ui.mostrar('Autor creado.', 'exito'); this.nuevoAutor = { nombre: '', nacionalidad: '' }; this.cargarTodo(); if (a.id) this.autorId = a.id; },
       error: (e) => this.errAutor.set(extraerMensajeError(e)),
     });
   }
 
   protected cargarEdicion(l: LibroDTO): void {
-    this.editandoId.set(l.id);
-    this.erroresLibro.set({});
-    this.formLibro = { ...l };
-    this.autorId = l.autoresIds?.[0] ?? 0;
+    this.editandoId.set(l.id); this.erroresLibro.set({}); this.formLibro = { ...l }; this.autorId = l.autoresIds?.[0] ?? 0;
   }
 
   protected resetFormLibro(): void {
-    this.editandoId.set(null);
-    this.erroresLibro.set({});
-    this.formLibro = {
-      isbn: '', titulo: '', idioma: 'Español', anioPublicacion: 2025,
-      editorial: '', sinopsis: '', numeroPaginas: undefined,
-      generoId: this.generos()[0]?.id ?? 0
-    };
+    this.editandoId.set(null); this.erroresLibro.set({});
+    this.formLibro = { isbn: '', titulo: '', idioma: 'Español', anioPublicacion: 2025, editorial: '', sinopsis: '', numeroPaginas: undefined, generoId: this.generos()[0]?.id ?? 0 };
   }
 
   protected guardarLibro(): void {
@@ -233,42 +276,23 @@ export class StaffCatalogPage implements OnInit {
     if (!this.formLibro.isbn?.trim()) errs['isbn'] = 'El ISBN es obligatorio.';
     if (!this.formLibro.titulo?.trim()) errs['titulo'] = 'El título es obligatorio.';
     if (!this.formLibro.idioma?.trim()) errs['idioma'] = 'El idioma es obligatorio.';
-    if (!this.formLibro.anioPublicacion) errs['anio'] = 'El año de publicación es obligatorio.';
+    if (!this.formLibro.anioPublicacion) errs['anio'] = 'El año es obligatorio.';
     if (!this.formLibro.generoId || Number(this.formLibro.generoId) === 0) errs['genero'] = 'Selecciona un género.';
     if (!this.autorId || Number(this.autorId) === 0) errs['autor'] = 'Selecciona un autor.';
-
     this.erroresLibro.set(errs);
     if (Object.keys(errs).length > 0) return;
 
-    const payload: Partial<LibroDTO> = {
-      ...this.formLibro,
-      generoId: Number(this.formLibro.generoId),
-      autoresIds: [Number(this.autorId)],
-    };
-
+    const payload: Partial<LibroDTO> = { ...this.formLibro, generoId: Number(this.formLibro.generoId), autoresIds: [Number(this.autorId)] };
     const idEdit = this.editandoId();
-    const obs = idEdit
-      ? this.catalogo.actualizarLibro(idEdit, payload)
-      : this.catalogo.crearLibro(payload);
-
-    obs.subscribe({
-      next: () => {
-        this.ui.mostrar(idEdit ? 'Libro actualizado.' : 'Libro registrado en el catálogo.', 'exito');
-        this.resetFormLibro();
-        this.cargarTodo();
-      },
+    (idEdit ? this.catalogo.actualizarLibro(idEdit, payload) : this.catalogo.crearLibro(payload)).subscribe({
+      next: () => { this.ui.mostrar(idEdit ? 'Libro actualizado.' : 'Libro registrado.', 'exito'); this.resetFormLibro(); this.cargarTodo(); },
       error: (e) => this.ui.mostrar(extraerMensajeError(e), 'error'),
     });
   }
 
-  protected pedirEliminar(l: LibroDTO): void {
-    this.libroAEliminar.set(l);
-    this.confirmEliminarOpen.set(true);
-  }
-
+  protected pedirEliminar(l: LibroDTO): void { this.libroAEliminar.set(l); this.confirmEliminarOpen.set(true); }
   protected ejecutarEliminar(): void {
-    const l = this.libroAEliminar();
-    if (!l) return;
+    const l = this.libroAEliminar(); if (!l) return;
     this.catalogo.eliminarLibro(l.id).subscribe({
       next: () => { this.ui.mostrar('Libro eliminado.', 'info'); this.cargarTodo(); },
       error: (e) => this.ui.mostrar(extraerMensajeError(e), 'error'),

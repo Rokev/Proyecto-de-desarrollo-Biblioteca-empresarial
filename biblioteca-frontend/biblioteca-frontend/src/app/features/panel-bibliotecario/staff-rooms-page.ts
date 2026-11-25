@@ -1,10 +1,8 @@
 import { CurrencyPipe } from '@angular/common';
-import { Component, computed, inject, OnInit, signal } from '@angular/core';
+import { Component, inject, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { catchError } from 'rxjs';
-import { SalaEstudioDTO, SedeDTO } from '../../core/models/biblioteca.models';
+import { DisponibilidadSalasDTO, SalaEstudioDTO } from '../../core/models/biblioteca.models';
 import { AuthService } from '../../core/services/auth.service';
-import { CatalogoService } from '../../core/services/catalogo.service';
 import { NotificacionesUiService } from '../../core/services/notificaciones-ui.service';
 import { OperacionesService } from '../../core/services/operaciones.service';
 import { extraerMensajeError } from '../../core/utils/errores.util';
@@ -19,210 +17,127 @@ import { PanelTemplate } from '../../shared/ui/templates/panel-template/panel-te
   selector: 'app-staff-rooms-page',
   imports: [FormsModule, CurrencyPipe, PanelTemplate, Card, Badge, Button, FormField, ConfirmDialog],
   template: `
-    <app-panel-template titulo="Salas de Estudio de la Sede" subtitulo="Crea, edita y activa o desactiva las salas disponibles para reserva.">
+    <app-panel-template titulo="Gestión de Salas de Estudio de la Sede">
       <app-card>
-        <h3>{{ editandoId() ? 'Editar Sala #' + editandoId() : 'Registrar Nueva Sala' }}</h3>
+        <h3>{{ editandoId() ? 'Editar Sala #' + editandoId() : 'Crear Nueva Sala' }}</h3>
         <form (ngSubmit)="guardar()" class="form-grid">
-          <app-form-field etiqueta="ID" para="salaId" ayuda="Lo asigna el sistema al guardar.">
-            <input id="salaId" class="campo" name="salaId" [value]="editandoId() ?? ''" placeholder="Automático" disabled />
+          @if (editandoId()) {
+            <app-form-field etiqueta="Identificador (no editable)" para="sId">
+              <input id="sId" class="campo" [value]="editandoId()" disabled />
+            </app-form-field>
+          }
+          <app-form-field etiqueta="Nombre de la sala" para="sNom" [obligatorio]="true">
+            <input id="sNom" class="campo" [(ngModel)]="form.nombre" name="nom" required />
           </app-form-field>
-
-          <app-form-field etiqueta="Sede a la que pertenece" para="salaSede" [obligatorio]="true"
-                          [ayuda]="sedeBloqueada() ? 'Tu usuario solo puede gestionar su sede.' : ''">
-            <select id="salaSede" class="campo" name="salaSede" [(ngModel)]="sedeId" [disabled]="sedeBloqueada()">
-              @for (s of sedes(); track s.id) { <option [ngValue]="s.id">{{ s.nombre }} ({{ s.ciudad }}) · ID {{ s.id }}</option> }
-            </select>
+          <app-form-field etiqueta="Capacidad" para="sCap" [obligatorio]="true">
+            <input id="sCap" type="number" min="1" class="campo" [(ngModel)]="form.capacidad" name="cap" required />
           </app-form-field>
-
-          <app-form-field etiqueta="Nombre de la sala" para="salaNombre" [obligatorio]="true">
-            <input id="salaNombre" class="campo" name="salaNombre" [(ngModel)]="nombre" placeholder="Ej. Sala Cervantes" maxlength="100" required />
+          <app-form-field etiqueta="Tarifa por hora (COP)" para="sTar" [obligatorio]="true">
+            <input id="sTar" type="number" min="0" class="campo" [(ngModel)]="form.tarifaPorHora" name="tar" required />
           </app-form-field>
-
-          <app-form-field etiqueta="Capacidad (personas)" para="salaCap" [obligatorio]="true">
-            <input id="salaCap" class="campo" type="number" min="1" name="salaCap" [(ngModel)]="capacidad" placeholder="Ej. 8" required />
+          <app-form-field etiqueta="Descripción" para="sDesc">
+            <input id="sDesc" class="campo" [(ngModel)]="form.descripcion" name="desc" />
           </app-form-field>
-
-          <app-form-field etiqueta="Tarifa por hora" para="salaTarifa" [obligatorio]="true">
-            <input id="salaTarifa" class="campo" type="number" min="0" step="500" name="salaTarifa" [(ngModel)]="tarifaPorHora" placeholder="Ej. 15000" required />
-          </app-form-field>
-
-          <app-form-field etiqueta="¿Sala activa?" para="salaActiva">
-            <select id="salaActiva" class="campo" name="salaActiva" [(ngModel)]="activa">
+          <app-form-field etiqueta="¿Sala activa?" para="sActiva">
+            <select id="sActiva" class="campo" name="activa" [(ngModel)]="form.activa">
               <option [ngValue]="true">Sí, activa</option>
               <option [ngValue]="false">No, inactiva</option>
             </select>
           </app-form-field>
-
-          <app-form-field etiqueta="Descripción" para="salaDesc" class="ancho-completo">
-            <textarea id="salaDesc" class="campo" name="salaDesc" rows="3" [(ngModel)]="descripcion"
-                      placeholder="Ej. Sala con pizarra, proyector y aire acondicionado."></textarea>
-          </app-form-field>
-
-          <div class="acciones ancho-completo">
-            <app-button tipo="submit" [texto]="guardando() ? 'Guardando…' : (editandoId() ? 'Guardar Cambios' : 'Crear Sala')" [deshabilitado]="guardando()" />
-            @if (editandoId()) {
-              <app-button texto="Cancelar edición" variante="contorno" (presionado)="limpiar()" />
-            }
+          <div style="align-self:end; margin-bottom:0.9rem; display:flex; gap:0.5rem;">
+            <app-button tipo="submit" [texto]="editandoId() ? 'Actualizar Sala' : 'Crear Sala'" />
+            @if (editandoId()) { <app-button texto="Cancelar" variante="contorno" (presionado)="reset()" /> }
           </div>
         </form>
       </app-card>
 
-      <h3 style="margin-top: 2rem;">Salas registradas</h3>
-      <div class="tabla-responsive">
+      <app-card style="margin-top:1.5rem;">
+        <h3>Consultar Disponibilidad por Franja Horaria</h3>
+        <div style="display:flex; gap:0.75rem; flex-wrap:wrap; align-items:flex-end;">
+          <label>Inicio: <input type="datetime-local" class="campo" [(ngModel)]="inicio" /></label>
+          <label>Fin: <input type="datetime-local" class="campo" [(ngModel)]="fin" /></label>
+          <app-button texto="Consultar" variante="contorno" (presionado)="consultarDisp()" />
+        </div>
+        @if (disp(); as d) {
+          <p style="margin-top:0.75rem;"><strong>Libres:</strong> {{ d.salasDisponibles }} de {{ d.totalSalas }}</p>
+        }
+      </app-card>
+
+      <div class="tabla-responsive" style="margin-top:1.5rem;">
         <table class="tabla">
-          <thead>
-            <tr><th>ID</th><th>Sede</th><th>Nombre</th><th>Capacidad</th><th>Descripción</th><th>Tarifa / hora</th><th>Estado</th><th>Acciones</th></tr>
-          </thead>
+          <thead><tr><th>ID</th><th>Nombre</th><th>Capacidad</th><th>Tarifa/Hora</th><th>Estado</th><th>Acciones</th></tr></thead>
           <tbody>
-            @for (s of salasVisibles(); track s.id) {
+            @for (s of salas(); track s.id) {
               <tr>
                 <td>#{{ s.id }}</td>
-                <td>{{ nombreSede(s.sedeId) }}</td>
                 <td><strong>{{ s.nombre }}</strong></td>
-                <td>{{ s.capacidad }}</td>
-                <td>{{ s.descripcion || '—' }}</td>
-                <td>{{ s.tarifaPorHora | currency }}</td>
-                <td><app-badge [texto]="s.activa ? 'Activa' : 'Inactiva'" [estado]="s.activa ? 'ACTIVA' : 'FUERA_DE_SERVICIO'" /></td>
-                <td class="celda-acciones">
-                  <app-button texto="Editar" tamano="pequeno" variante="contorno" (presionado)="editar(s)" />
+                <td>{{ s.capacidad }} personas</td>
+                <td>{{ s.tarifaPorHora | currency:'COP':'symbol-narrow':'1.0-0' }}</td>
+                <td><app-badge [texto]="s.activa ? 'Activa' : 'Inactiva'" [estado]="s.activa ? 'ACTIVA' : 'VENCIDO'" /></td>
+                <td style="display:flex; gap:0.4rem;">
+                  <app-button texto="Editar" variante="contorno" tamano="pequeno" (presionado)="editar(s)" />
+                  <app-button texto="Editar" variante="contorno" tamano="pequeno" (presionado)="editar(s)" />
                   <app-button [texto]="s.activa ? 'Desactivar' : 'Activar'" tamano="pequeno" variante="secundario" (presionado)="alternarActiva(s)" />
-                  <app-button texto="Eliminar" tamano="pequeno" variante="peligro" (presionado)="pedirEliminar(s)" />
+                  <app-button texto="Eliminar" variante="peligro" tamano="pequeno" (presionado)="pedirEliminar(s)" />
+                  <app-button texto="Eliminar" variante="peligro" tamano="pequeno" (presionado)="pedirEliminar(s)" />
                 </td>
               </tr>
-            } @empty {
-              <tr><td colspan="8">Aún no hay salas registradas.</td></tr>
             }
           </tbody>
         </table>
       </div>
 
       <app-confirm-dialog
-        [(abierto)]="dialogoEliminar"
-        titulo="Eliminar sala"
-        [mensaje]="'¿Seguro que deseas eliminar la sala ' + (salaAEliminar()?.nombre ?? '') + '? Esta acción no se puede deshacer.'"
-        textoConfirmar="Eliminar"
+        [(abierto)]="confirmOpen"
+        titulo="Eliminar Sala de Estudio"
+        [mensaje]="'¿Confirmas eliminar la sala ' + (salaSel()?.nombre || '') + '? Si tiene reservas activas la operación será bloqueada.'"
         [peligro]="true"
-        (confirmar)="eliminar()"
+        (confirmar)="ejecutarEliminar()"
       />
     </app-panel-template>
   `,
-  styles: [`
-    .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 0.75rem; }
-    .ancho-completo { grid-column: 1 / -1; }
-    .acciones { display: flex; gap: 0.6rem; }
-    .celda-acciones { display: flex; gap: 0.4rem; flex-wrap: wrap; }
-    textarea.campo { resize: vertical; }
-  `]
+  styles: [`.form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 0.75rem; }`]
 })
 export class StaffRoomsPage implements OnInit {
   private readonly ops = inject(OperacionesService);
-  private readonly catalogo = inject(CatalogoService);
   private readonly auth = inject(AuthService);
   private readonly ui = inject(NotificacionesUiService);
 
   protected readonly salas = signal<SalaEstudioDTO[]>([]);
-  protected readonly sedes = signal<SedeDTO[]>([]);
-  protected readonly guardando = signal(false);
+  protected readonly disp = signal<DisponibilidadSalasDTO | null>(null);
   protected readonly editandoId = signal<number | null>(null);
-  protected readonly salaAEliminar = signal<SalaEstudioDTO | null>(null);
-  protected dialogoEliminar = false;
+  protected form: Partial<SalaEstudioDTO> = { nombre: '', capacidad: 4, tarifaPorHora: 10000, descripcion: '', activa: true };
+  protected inicio = ''; protected fin = '';
 
-  /** Un bibliotecario con sede asignada solo gestiona las salas de su sede; el ADMIN gestiona todas. */
-  private readonly sedePropia = computed(() => (this.auth.rol() === 'BIBLIOTECARIO' ? this.auth.perfil()?.sedeId ?? null : null));
-  protected readonly sedeBloqueada = computed(() => this.sedePropia() !== null);
-  protected readonly salasVisibles = computed(() => {
-    const propia = this.sedePropia();
-    return propia ? this.salas().filter((s) => s.sedeId === propia) : this.salas();
-  });
+  protected readonly confirmOpen = signal(false);
+  protected readonly salaSel = signal<SalaEstudioDTO | null>(null);
 
-  protected sedeId: number | null = null;
-  protected nombre = '';
-  protected capacidad: number | null = null;
-  protected descripcion = '';
-  protected tarifaPorHora: number | null = null;
-  protected activa = true;
-
-  ngOnInit(): void {
-    this.cargar();
-    this.catalogo.listarTodasSedes()
-      .pipe(catchError(() => this.catalogo.listarSedesActivas()))
-      .subscribe((s) => {
-        this.sedeId = this.sedePropia() ?? this.auth.perfil()?.sedeId ?? s[0]?.id ?? null;
-        this.sedes.set(s);
-      });
-  }
+  ngOnInit(): void { this.cargar(); this.consultarDisp(); }
 
   private cargar(): void {
-    this.ops.listarSalas().subscribe((s) => this.salas.set(s));
+    const sedeId = this.auth.perfil()?.sedeId;
+    this.ops.listarSalas().subscribe((all) =>
+      this.salas.set(sedeId ? all.filter((s) => s.sedeId === sedeId) : all)
+    );
   }
 
-  protected nombreSede(id: number): string {
-    return this.sedes().find((s) => s.id === id)?.nombre ?? `Sede #${id}`;
+  protected consultarDisp(): void {
+    const sedeId = this.auth.perfil()?.sedeId;
+    if (!sedeId) return;
+    this.ops.disponibilidadSalas(sedeId, this.inicio || undefined, this.fin || undefined).subscribe((d) => this.disp.set(d));
   }
 
-  protected limpiar(): void {
-    this.editandoId.set(null);
-    this.nombre = '';
-    this.capacidad = null;
-    this.descripcion = '';
-    this.tarifaPorHora = null;
-    this.activa = true;
-    this.sedeId = this.sedePropia() ?? this.sedeId;
-  }
-
-  protected editar(s: SalaEstudioDTO): void {
-    this.editandoId.set(s.id);
-    this.sedeId = s.sedeId;
-    this.nombre = s.nombre;
-    this.capacidad = s.capacidad;
-    this.descripcion = s.descripcion ?? '';
-    this.tarifaPorHora = s.tarifaPorHora;
-    this.activa = s.activa;
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  }
+  protected editar(s: SalaEstudioDTO): void { this.editandoId.set(s.id); this.form = { ...s }; }
+  protected reset(): void { this.editandoId.set(null); this.form = { nombre: '', capacidad: 4, tarifaPorHora: 10000, descripcion: '', activa: true }; }
 
   protected guardar(): void {
-    const capacidad = Number(this.capacidad);
-    const tarifa = Number(this.tarifaPorHora);
-    const sedeId = this.sedePropia() ?? this.sedeId;
-
-    if (!sedeId || !this.nombre.trim() || !this.capacidad || this.tarifaPorHora === null) {
-      this.ui.mostrar('Completa sede, nombre, capacidad y tarifa por hora.', 'advertencia');
-      return;
-    }
-    if (!Number.isInteger(capacidad) || capacidad < 1) {
-      this.ui.mostrar('La capacidad debe ser un número entero mayor a 0.', 'advertencia');
-      return;
-    }
-    if (!Number.isFinite(tarifa) || tarifa < 0) {
-      this.ui.mostrar('La tarifa por hora no puede ser negativa.', 'advertencia');
-      return;
-    }
-
-    const dto: Partial<SalaEstudioDTO> = {
-      nombre: this.nombre.trim(),
-      capacidad,
-      descripcion: this.descripcion.trim(),
-      tarifaPorHora: tarifa,
-      activa: this.activa,
-      sedeId: Number(sedeId),
-    };
-
+    const sedeId = this.auth.perfil()?.sedeId;
+    if (!this.form.nombre?.trim() || !sedeId) return;
+    const payload = { ...this.form, sedeId };
     const id = this.editandoId();
-    const peticion = id ? this.ops.actualizarSala(id, { ...dto, id }) : this.ops.crearSala(dto);
-
-    this.guardando.set(true);
-    peticion.subscribe({
-      next: () => {
-        this.guardando.set(false);
-        this.ui.mostrar(id ? 'Sala actualizada correctamente.' : 'Sala creada correctamente.', 'exito');
-        this.limpiar();
-        this.cargar();
-      },
-      error: (e) => {
-        this.guardando.set(false);
-        this.ui.mostrar(extraerMensajeError(e), 'error');
-      },
+    (id ? this.ops.actualizarSala(id, payload) : this.ops.crearSala(payload)).subscribe({
+      next: () => { this.ui.mostrar(id ? 'Sala actualizada.' : 'Sala creada.', 'exito'); this.reset(); this.cargar(); },
+      error: (e) => this.ui.mostrar(extraerMensajeError(e), 'error'),
     });
   }
 
@@ -235,21 +150,12 @@ export class StaffRoomsPage implements OnInit {
       error: (e) => this.ui.mostrar(extraerMensajeError(e), 'error'),
     });
   }
-
-  protected pedirEliminar(s: SalaEstudioDTO): void {
-    this.salaAEliminar.set(s);
-    this.dialogoEliminar = true;
-  }
-
-  protected eliminar(): void {
-    const s = this.salaAEliminar();
-    if (!s) return;
+  
+  protected pedirEliminar(s: SalaEstudioDTO): void { this.salaSel.set(s); this.confirmOpen.set(true); }
+  protected ejecutarEliminar(): void {
+    const s = this.salaSel(); if (!s) return;
     this.ops.eliminarSala(s.id).subscribe({
-      next: () => {
-        this.ui.mostrar('Sala eliminada.', 'exito');
-        if (this.editandoId() === s.id) this.limpiar();
-        this.cargar();
-      },
+      next: () => { this.ui.mostrar('Sala eliminada.', 'info'); this.cargar(); },
       error: (e) => this.ui.mostrar(extraerMensajeError(e), 'error'),
     });
   }

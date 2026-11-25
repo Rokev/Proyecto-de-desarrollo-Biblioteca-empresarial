@@ -43,12 +43,13 @@ export const routes: Routes = [
   // Panel Bibliotecario
   { path: 'panel', canActivate: [roleGuard(['BIBLIOTECARIO', 'ADMIN'])], title: 'Panel Sede', loadComponent: () => import('./features/panel-bibliotecario/staff-dashboard-page').then(m => m.StaffDashboardPage) },
   { path: 'panel/prestamos', canActivate: [roleGuard(['BIBLIOTECARIO', 'ADMIN'])], title: 'Gestión Préstamos', loadComponent: () => import('./features/panel-bibliotecario/staff-operations-page').then(m => m.StaffOperationsPage) },
-  { path: 'panel/reservas', canActivate: [roleGuard(['BIBLIOTECARIO', 'ADMIN'])], title: 'Gestión Reservas', loadComponent: () => import('./features/panel-bibliotecario/staff-operations-page').then(m => m.StaffOperationsPage) },
+  { path: 'panel/prestamos/:id', canActivate: [roleGuard(['BIBLIOTECARIO', 'ADMIN'])], title: 'Detalle de Préstamo', loadComponent: () => import('./features/panel-bibliotecario/staff-loan-detail-page').then(m => m.StaffLoanDetailPage) },
+  { path: 'panel/reservas', canActivate: [roleGuard(['BIBLIOTECARIO', 'ADMIN'])], title: 'Gestión Reservas', loadComponent: () => import('./features/panel-bibliotecario/staff-reservations-page').then(m => m.StaffReservationsPage) },
   { path: 'panel/devoluciones', canActivate: [roleGuard(['BIBLIOTECARIO', 'ADMIN'])], title: 'Confirmar Devolución', loadComponent: () => import('./features/panel-bibliotecario/return-confirmation-page').then(m => m.ReturnConfirmationPage) },
   { path: 'panel/libros', canActivate: [roleGuard(['BIBLIOTECARIO', 'ADMIN'])], title: 'Gestión Libros, Autores y Géneros', loadComponent: () => import('./features/panel-bibliotecario/staff-catalog-page').then(m => m.StaffCatalogPage) },
   { path: 'panel/ejemplares', canActivate: [roleGuard(['BIBLIOTECARIO', 'ADMIN'])], title: 'Ejemplares y Stock', loadComponent: () => import('./features/panel-bibliotecario/staff-copies-page').then(m => m.StaffCopiesPage) },
-  { path: 'panel/salas', canActivate: [roleGuard(['BIBLIOTECARIO', 'ADMIN'])], title: 'Salas Sede', loadComponent: () => import('./features/panel-bibliotecario/staff-rooms-page').then(m => m.StaffRoomsPage) },
-  { path: 'panel/eventos', canActivate: [roleGuard(['BIBLIOTECARIO', 'ADMIN'])], title: 'Eventos Sede', loadComponent: () => import('./features/eventos/events-page').then(m => m.EventsPage) },
+  { path: 'panel/salas', canActivate: [roleGuard(['BIBLIOTECARIO', 'ADMIN'])], title: 'Gestión Salas', loadComponent: () => import('./features/panel-bibliotecario/staff-rooms-page').then(m => m.StaffRoomsPage) },
+  { path: 'panel/eventos', canActivate: [roleGuard(['BIBLIOTECARIO', 'ADMIN'])], title: 'Gestión Eventos', loadComponent: () => import('./features/panel-bibliotecario/staff-events-page').then(m => m.StaffEventsPage) },
 
   // Panel Repartidor
   { path: 'reparto', canActivate: [roleGuard(['REPARTIDOR'])], title: 'Tablero Repartidor', loadComponent: () => import('./features/panel-repartidor/delivery-board-page').then(m => m.DeliveryBoardPage) },
