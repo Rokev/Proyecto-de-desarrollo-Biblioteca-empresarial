@@ -17,8 +17,7 @@ public class InscripcionEventoDTO {
     @Schema(description = "id unico de inscripcion", example = "1", accessMode = Schema.AccessMode.READ_ONLY)
     private Long id;
 
-    @NotNull(message = "El campo fechaInscripcion es obligatorio")
-    @Schema(description = "Fecha de inscripcion", example = "2026-10-17T10:00:00", requiredMode = Schema.RequiredMode.REQUIRED)
+    @Schema(description = "Fecha de inscripcion (la asigna el servidor si no se envia)", example = "2026-10-17T10:00:00")
     private LocalDateTime fechaInscripcion;
 
     @Min(value = 1, message = "El campo cantidadCupos debe ser al menos 1")

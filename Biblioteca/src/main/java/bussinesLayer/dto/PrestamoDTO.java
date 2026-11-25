@@ -18,8 +18,7 @@ public class PrestamoDTO {
     @Schema(description = "id unico de prestamo", example = "1", accessMode = Schema.AccessMode.READ_ONLY)
     private Long id;
 
-    @NotNull(message = "El campo fechaSolicitud es obligatorio")
-    @Schema(description = "Fecha de solicitud", example = "2026-10-17T10:00:00", requiredMode = Schema.RequiredMode.REQUIRED)
+    @Schema(description = "Fecha de solicitud (la asigna el servidor si no se envía)", example = "2026-10-17T10:00:00")
     private LocalDateTime fechaSolicitud;
 
     @Schema(description = "Fecha de entrega del libro", example = "2026-10-17T12:00:00")

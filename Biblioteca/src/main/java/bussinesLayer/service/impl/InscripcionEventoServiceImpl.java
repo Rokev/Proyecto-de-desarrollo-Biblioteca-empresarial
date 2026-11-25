@@ -51,6 +51,9 @@ public class InscripcionEventoServiceImpl implements InscripcionEventoService {
         }
         dto.setEstado(ESTADO_ACTIVA);
         dto.setFechaCancelacion(null);
+        if (dto.getFechaInscripcion() == null) {
+            dto.setFechaInscripcion(LocalDateTime.now());
+        }
 
         if (eventoDAO.descontarCupos(dto.getEventoId(), dto.getCantidadCupos()) == 0) {
             throw new BusinessValidationException(
