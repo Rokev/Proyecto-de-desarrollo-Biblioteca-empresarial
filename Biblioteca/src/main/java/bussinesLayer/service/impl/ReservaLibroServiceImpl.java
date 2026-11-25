@@ -67,6 +67,9 @@ public class ReservaLibroServiceImpl implements ReservaLibroService {
         if (dto.getEstado() == null || dto.getEstado().isBlank()) {
             dto.setEstado(ESTADO_EN_ESPERA);
         }
+        if (dto.getFechaReserva() == null) {
+            dto.setFechaReserva(LocalDateTime.now());
+        }
 
         ReservaLibroDTO guardada = reservaLibroDAO.save(dto);
         log.info("Reserva de libro creada con ID: {}", guardada.getId());

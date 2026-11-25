@@ -185,18 +185,29 @@ public class UsuarioServiceImpl implements UsuarioService {
         return reactivado;
     }
 
-    @Override
     public UsuarioDTO actualizarPerfil(Long id, ActualizarPerfilDTO perfil) {
         UsuarioDTO usuario = buscarUsuario(id);
         usuario.setNombre(perfil.getNombre());
         usuario.setApellido(perfil.getApellido());
         usuario.setTelefono(perfil.getTelefono());
         usuario.setDireccion(perfil.getDireccion());
+
+        String nuevoNombre = perfil.getNombreUsuario() == null ? null : perfil.getNombreUsuario().trim();
+        if (nuevoNombre != null && !nuevoNombre.isEmpty()
+                && !nuevoNombre.equalsIgnoreCase(usuario.getNombreUsuario())) {
+            usuarioDAO.findByNombreUsuarioIgnoreCase(nuevoNombre)
+                    .filter(otro -> !otro.getId().equals(id))
+                    .ifPresent(otro -> {
+                        throw new BusinessValidationException(
+                                "Ya existe un usuario con el nombre de usuario: " + nuevoNombre);
+                    });
+            usuario.setNombreUsuario(nuevoNombre);
+        }
+
         usuario.setContrasena(null); // null = conservar la contrasena actual
         return usuarioDAO.update(id, usuario)
                 .orElseThrow(() -> new ResourceNotFoundException("Usuario no encontrado con ID: " + id));
     }
-
     private UsuarioDTO buscarUsuario(Long id) {
         return usuarioDAO.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Usuario no encontrado con ID: " + id));

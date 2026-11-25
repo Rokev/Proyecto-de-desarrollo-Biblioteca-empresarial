@@ -16,7 +16,6 @@ public class ReservaLibroDTO {
     @Schema(description = "id unico de reserva", example = "1", accessMode = Schema.AccessMode.READ_ONLY)
     private Long id;
 
-    @NotNull(message = "El campo fechaReserva es obligatorio")
     @Schema(description = "Fecha de reserva", example = "2026-10-17T10:00:00", requiredMode = Schema.RequiredMode.REQUIRED)
     private LocalDateTime fechaReserva;
 

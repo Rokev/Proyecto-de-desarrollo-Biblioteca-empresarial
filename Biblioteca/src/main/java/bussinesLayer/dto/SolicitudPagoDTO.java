@@ -6,6 +6,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import java.math.BigDecimal;
+import java.util.List;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -45,4 +46,7 @@ public class SolicitudPagoDTO {
 
     @Schema(description = "ID del pedido interciudad a pagar (Obligatorio si el concepto es ENVIO_INTERCIUDAD)", example = "1")
     private Long pedidoInterciudadId;
+
+    @Schema(description = "IDs de las multas a pagar juntas (alternativa a multaId). El monto debe ser la suma de todas.", example = "[1, 2]")
+    private List<Long> multaIds;
 }

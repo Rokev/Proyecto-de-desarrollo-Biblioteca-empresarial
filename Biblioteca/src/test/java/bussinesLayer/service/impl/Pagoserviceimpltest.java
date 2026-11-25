@@ -180,6 +180,11 @@ class PagoServiceImplTest {
     }
 
     private void guardarAsignandoId() {
+        MetodoPagoDTO metodo = new MetodoPagoDTO();
+        metodo.setId(1L);
+        when(metodoPagoDAO.findFirstByUsuarioIdAndPredeterminadoTrue(any()))
+                .thenReturn(Optional.of(metodo));
+
         when(pagoDAO.save(any(PagoDTO.class))).thenAnswer(inv -> {
             PagoDTO p = inv.getArgument(0);
             p.setId(PAGO_ID);
@@ -1144,5 +1149,48 @@ class PagoServiceImplTest {
         assertEquals(2, resultado.size());
         assertFalse(resultado.stream().anyMatch(p -> p.getFechaPago() == null));
         assertNotNull(resultado.get(0).getFechaPago());
+    }
+
+    @Test
+    void procesar_variasMultas_sumaMontosYGeneraUnSoloPago() {
+        usuarioExiste();
+        guardarAsignandoId();
+        MultaDTO m1 = multa(1L, "5000");
+        MultaDTO m2 = multa(2L, "7000");
+        when(multaDAO.findById(1L)).thenReturn(Optional.of(m1));
+        when(multaDAO.findById(2L)).thenReturn(Optional.of(m2));
+
+        SolicitudPagoDTO s = solicitud("MULTA", "12000", TARJETA_APROBADA);
+        s.setMultaId(null);
+        s.setMultaIds(List.of(1L, 2L));
+
+        ComprobantePagoDTO c = service.procesarPagoSimulado(s);
+
+        assertEquals("APROBADO", c.getEstado());
+        verify(pagoDAO, times(1)).save(any());
+        assertEquals("PAGADA", m1.getEstado());
+        assertEquals("PAGADA", m2.getEstado());
+    }
+
+    @Test
+    void procesar_variasMultas_montoDistintoDeLaSuma_lanzaBusinessValidation() {
+        usuarioExiste();
+        when(multaDAO.findById(1L)).thenReturn(Optional.of(multa(1L, "5000")));
+        when(multaDAO.findById(2L)).thenReturn(Optional.of(multa(2L, "7000")));
+
+        SolicitudPagoDTO s = solicitud("MULTA", "5000", TARJETA_APROBADA);
+        s.setMultaId(null);
+        s.setMultaIds(List.of(1L, 2L));
+
+        assertThrows(BusinessValidationException.class, () -> service.procesarPagoSimulado(s));
+    }
+
+    private MultaDTO multa(Long id, String monto) {
+        MultaDTO m = new MultaDTO();
+        m.setId(id);
+        m.setUsuarioId(USUARIO_ID);
+        m.setEstado("PENDIENTE");
+        m.setMonto(new BigDecimal(monto));
+        return m;
     }
 }

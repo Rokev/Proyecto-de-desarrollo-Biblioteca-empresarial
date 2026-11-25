@@ -143,9 +143,11 @@ public class PagoServiceImpl implements PagoService {
             suscripcionPorPagar = validarPagoSuscripcion(
                     solicitud.getUsuarioId(), solicitud.getPlanSuscripcionId(), solicitud.getMonto());
         }
+        List<Long> idsMultas = List.of();
         if (CONCEPTO_MULTA.equalsIgnoreCase(solicitud.getConcepto())
                 || CONCEPTO_RECARGO.equalsIgnoreCase(solicitud.getConcepto())) {
-            validarPagoMulta(solicitud.getUsuarioId(), solicitud.getMultaId(), solicitud.getMonto());
+            idsMultas = idsDeMultas(solicitud);
+            validarPagoMultas(solicitud.getUsuarioId(), idsMultas, solicitud.getMonto());
         }
 
         boolean esAprobado = esTarjetaAprobada(solicitud.getNumeroTarjeta());
@@ -162,12 +164,15 @@ public class PagoServiceImpl implements PagoService {
         pago.setFechaPago(ahora);
         pago.setReferencia(numReferencia);
         pago.setUsuarioId(solicitud.getUsuarioId());
-        pago.setMetodoPagoId(1L); // Método de pago por defecto para la pasarela simulada
+        pago.setMetodoPagoId(metodoPagoParaPasarela(solicitud.getUsuarioId()));
+        pago.setUltimosCuatroDigitos(ultimosCuatro);
+
 
         // Solo se enlaza el recurso que corresponde al concepto (ya validado arriba)
         if (CONCEPTO_MULTA.equalsIgnoreCase(solicitud.getConcepto())
                 || CONCEPTO_RECARGO.equalsIgnoreCase(solicitud.getConcepto())) {
-            pago.setMultaId(solicitud.getMultaId());
+            pago.setMultaIds(idsMultas);
+            pago.setMultaId(idsMultas.size() == 1 ? idsMultas.get(0) : null);
         }
         if (suscripcionPorPagar != null) {
             pago.setSuscripcionId(suscripcionPorPagar.getId());
@@ -193,13 +198,12 @@ public class PagoServiceImpl implements PagoService {
         switch (conceptoUpper) {
             case CONCEPTO_MULTA:
             case CONCEPTO_RECARGO:
-                if (solicitud.getMultaId() == null) {
-                    throw new BusinessValidationException("Debe especificar la multaId para procesar un pago de multa o recargo");
+                for (Long idMulta : idsMultas) {
+                    MultaDTO multaPagada = multaDAO.findById(idMulta)
+                            .orElseThrow(() -> new ResourceNotFoundException("Multa no encontrada con ID: " + idMulta));
+                    multaPagada.setEstado("PAGADA");
+                    multaDAO.update(multaPagada.getId(), multaPagada);
                 }
-                MultaDTO multa = multaDAO.findById(solicitud.getMultaId())
-                        .orElseThrow(() -> new ResourceNotFoundException("Multa no encontrada con ID: " + solicitud.getMultaId()));
-                multa.setEstado("PAGADA");
-                multaDAO.update(multa.getId(), multa);
                 break;
 
             case CONCEPTO_SUSCRIPCION:
@@ -244,7 +248,7 @@ public class PagoServiceImpl implements PagoService {
     public ComprobantePagoDTO obtenerComprobantePorId(Long id) {
         PagoDTO pago = pagoDAO.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Registro de pago no encontrado con ID: " + id));
-        return crearComprobante(pago, "****", "Consulta de comprobante");
+        return crearComprobante(pago, digitos(pago), "Consulta de comprobante");
     }
 
     @Override
@@ -254,7 +258,7 @@ public class PagoServiceImpl implements PagoService {
             throw new ResourceNotFoundException("Usuario no encontrado con ID: " + usuarioId);
         }
         return pagoDAO.findByUsuarioIdOrderByFechaPagoDesc(usuarioId).stream()
-                .map(pago -> crearComprobante(pago, "****", "Historial de transacciones de usuario"))
+                .map(pago -> crearComprobante(pago, digitos(pago), "Historial de transacciones de usuario"))
                 .toList();
     }
 
@@ -307,29 +311,70 @@ public class PagoServiceImpl implements PagoService {
 }
 
     /**
+     * Método de pago que usa la pasarela simulada: el predeterminado del usuario, o el primero que tenga.
+     * Si no tiene ninguno, se crea uno simulado (sin datos reales de tarjeta).
+     */
+    private Long metodoPagoParaPasarela(Long usuarioId) {
+        return metodoPagoDAO.findFirstByUsuarioIdAndPredeterminadoTrue(usuarioId)
+                .or(() -> metodoPagoDAO.findByUsuarioId(usuarioId).stream().findFirst())
+                .orElseGet(() -> {
+                    MetodoPagoDTO simulado = new MetodoPagoDTO();
+                    simulado.setTipo("TARJETA_SIMULADA");
+                    simulado.setMarca("SIMULADA");
+                    simulado.setTitular("Pasarela simulada");
+                    simulado.setPredeterminado(false);
+                    simulado.setUsuarioId(usuarioId);
+                    return metodoPagoDAO.save(simulado);
+                })
+                .getId();
+    }
+
+    /**
      * Valida el pago de una multa o recargo antes de cobrar: la multa debe existir, ser del usuario que paga,
      * estar pendiente y el monto debe ser exactamente el de la multa.
      */
-    private MultaDTO validarPagoMulta(Long usuarioId, Long multaId, BigDecimal monto) {
-        if (multaId == null) {
-            throw new BusinessValidationException("Debe especificar la multaId para pagar una multa o recargo");
+    /** Une multaId y multaIds en una lista sin repetidos, conservando el orden. */
+    private List<Long> idsDeMultas(SolicitudPagoDTO solicitud) {
+        java.util.LinkedHashSet<Long> ids = new java.util.LinkedHashSet<>();
+        if (solicitud.getMultaId() != null) {
+            ids.add(solicitud.getMultaId());
         }
-        MultaDTO multa = multaDAO.findById(multaId)
-                .orElseThrow(() -> new ResourceNotFoundException("Multa no encontrada con ID: " + multaId));
-        if (!multa.getUsuarioId().equals(usuarioId)) {
-            throw new BusinessValidationException("La multa " + multaId + " no pertenece al usuario " + usuarioId);
+        if (solicitud.getMultaIds() != null) {
+            solicitud.getMultaIds().stream().filter(java.util.Objects::nonNull).forEach(ids::add);
         }
-        if (!"PENDIENTE".equalsIgnoreCase(multa.getEstado())) {
-            throw new BusinessValidationException("Solo se puede pagar una multa PENDIENTE (estado actual: "
-                    + multa.getEstado() + ")");
-        }
-        if (monto.compareTo(multa.getMonto()) != 0) {
-            throw new BusinessValidationException("El monto del pago (" + monto
-                    + ") no coincide con el monto de la multa (" + multa.getMonto() + ")");
-        }
-        return multa;
+        return new java.util.ArrayList<>(ids);
     }
 
+    /**
+     * Valida el pago de una o varias multas antes de cobrar: todas deben existir, ser del usuario que paga,
+     * estar pendientes y el monto debe ser exactamente la suma de sus valores.
+     */
+    private List<MultaDTO> validarPagoMultas(Long usuarioId, List<Long> multaIds, BigDecimal monto) {
+        if (multaIds.isEmpty()) {
+            throw new BusinessValidationException("Debe especificar la multaId para pagar una multa o recargo");
+        }
+        List<MultaDTO> multas = new java.util.ArrayList<>();
+        BigDecimal total = BigDecimal.ZERO;
+        for (Long multaId : multaIds) {
+            MultaDTO multa = multaDAO.findById(multaId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Multa no encontrada con ID: " + multaId));
+            if (!multa.getUsuarioId().equals(usuarioId)) {
+                throw new BusinessValidationException("La multa " + multaId + " no pertenece al usuario " + usuarioId);
+            }
+            if (!"PENDIENTE".equalsIgnoreCase(multa.getEstado())) {
+                throw new BusinessValidationException("Solo se puede pagar una multa PENDIENTE (estado actual: "
+                        + multa.getEstado() + ")");
+            }
+            total = total.add(multa.getMonto());
+            multas.add(multa);
+        }
+        if (monto.compareTo(total) != 0) {
+            String que = multaIds.size() == 1 ? "el monto de la multa" : "la suma de las multas";
+            throw new BusinessValidationException("El monto del pago (" + monto
+                    + ") no coincide con " + que + " (" + total + ")");
+        }
+        return multas;
+    }
     private void activarSuscripcionSiCorresponde(PagoDTO pago) {
         if (!CONCEPTO_SUSCRIPCION.equalsIgnoreCase(pago.getConcepto())
                 || !ESTADO_APROBADO.equalsIgnoreCase(pago.getEstado())
@@ -446,6 +491,11 @@ public class PagoServiceImpl implements PagoService {
         comprobante.setMensaje(mensaje);
         comprobante.setUsuarioId(pago.getUsuarioId());
         return comprobante;
+    }
+
+        /** Últimos 4 dígitos guardados; "****" para pagos anteriores que no los registraron. */
+    private String digitos(PagoDTO pago) {
+        return pago.getUltimosCuatroDigitos() != null ? pago.getUltimosCuatroDigitos() : "****";
     }
 
     private void notificar(Long usuarioId, String tipo, String titulo, String mensaje) {
