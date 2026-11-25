@@ -77,7 +77,12 @@ export class LoginPage {
       },
       error: (e) => {
         this.cargando.set(false);
-        this.error.set(extraerMensajeError(e));
+        const msg = extraerMensajeError(e);
+        if (msg.toLowerCase().includes('suspendid') || msg.toLowerCase().includes('desactiv')) {
+          this.error.set('Tu cuenta está suspendida o desactivada. Comunícate con la administración de la biblioteca.');
+        } else {
+          this.error.set(msg);
+        }
       },
     });
   }

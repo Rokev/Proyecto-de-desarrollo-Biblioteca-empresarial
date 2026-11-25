@@ -191,6 +191,8 @@ export interface SalaEstudioDTO {
   capacidad: number;
   descripcion?: string;
   tarifaPorHora: number;
+  horaApertura?: string;
+  horaCierre?: string;
   activa: boolean;
   sedeId: number;
 }
@@ -359,10 +361,58 @@ export interface TarifaEnvioDTO {
 
 export interface AuditoriaDTO {
   id: number;
-  fechaHora: string;
+  fecha: string;
   accion: string;
   modulo: string;
   descripcion: string;
   usuarioId?: number;
-  usuarioCorreo?: string;
+  usuarioNombre?: string;
+  entidadId?: number;
+}
+
+export interface AsistenteEventoDTO {
+  inscripcionId: number;
+  usuarioId: number;
+  nombre: string;
+  correo: string;
+  cantidadCupos: number;
+  estado: string;
+  fechaInscripcion: string;
+}
+
+export interface ReporteDTO {
+  tipo: string;
+  titulo: string;
+  generadoEn: string;
+  desde?: string;
+  hasta?: string;
+  sedeId?: number;
+  columnas: string[];
+  filas: string[][];
+  resumen: Record<string, string>;
+  totalRegistros: number;
+}
+
+export interface PoliticaSancionDTO {
+  id?: number;
+  infraccion: string;
+  tipoSancion: 'BLOQUEO_PRESTAMOS' | 'SUSPENSION_CUENTA' | 'ADVERTENCIA';
+  duracionDias?: number | null;
+  activa: boolean;
+  descripcion?: string;
+}
+
+export interface PoliticaMultaDTO {
+  id?: number;
+  concepto: string;
+  monto: number;
+  descripcion?: string;
+}
+
+export interface PlazoSistemaDTO {
+  id?: number;
+  clave: string;
+  valor: number;
+  unidad?: string;
+  descripcion?: string;
 }

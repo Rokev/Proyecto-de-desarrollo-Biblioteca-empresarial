@@ -7,10 +7,24 @@ import {
   ChatbotRespuestaDTO,
   PagoDTO,
   PlanSuscripcionDTO,
+  PlazoSistemaDTO,
+  PoliticaMultaDTO,
+  PoliticaSancionDTO,
   PreguntaFrecuenteDTO,
+  ReporteDTO,
   TarifaEnvioDTO,
   UsuarioDTO,
 } from '../models/biblioteca.models';
+
+export interface FiltrosAuditoria {
+  usuarioId?: number | null;
+  desde?: string;
+  hasta?: string;
+  accion?: string;
+  modulo?: string;
+  pagina?: number;
+  tamanio?: number;
+}
 
 @Injectable({ providedIn: 'root' })
 export class AdminService {
@@ -52,23 +66,23 @@ export class AdminService {
     return this.http.post<PlanSuscripcionDTO>(`${this.api}/planes-suscripcion/${id}/reactivar`, {});
   }
 
-  obtenerPoliticasSancion(): Observable<unknown[]> {
-    return this.http.get<unknown[]>(`${this.api}/configuracion/sanciones`);
+  obtenerPoliticasSancion(): Observable<PoliticaSancionDTO[]> {
+    return this.http.get<PoliticaSancionDTO[]>(`${this.api}/configuracion/sanciones`);
   }
-  actualizarPoliticaSancion(infraccion: string, body: unknown): Observable<unknown> {
-    return this.http.put(`${this.api}/configuracion/sanciones/${infraccion}`, body);
+  actualizarPoliticaSancion(infraccion: string, body: PoliticaSancionDTO): Observable<PoliticaSancionDTO> {
+    return this.http.put<PoliticaSancionDTO>(`${this.api}/configuracion/sanciones/${infraccion}`, body);
   }
-  obtenerPoliticasMulta(): Observable<unknown[]> {
-    return this.http.get<unknown[]>(`${this.api}/configuracion/multas`);
+  obtenerPoliticasMulta(): Observable<PoliticaMultaDTO[]> {
+    return this.http.get<PoliticaMultaDTO[]>(`${this.api}/configuracion/multas`);
   }
-  actualizarPoliticaMulta(concepto: string, body: unknown): Observable<unknown> {
-    return this.http.put(`${this.api}/configuracion/multas/${concepto}`, body);
+  actualizarPoliticaMulta(concepto: string, body: PoliticaMultaDTO): Observable<PoliticaMultaDTO> {
+    return this.http.put<PoliticaMultaDTO>(`${this.api}/configuracion/multas/${concepto}`, body);
   }
-  obtenerPlazos(): Observable<unknown[]> {
-    return this.http.get<unknown[]>(`${this.api}/configuracion/plazos`);
+  obtenerPlazos(): Observable<PlazoSistemaDTO[]> {
+    return this.http.get<PlazoSistemaDTO[]>(`${this.api}/configuracion/plazos`);
   }
-  actualizarPlazo(clave: string, body: unknown): Observable<unknown> {
-    return this.http.put(`${this.api}/configuracion/plazos/${clave}`, body);
+  actualizarPlazo(clave: string, body: PlazoSistemaDTO): Observable<PlazoSistemaDTO> {
+    return this.http.put<PlazoSistemaDTO>(`${this.api}/configuracion/plazos/${clave}`, body);
   }
 
   listarTarifas(): Observable<TarifaEnvioDTO[]> {
@@ -82,6 +96,13 @@ export class AdminService {
 
   tiposReporte(): Observable<string[]> {
     return this.http.get<string[]>(`${this.api}/reportes/tipos`);
+  }
+  generarReporteJson(tipo: string, desde?: string, hasta?: string, sedeId?: number): Observable<ReporteDTO> {
+    let params = new HttpParams();
+    if (desde) params = params.set('desde', desde);
+    if (hasta) params = params.set('hasta', hasta);
+    if (sedeId) params = params.set('sedeId', sedeId);
+    return this.http.get<ReporteDTO>(`${this.api}/reportes/${tipo}`, { params });
   }
   exportarReporte(tipo: string, formato: 'PDF' | 'CSV', desde?: string, hasta?: string, sedeId?: number): Observable<Blob> {
     let params = new HttpParams().set('formato', formato);
@@ -98,11 +119,16 @@ export class AdminService {
     if (hasta) params = params.set('hasta', hasta);
     return this.http.get<PagoDTO[]>(`${this.api}/pagos/filtrar`, { params });
   }
-  listarAuditoria(modulo?: string, accion?: string): Observable<AuditoriaDTO[]> {
-    let params = new HttpParams();
-    if (modulo) params = params.set('modulo', modulo);
-    if (accion) params = params.set('accion', accion);
-    return this.http.get<AuditoriaDTO[]>(`${this.api}/auditoria/filtros`, { params });
+  listarAuditoria(f: FiltrosAuditoria = {}): Observable<AuditoriaDTO[]> {
+    let params = new HttpParams()
+      .set('pagina', f.pagina ?? 0)
+      .set('tamanio', f.tamanio ?? 50);
+    if (f.usuarioId) params = params.set('usuarioId', f.usuarioId);
+    if (f.desde) params = params.set('desde', f.desde);
+    if (f.hasta) params = params.set('hasta', f.hasta);
+    if (f.accion) params = params.set('accion', f.accion);
+    if (f.modulo) params = params.set('modulo', f.modulo);
+    return this.http.get<AuditoriaDTO[]>(`${this.api}/auditoria`, { params });
   }
 
   enviarMensajeChatbot(mensaje: string): Observable<ChatbotRespuestaDTO> {

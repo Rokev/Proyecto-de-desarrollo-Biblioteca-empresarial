@@ -3,6 +3,7 @@ import { inject, Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import {
+  AsistenteEventoDTO,
   ComprobantePagoDTO,
   DevolucionDTO,
   DisponibilidadSalasDTO,
@@ -31,6 +32,9 @@ export class OperacionesService {
   // Préstamos
   crearPrestamo(dto: PrestamoDTO): Observable<PrestamoDTO> {
     return this.http.post<PrestamoDTO>(`${this.api}/prestamos`, dto);
+  }
+  obtenerPrestamo(id: number): Observable<PrestamoDTO> {
+    return this.http.get<PrestamoDTO>(`${this.api}/prestamos/${id}`);
   }
   prestamosPorUsuario(usuarioId: number): Observable<PrestamoDTO[]> {
     return this.http.get<PrestamoDTO[]>(`${this.api}/prestamos/usuario/${usuarioId}`);
@@ -201,8 +205,8 @@ export class OperacionesService {
   listarInscripciones(): Observable<InscripcionEventoDTO[]> {
     return this.http.get<InscripcionEventoDTO[]>(`${this.api}/inscripciones-evento`);
   }
-  asistentesEvento(eventoId: number): Observable<unknown[]> {
-    return this.http.get<unknown[]>(`${this.api}/inscripciones-evento/evento/${eventoId}`);
+  asistentesEvento(eventoId: number): Observable<AsistenteEventoDTO[]> {
+    return this.http.get<AsistenteEventoDTO[]>(`${this.api}/inscripciones-evento/evento/${eventoId}`);
   }
   cancelarInscripcion(id: number): Observable<void> {
     return this.http.delete<void>(`${this.api}/inscripciones-evento/${id}`);
