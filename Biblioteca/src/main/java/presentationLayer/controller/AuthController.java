@@ -24,6 +24,7 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.beans.factory.annotation.Value;
 
 import java.util.Map;
 
@@ -33,6 +34,8 @@ import java.util.Map;
 @Tag(name = "Autenticacion", description = "Inicio de sesion, registro, cierre de sesion y recuperacion de contrasena")
 public class AuthController {
 
+    @Value("${app.recuperacion.mostrar-token:false}")
+    private boolean mostrarToken;
     private final AuthService authService;
     private final UsuarioService usuarioService;
 
@@ -56,11 +59,17 @@ public class AuthController {
     }
 
     @PostMapping("/recuperar")
-    @Operation(summary = "Solicitar recuperacion de contrasena", description = "Genera un token de 24 horas para restablecer la contrasena")
+    @Operation(summary = "Solicitar recuperacion de contrasena",
+            description = "Genera un token de 24 horas para restablecer la contrasena. "
+                    + "En modo simulacion (app.recuperacion.mostrar-token=true) el token viene en la respuesta.")
     public ResponseEntity<Map<String, String>> recuperar(@Valid @RequestBody RecuperarContrasenaDTO dto) {
-        authService.solicitarRecuperacion(dto.getCorreo());
-        return ResponseEntity.ok(Map.of("mensaje",
-                "Si el correo esta registrado, se genero un token de recuperacion"));
+        String token = authService.solicitarRecuperacion(dto.getCorreo());
+        Map<String, String> respuesta = new java.util.LinkedHashMap<>();
+        respuesta.put("mensaje", "Si el correo esta registrado, se genero un token de recuperacion");
+        if (mostrarToken) {
+            respuesta.put("token", token);
+        }
+        return ResponseEntity.ok(respuesta);
     }
 
     @PostMapping("/restablecer")
