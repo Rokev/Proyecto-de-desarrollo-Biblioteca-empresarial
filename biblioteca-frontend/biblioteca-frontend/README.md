@@ -4,6 +4,6 @@ Aplicación SPA en Angular 22 (Standalone, Zoneless, Signals, `OnPush`) bajo arq
 
 ## Instalación y Ejecución
 ```bash
-npm.cmd install
+npm.cmd install --legacy-peer-deps
 npm.cmd start
 ```
