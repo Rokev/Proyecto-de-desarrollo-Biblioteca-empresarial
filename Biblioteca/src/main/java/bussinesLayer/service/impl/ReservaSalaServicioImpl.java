@@ -57,6 +57,10 @@ class ReservaSalaServiceImpl implements ReservaSalaService {
         if (!Boolean.TRUE.equals(sala.getActiva())) {
             throw new BusinessValidationException("La sala de estudio no esta activa");
         }
+        if (!SalaHorario.dentroDeHorario(sala, dto.getFechaInicio(), dto.getFechaFin())) {
+            throw new BusinessValidationException("La sala solo atiende de " + SalaHorario.descripcion(sala)
+                    + "; la reserva debe quedar dentro de ese horario y en un mismo dia");
+        }
         if (reservaSalaDAO.existeSolape(dto.getSalaId(), dto.getFechaInicio(), dto.getFechaFin())) {
             throw new BusinessValidationException("La sala ya esta reservada en el horario solicitado");
         }

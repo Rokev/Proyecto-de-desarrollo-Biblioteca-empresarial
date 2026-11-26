@@ -1,5 +1,6 @@
 package bussinesLayer.dto;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Min;
@@ -7,6 +8,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import java.math.BigDecimal;
+import java.time.LocalTime;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -37,6 +39,14 @@ public class SalaEstudioDTO {
     @DecimalMin(value = "0.00", message = "El campo tarifaPorHora no puede ser negativo")
     @Schema(description = "Tarifa por hora", example = "10000.00", requiredMode = Schema.RequiredMode.REQUIRED)
     private BigDecimal tarifaPorHora;
+
+    @JsonFormat(pattern = "HH:mm")
+    @Schema(description = "Hora de apertura diaria de la sala (HH:mm). Opcional", example = "08:00", type = "string")
+    private LocalTime horaApertura;
+
+    @JsonFormat(pattern = "HH:mm")
+    @Schema(description = "Hora de cierre diaria de la sala (HH:mm). Opcional", example = "18:00", type = "string")
+    private LocalTime horaCierre;
 
     @Schema(description = "Indica si la sala esta activa", example = "true")
     private Boolean activa;
