@@ -185,8 +185,14 @@ export class StaffEventsPage implements OnInit {
     if (Object.keys(e).length > 0) return;
 
     const sedeId = this.auth.perfil()?.sedeId;
-    const payload: Partial<EventoDTO> = { ...this.form, sedeId: this.form.sedeId || sedeId };
     const id = this.editandoId();
+    const cupo = Number(this.form.cupoMaximo);
+    const payload: Partial<EventoDTO> = {
+      ...this.form,
+      cupoMaximo: cupo,
+      cuposDisponibles: id ? (this.form.cuposDisponibles ?? cupo) : cupo,
+      sedeId: this.form.sedeId || sedeId,
+    };
     (id ? this.ops.actualizarEvento(id, payload) : this.ops.crearEvento(payload)).subscribe({
       next: () => { this.ui.mostrar(id ? 'Evento actualizado y asistentes notificados.' : 'Evento publicado.', 'exito'); this.reset(); this.cargar(); },
       error: (err) => this.ui.mostrar(extraerMensajeError(err), 'error'),
