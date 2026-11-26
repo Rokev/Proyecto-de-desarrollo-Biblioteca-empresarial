@@ -38,12 +38,6 @@ import { PanelTemplate } from '../../shared/ui/templates/panel-template/panel-te
           <app-form-field etiqueta="Descripción" para="sDesc">
             <input id="sDesc" class="campo" [(ngModel)]="form.descripcion" name="desc" />
           </app-form-field>
-          <app-form-field etiqueta="¿Sala activa?" para="sActiva">
-            <select id="sActiva" class="campo" name="activa" [(ngModel)]="form.activa">
-              <option [ngValue]="true">Sí, activa</option>
-              <option [ngValue]="false">No, inactiva</option>
-            </select>
-          </app-form-field>
           <div style="align-self:end; margin-bottom:0.9rem; display:flex; gap:0.5rem;">
             <app-button tipo="submit" [texto]="editandoId() ? 'Actualizar Sala' : 'Crear Sala'" />
             @if (editandoId()) { <app-button texto="Cancelar" variante="contorno" (presionado)="reset()" /> }
@@ -76,9 +70,6 @@ import { PanelTemplate } from '../../shared/ui/templates/panel-template/panel-te
                 <td><app-badge [texto]="s.activa ? 'Activa' : 'Inactiva'" [estado]="s.activa ? 'ACTIVA' : 'VENCIDO'" /></td>
                 <td style="display:flex; gap:0.4rem;">
                   <app-button texto="Editar" variante="contorno" tamano="pequeno" (presionado)="editar(s)" />
-                  <app-button texto="Editar" variante="contorno" tamano="pequeno" (presionado)="editar(s)" />
-                  <app-button [texto]="s.activa ? 'Desactivar' : 'Activar'" tamano="pequeno" variante="secundario" (presionado)="alternarActiva(s)" />
-                  <app-button texto="Eliminar" variante="peligro" tamano="pequeno" (presionado)="pedirEliminar(s)" />
                   <app-button texto="Eliminar" variante="peligro" tamano="pequeno" (presionado)="pedirEliminar(s)" />
                 </td>
               </tr>
@@ -141,16 +132,6 @@ export class StaffRoomsPage implements OnInit {
     });
   }
 
-  protected alternarActiva(s: SalaEstudioDTO): void {
-    this.ops.actualizarSala(s.id, { ...s, activa: !s.activa }).subscribe({
-      next: () => {
-        this.ui.mostrar(`Sala ${s.activa ? 'desactivada' : 'activada'}.`, 'exito');
-        this.cargar();
-      },
-      error: (e) => this.ui.mostrar(extraerMensajeError(e), 'error'),
-    });
-  }
-  
   protected pedirEliminar(s: SalaEstudioDTO): void { this.salaSel.set(s); this.confirmOpen.set(true); }
   protected ejecutarEliminar(): void {
     const s = this.salaSel(); if (!s) return;

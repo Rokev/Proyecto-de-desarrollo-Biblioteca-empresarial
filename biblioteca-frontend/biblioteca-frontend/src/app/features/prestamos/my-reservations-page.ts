@@ -1,7 +1,7 @@
 import { DatePipe } from '@angular/common';
 import { Component, inject, OnInit, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { ReservaLibroDetalleDTO } from '../../core/models/biblioteca.models';
+import { ReservaLibroDTO } from '../../core/models/biblioteca.models';
 import { AuthService } from '../../core/services/auth.service';
 import { NotificacionesUiService } from '../../core/services/notificaciones-ui.service';
 import { OperacionesService } from '../../core/services/operaciones.service';
@@ -23,10 +23,10 @@ import { AccountTemplate } from '../../shared/ui/templates/account-template/acco
         <app-empty-state titulo="No tienes reservas" descripcion="Cuando un libro no tenga stock en una sede podrás reservarlo desde su ficha." />
       } @else {
         <div class="grid-cards">
-          @for (r of reservas(); track r.reservaId) {
+          @for (r of reservas(); track r.id) {
             <app-card>
               <div cardEncabezado class="head">
-                <strong>Reserva #{{ r.reservaId }} (Libro #{{ r.libroId }})</strong>
+                <strong>Reserva #{{ r.id }} (Libro #{{ r.libroId }})</strong>
                 <app-badge [texto]="r.estado || 'EN_ESPERA'" [estado]="r.estado || 'EN_ESPERA'" />
               </div>
               <p><strong>Sede:</strong> #{{ r.sedeId }} · <strong>Fecha:</strong> {{ r.fechaReserva | date:'d MMM y' }}</p>
@@ -35,7 +35,7 @@ import { AccountTemplate } from '../../shared/ui/templates/account-template/acco
               }
               @if (r.estado === 'EN_ESPERA' || r.estado === 'NOTIFICADA') {
                 <div cardPie>
-                  <app-button texto="Cancelar Reserva" variante="peligro" tamano="pequeno" (presionado)="pedirCancelar(r.reservaId)" />
+                  <app-button texto="Cancelar Reserva" variante="peligro" tamano="pequeno" (presionado)="pedirCancelar(r.id!)" />
                 </div>
               }
             </app-card>
@@ -60,7 +60,7 @@ export class MyReservationsPage implements OnInit {
   private readonly auth = inject(AuthService);
   private readonly ui = inject(NotificacionesUiService);
 
-  protected readonly reservas = signal<ReservaLibroDetalleDTO[]>([]);
+  protected readonly reservas = signal<ReservaLibroDTO[]>([]);
   protected readonly confirmOpen = signal(false);
   protected readonly idSel = signal<number | null>(null);
 
@@ -77,11 +77,8 @@ export class MyReservationsPage implements OnInit {
 
   protected ejecutarCancelar(): void {
     const id = this.idSel();
-    if (id == null) {
-      this.ui.mostrar('No se pudo identificar la reserva a cancelar. Recarga la página e inténtalo de nuevo.', 'error');
-      return;
-    }
-    this.ops.cancelarReservaLibro(id, this.auth.usuarioId()!).subscribe({
+    if (!id) return;
+    this.ops.cancelarReservaLibro(id).subscribe({
       next: () => { this.ui.mostrar('Reserva cancelada.', 'info'); this.cargar(); },
       error: (e) => this.ui.mostrar(extraerMensajeError(e), 'error'),
     });

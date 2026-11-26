@@ -1,4 +1,4 @@
-import { Component, inject, OnInit, signal } from '@angular/core';
+import { Component, inject, input, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { GeneroDTO, LibroDTO, SedeDTO } from '../../core/models/biblioteca.models';
@@ -89,6 +89,7 @@ export class CatalogPage implements OnInit {
   protected readonly generos = signal<GeneroDTO[]>([]);
   protected readonly sedes = signal<SedeDTO[]>([]);
 
+  readonly tituloQuery = input<string>(undefined, { alias: 'titulo' });
   protected titulo = '';
   protected autor = '';
   protected idioma = '';
@@ -100,6 +101,7 @@ export class CatalogPage implements OnInit {
   ngOnInit(): void {
     this.catalogo.listarGeneros().subscribe((g) => this.generos.set(g));
     this.catalogo.listarSedesActivas().subscribe((s) => this.sedes.set(s));
+    if (this.tituloQuery()) this.titulo = this.tituloQuery()!;
     this.buscar();
   }
 
@@ -118,6 +120,7 @@ export class CatalogPage implements OnInit {
   protected limpiar(): void {
     this.titulo = ''; this.autor = ''; this.idioma = '';
     this.anio = null; this.generoId = null; this.sedeId = null; this.disponible = null;
+    if (this.tituloQuery()) this.titulo = this.tituloQuery()!;
     this.buscar();
   }
 }

@@ -55,6 +55,7 @@ export class Navbar {
       { ruta: '/sedes', texto: 'Sedes' },
     ];
     const base = [
+      { ruta: '/inicio', texto: 'Inicio' },
       { ruta: '/catalogo', texto: 'Catálogo' },
       { ruta: '/sedes', texto: 'Sedes y Salas' },
       { ruta: '/eventos', texto: 'Eventos' },

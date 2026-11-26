@@ -12,6 +12,7 @@ import {
   PoliticaSancionDTO,
   PreguntaFrecuenteDTO,
   ReporteDTO,
+  SuscripcionDTO,
   TarifaEnvioDTO,
   UsuarioDTO,
 } from '../models/biblioteca.models';
@@ -48,6 +49,9 @@ export class AdminService {
   }
   reactivarUsuario(id: number): Observable<UsuarioDTO> {
     return this.http.post<UsuarioDTO>(`${this.api}/usuarios/${id}/reactivar`, {});
+  }
+  listarSuscripciones(): Observable<SuscripcionDTO[]> {
+    return this.http.get<SuscripcionDTO[]>(`${this.api}/suscripciones`);
   }
   listarRoles(): Observable<{ id: number; nombre: string }[]> {
     return this.http.get<{ id: number; nombre: string }[]>(`${this.api}/roles`);

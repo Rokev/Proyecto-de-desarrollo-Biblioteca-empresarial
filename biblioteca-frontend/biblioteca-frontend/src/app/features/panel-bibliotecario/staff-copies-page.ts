@@ -1,6 +1,5 @@
 import { Component, inject, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { catchError, concatMap, from, map, of, toArray } from 'rxjs';
 import { EjemplarDTO, LibroDTO, SedeDTO } from '../../core/models/biblioteca.models';
 import { AuthService } from '../../core/services/auth.service';
 import { CatalogoService } from '../../core/services/catalogo.service';
@@ -11,8 +10,6 @@ import { Button } from '../../shared/ui/atoms/button/button';
 import { Card } from '../../shared/ui/atoms/card/card';
 import { FormField } from '../../shared/ui/molecules/form-field/form-field';
 import { PanelTemplate } from '../../shared/ui/templates/panel-template/panel-template';
-
-const MAX_CANTIDAD = 100;
 
 @Component({
   selector: 'app-staff-copies-page',
@@ -28,30 +25,13 @@ const MAX_CANTIDAD = 100;
             </select>
           </app-form-field>
 
-          <app-form-field etiqueta="Nombre de la Sede" para="sedeNombre" [obligatorio]="true"
-                          ayuda="Escribe el nombre o elígelo de la lista.">
-            <input id="sedeNombre" class="campo" name="sedeNombre" list="listaSedes" autocomplete="off"
-                   placeholder="Ej. Sede Central"
-                   [ngModel]="sedeNombre" (ngModelChange)="alEscribirNombre($event)" />
-            <datalist id="listaSedes">
-              @for (s of sedes(); track s.id) { <option [value]="s.nombre">{{ s.ciudad }} · ID {{ s.id }}</option> }
-            </datalist>
+          <app-form-field etiqueta="Sede" para="sedeSel" [obligatorio]="true">
+            <select id="sedeSel" class="campo" [(ngModel)]="sedeId" name="sedeSel">
+              @for (s of sedes(); track s.id) { <option [ngValue]="s.id">{{ s.nombre }} ({{ s.ciudad }})</option> }
+            </select>
           </app-form-field>
 
-          <app-form-field etiqueta="ID de la Sede" para="sedeIdInput" [obligatorio]="true"
-                          [error]="errorSede()" [ayuda]="sedeEncontrada()?.ciudad ?? 'Se completa solo al elegir la sede.'">
-            <input id="sedeIdInput" class="campo" type="number" min="1" name="sedeIdInput" placeholder="Ej. 1"
-                   [ngModel]="sedeId" (ngModelChange)="alEscribirId($event)" />
-          </app-form-field>
-
-          <app-form-field etiqueta="Cantidad a sumar" para="cant" [obligatorio]="true"
-                          [ayuda]="resumenStock()">
-            <input id="cant" class="campo" type="number" min="1" [max]="maxCantidad" name="cant"
-                   [(ngModel)]="cantidad" />
-          </app-form-field>
-
-          <app-form-field etiqueta="Código de Barras / Inventario" para="cod" [obligatorio]="true"
-                          [ayuda]="cantidad > 1 ? 'Se usará como prefijo: ' + (codigoBarras.trim() || 'EJ') + '-001, -002…' : ''">
+          <app-form-field etiqueta="Código de Barras / Inventario" para="cod" [obligatorio]="true">
             <input id="cod" class="campo" [(ngModel)]="codigoBarras" name="cod" placeholder="Ej. EJ-00101" required />
           </app-form-field>
 
@@ -64,7 +44,7 @@ const MAX_CANTIDAD = 100;
           </app-form-field>
 
           <div style="align-self: end; margin-bottom: 0.9rem;">
-            <app-button tipo="submit" [texto]="guardando() ? 'Registrando…' : 'Registrar Ejemplar'" [deshabilitado]="guardando()" />
+            <app-button tipo="submit" texto="Registrar Ejemplar" />
           </div>
         </form>
       </app-card>
@@ -102,87 +82,26 @@ export class StaffCopiesPage implements OnInit {
   private readonly auth = inject(AuthService);
   private readonly ui = inject(NotificacionesUiService);
 
-  protected readonly maxCantidad = MAX_CANTIDAD;
   protected readonly ejemplares = signal<EjemplarDTO[]>([]);
   protected readonly libros = signal<LibroDTO[]>([]);
   protected readonly sedes = signal<SedeDTO[]>([]);
-  protected readonly guardando = signal(false);
 
   protected libroId = 0;
-  protected sedeNombre = '';
-  protected sedeId: number | null = null;
-  protected cantidad = 1;
+  protected sedeId = 0;
   protected codigoBarras = '';
   protected estado: EjemplarDTO['estado'] = 'DISPONIBLE';
 
   ngOnInit(): void {
     this.cargar();
-    this.catalogo.buscarLibros().subscribe((l) => {
-      this.libroId = l[0]?.id ?? 0;
-      this.libros.set(l);
+    this.catalogo.buscarLibros().subscribe((l) => { this.libros.set(l); this.libroId = l[0]?.id ?? 0; });
+    this.catalogo.listarTodasSedes().subscribe((s) => {
+      this.sedes.set(s);
+      this.sedeId = this.auth.perfil()?.sedeId ?? (s[0]?.id ?? 0);
     });
-    // Si /sedes no está permitido para este rol, se usa /sedes/activas como respaldo.
-    this.catalogo.listarTodasSedes()
-      .pipe(catchError(() => this.catalogo.listarSedesActivas()))
-      .subscribe((s) => {
-        const propia = s.find((x) => x.id === this.auth.perfil()?.sedeId);
-        if (propia) {
-          this.sedeId = propia.id;
-          this.sedeNombre = propia.nombre;
-        }
-        this.sedes.set(s);
-      });
   }
 
   private cargar(): void {
     this.catalogo.listarEjemplares().subscribe((e) => this.ejemplares.set(e));
-  }
-
-  private normalizar(t: string): string {
-    return t.normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase();
-  }
-
-  protected sedeEncontrada(): SedeDTO | undefined {
-    return this.sedeId ? this.sedes().find((s) => s.id === Number(this.sedeId)) : undefined;
-  }
-
-  protected errorSede(): string | null {
-    if (this.sedeId && this.sedes().length > 0 && !this.sedeEncontrada()) return 'No existe una sede con ese ID.';
-    return null;
-  }
-
-  protected alEscribirNombre(valor: string): void {
-    this.sedeNombre = valor;
-    const n = this.normalizar(valor);
-    const coincide = n ? this.sedes().find((s) => this.normalizar(s.nombre) === n) : undefined;
-    if (coincide) this.sedeId = coincide.id;
-  }
-
-  protected alEscribirId(valor: number | null): void {
-    this.sedeId = valor;
-    const sede = valor ? this.sedes().find((s) => s.id === Number(valor)) : undefined;
-    if (sede) this.sedeNombre = sede.nombre;
-  }
-
-  /** Resuelve la sede a partir del ID o, si no hay ID, del nombre (coincidencia exacta o única). */
-  private resolverSede(): number | null {
-    if (this.sedeId) return Number(this.sedeId);
-    const n = this.normalizar(this.sedeNombre);
-    if (!n) return null;
-    const lista = this.sedes();
-    const exacta = lista.find((s) => this.normalizar(s.nombre) === n);
-    if (exacta) return exacta.id;
-    const parciales = lista.filter((s) => this.normalizar(s.nombre).includes(n));
-    return parciales.length === 1 ? parciales[0].id : null;
-  }
-
-  protected resumenStock(): string {
-    const sedeId = this.sedeEncontrada()?.id;
-    if (!this.libroId || !sedeId) return `Máximo ${MAX_CANTIDAD} por registro.`;
-    const copias = this.ejemplares().filter((e) => e.libroId === Number(this.libroId) && e.sedeId === sedeId);
-    const disp = copias.filter((e) => e.estado === 'DISPONIBLE').length;
-    const suma = Math.max(Number(this.cantidad) || 0, 0);
-    return `Stock actual en la sede: ${copias.length} (${disp} disponibles) → quedará en ${copias.length + suma}.`;
   }
 
   protected nombreLibro(id: number): string {
@@ -193,70 +112,23 @@ export class StaffCopiesPage implements OnInit {
     return this.sedes().find((s) => s.id === id)?.nombre ?? `Sede #${id}`;
   }
 
-  private generarCodigos(base: string, n: number): string[] {
-    const usados = new Set(this.ejemplares().map((e) => e.codigoBarras.toLowerCase()));
-    if (n === 1) return [base];
-    const codigos: string[] = [];
-    for (let k = 1; codigos.length < n; k++) {
-      const c = `${base}-${String(k).padStart(3, '0')}`;
-      if (!usados.has(c.toLowerCase())) codigos.push(c);
-    }
-    return codigos;
-  }
-
   protected crear(): void {
-    const base = this.codigoBarras.trim();
-    const sedeId = this.resolverSede();
-    const n = Math.floor(Number(this.cantidad));
-
-    if (!base || !this.libroId || (!this.sedeNombre.trim() && !this.sedeId)) {
-      this.ui.mostrar('Completa libro, sede (nombre e ID), cantidad y código de barras.', 'advertencia');
+    if (!this.codigoBarras.trim() || !this.libroId || !this.sedeId) {
+      this.ui.mostrar('Completa libro, sede y código de barras.', 'advertencia');
       return;
     }
-    if (!sedeId) {
-      this.ui.mostrar('No se encontró esa sede. Elige una de la lista o escribe su ID.', 'advertencia');
-      return;
-    }
-    if (this.sedes().length > 0 && !this.sedes().some((s) => s.id === sedeId)) {
-      this.ui.mostrar('El ID de la sede no existe.', 'advertencia');
-      return;
-    }
-    if (!Number.isFinite(n) || n < 1 || n > MAX_CANTIDAD) {
-      this.ui.mostrar(`La cantidad debe estar entre 1 y ${MAX_CANTIDAD}.`, 'advertencia');
-      return;
-    }
-    if (n === 1 && this.ejemplares().some((e) => e.codigoBarras.toLowerCase() === base.toLowerCase())) {
-      this.ui.mostrar('Ya existe un ejemplar con ese código de barras.', 'advertencia');
-      return;
-    }
-
-    const dtos: EjemplarDTO[] = this.generarCodigos(base, n).map((codigoBarras) => ({
-      codigoBarras,
+    this.catalogo.crearEjemplar({
+      codigoBarras: this.codigoBarras.trim(),
       libroId: Number(this.libroId),
-      sedeId,
+      sedeId: Number(this.sedeId),
       estado: this.estado,
-    }));
-
-    this.guardando.set(true);
-    from(dtos).pipe(
-      concatMap((dto) => this.catalogo.crearEjemplar(dto).pipe(
-        map(() => ({ ok: true as const, error: '' })),
-        catchError((e) => of({ ok: false as const, error: extraerMensajeError(e) })),
-      )),
-      toArray(),
-    ).subscribe((res) => {
-      this.guardando.set(false);
-      const ok = res.filter((r) => r.ok).length;
-      const fallos = res.filter((r) => !r.ok);
-      if (ok > 0) {
-        this.ui.mostrar(`Se sumaron ${ok} ejemplar(es) al stock de ${this.nombreSede(sedeId)}.`, 'exito');
+    }).subscribe({
+      next: () => {
+        this.ui.mostrar('Ejemplar registrado y stock actualizado.', 'exito');
         this.codigoBarras = '';
-        this.cantidad = 1;
-      }
-      if (fallos.length > 0) {
-        this.ui.mostrar(`${fallos.length} ejemplar(es) no se pudieron registrar: ${fallos[0].error}`, 'error');
-      }
-      this.cargar();
+        this.cargar();
+      },
+      error: (e) => this.ui.mostrar(extraerMensajeError(e), 'error'),
     });
   }
 

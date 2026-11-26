@@ -1,7 +1,9 @@
 import { Component, computed, inject, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
-import { SedeDTO, UsuarioDTO } from '../../core/models/biblioteca.models';
+import { CurrencyPipe } from '@angular/common';
+import { MultaDTO, SedeDTO, SuscripcionDTO, UsuarioDTO } from '../../core/models/biblioteca.models';
+import { OperacionesService } from '../../core/services/operaciones.service';
 import { AdminService } from '../../core/services/admin.service';
 import { CatalogoService } from '../../core/services/catalogo.service';
 import { NotificacionesUiService } from '../../core/services/notificaciones-ui.service';
@@ -15,7 +17,7 @@ import { PanelTemplate } from '../../shared/ui/templates/panel-template/panel-te
 
 @Component({
   selector: 'app-admin-users-page',
-  imports: [FormsModule, RouterLink, PanelTemplate, Card, Badge, Button, FormField, ConfirmDialog],
+  imports: [FormsModule, RouterLink, CurrencyPipe, PanelTemplate, Card, Badge, Button, FormField, ConfirmDialog],
   template: `
     <app-panel-template titulo="Administración de Personal y Usuarios">
       <app-card>
@@ -86,12 +88,19 @@ import { PanelTemplate } from '../../shared/ui/templates/panel-template/panel-te
             @for (s of sedes(); track s.id) { <option [ngValue]="s.id">{{ s.nombre }}</option> }
           </select>
         }
+        @if (tab() === 'CLIENTES') {
+          <select class="campo" style="max-width:200px;" [(ngModel)]="filtroSuscripcion">
+            <option value="TODOS">Con o sin suscripción</option>
+            <option value="CON">Con suscripción vigente</option>
+            <option value="SIN">Sin suscripción</option>
+          </select>
+        }
         <app-button texto="Limpiar" variante="contorno" tamano="pequeno" (presionado)="limpiarFiltros()" />
       </div>
 
       <div class="tabla-responsive">
         <table class="tabla">
-          <thead><tr><th>Nombre</th><th>Usuario</th><th>Correo</th><th>Rol</th><th>Sede</th><th>Estado</th><th>Acciones</th></tr></thead>
+          <thead><tr><th>Nombre</th><th>Usuario</th><th>Correo</th><th>Rol</th><th>{{ tab() === 'PERSONAL' ? 'Sede' : 'Suscripción' }}</th><th>Estado</th><th>Acciones</th></tr></thead>
           <tbody>
             @for (u of usuariosFiltrados(); track u.id) {
               <tr>
@@ -99,7 +108,7 @@ import { PanelTemplate } from '../../shared/ui/templates/panel-template/panel-te
                 <td>{{ u.nombreUsuario }}</td>
                 <td>{{ u.correo }}</td>
                 <td>{{ nombreRol(u.rolId) }}</td>
-                <td>{{ nombreSede(u.sedeId) }}</td>
+                <td>{{ tab() === 'PERSONAL' ? nombreSede(u.sedeId) : (tieneSuscripcion(u.id) ? 'Vigente' : 'Sin suscripción') }}</td>
                 <td>
                   <app-badge
                     [texto]="u.activo ? 'Activo' : (esPersonal(u.rolId) ? 'Desactivado' : 'Suspendido')"
@@ -109,6 +118,9 @@ import { PanelTemplate } from '../../shared/ui/templates/panel-template/panel-te
                 <td style="display:flex; gap:0.35rem; flex-wrap:wrap;">
                   <app-button texto="Editar" variante="contorno" tamano="pequeno" (presionado)="editar(u)" />
                   <a [routerLink]="['/admin/auditoria']" [queryParams]="{ usuarioId: u.id }" style="color:var(--color-primario); font-weight:700; align-self:center; font-size:0.85rem;">Auditoría</a>
+                  @if (!esPersonal(u.rolId)) {
+                    <app-button texto="Multas" variante="secundario" tamano="pequeno" (presionado)="verMultas(u)" />
+                  }
                   @if (u.activo) {
                     <app-button
                       [texto]="esPersonal(u.rolId) ? 'Desactivar' : 'Suspender'"
@@ -135,6 +147,24 @@ import { PanelTemplate } from '../../shared/ui/templates/panel-template/panel-te
         etiquetaInput="Motivo de suspensión (opcional)"
         (confirmar)="ejecutarCambioEstado()"
       />
+          @if (multasModal(); as ml) {
+        <div style="position:fixed; inset:0; background:rgba(15,23,42,.55); display:flex; align-items:center; justify-content:center; z-index:9500; padding:1rem;" (click)="multasModal.set(null)">
+          <div style="background:#fff; padding:1.5rem; border-radius:var(--radio-lg); max-width:560px; width:100%;" (click)="$event.stopPropagation()">
+            <h3>Multas y Recargos del Usuario</h3>
+            <table class="tabla">
+              <thead><tr><th>ID</th><th>Motivo</th><th>Monto</th><th>Estado</th></tr></thead>
+              <tbody>
+                @for (m of ml; track m.id) {
+                  <tr><td>#{{ m.id }}</td><td>{{ m.motivo }}</td><td>{{ m.monto | currency:'COP':'symbol-narrow':'1.0-0' }}</td><td><app-badge [texto]="m.estado" [estado]="m.estado" /></td></tr>
+                } @empty {
+                  <tr><td colspan="4">Sin multas ni recargos.</td></tr>
+                }
+              </tbody>
+            </table>
+            <div style="margin-top:1rem; text-align:right;"><app-button texto="Cerrar" (presionado)="multasModal.set(null)" /></div>
+          </div>
+        </div>
+      }
     </app-panel-template>
   `,
   styles: [`.form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(185px, 1fr)); gap: 0.65rem; }`]
@@ -142,11 +172,15 @@ import { PanelTemplate } from '../../shared/ui/templates/panel-template/panel-te
 export class AdminUsersPage implements OnInit {
   private readonly admin = inject(AdminService);
   private readonly catalogo = inject(CatalogoService);
+  private readonly ops = inject(OperacionesService);
   private readonly ui = inject(NotificacionesUiService);
 
   protected readonly usuarios = signal<UsuarioDTO[]>([]);
   protected readonly roles = signal<{ id: number; nombre: string }[]>([]);
   protected readonly sedes = signal<SedeDTO[]>([]);
+  protected readonly suscripciones = signal<SuscripcionDTO[]>([]);
+  protected readonly multasModal = signal<MultaDTO[] | null>(null);
+  protected filtroSuscripcion = 'TODOS';
 
   protected readonly tab = signal<'PERSONAL' | 'CLIENTES'>('PERSONAL');
   protected filtroEstado = 'TODOS';
@@ -176,6 +210,8 @@ export class AdminUsersPage implements OnInit {
       if (this.filtroEstado === 'INACTIVO' && u.activo) return false;
       if (this.tab() === 'PERSONAL' && this.filtroRol && u.rolId !== Number(this.filtroRol)) return false;
       if (this.tab() === 'PERSONAL' && this.filtroSede && u.sedeId !== Number(this.filtroSede)) return false;
+      if (this.tab() === 'CLIENTES' && this.filtroSuscripcion === 'CON' && !this.tieneSuscripcion(u.id)) return false;
+      if (this.tab() === 'CLIENTES' && this.filtroSuscripcion === 'SIN' && this.tieneSuscripcion(u.id)) return false;
       return true;
     })
   );
@@ -188,6 +224,7 @@ export class AdminUsersPage implements OnInit {
       if (bib) this.form.rolId = bib.id;
     });
     this.catalogo.listarTodasSedes().subscribe((s) => this.sedes.set(s));
+    this.admin.listarSuscripciones().subscribe({ next: (su) => this.suscripciones.set(su), error: () => {} });
   }
 
   private cargar(): void { this.admin.listarUsuarios().subscribe((u) => this.usuarios.set(u)); }
@@ -202,7 +239,9 @@ export class AdminUsersPage implements OnInit {
     return !!rolId && this.nombreRol(rolId).toUpperCase() === 'BIBLIOTECARIO';
   }
 
-  protected limpiarFiltros(): void { this.filtroEstado = 'TODOS'; this.filtroRol = 0; this.filtroSede = 0; }
+  protected limpiarFiltros(): void { this.filtroEstado = 'TODOS'; this.filtroRol = 0; this.filtroSede = 0; this.filtroSuscripcion = 'TODOS'; }
+  protected tieneSuscripcion(uid: number): boolean { return this.suscripciones().some((s) => s.usuarioId === uid && (s.estado === 'ACTIVA' || s.estado === 'CANCELADA')); }
+  protected verMultas(u: UsuarioDTO): void { this.ops.multasUsuario(u.id).subscribe((m) => this.multasModal.set(m)); }
 
   protected editar(u: UsuarioDTO): void { this.editandoId.set(u.id); this.errs.set({}); this.form = { ...u, contrasena: '' }; }
   protected reset(): void {

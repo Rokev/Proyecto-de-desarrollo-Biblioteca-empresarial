@@ -15,7 +15,6 @@ import {
   PlanSuscripcionDTO,
   PrestamoDetalleDTO,
   PrestamoDTO,
-  ReservaLibroDetalleDTO,
   ReservaLibroDTO,
   ReservaSalaDTO,
   SalaEstudioDTO,
@@ -37,12 +36,12 @@ export class OperacionesService {
   obtenerPrestamo(id: number): Observable<PrestamoDTO> {
     return this.http.get<PrestamoDTO>(`${this.api}/prestamos/${id}`);
   }
-   prestamosPorUsuario(usuarioId: number): Observable<PrestamoDetalleDTO[]> {
-     return this.http.get<PrestamoDetalleDTO[]>(`${this.api}/prestamos/usuario/${usuarioId}`);
-   }
-   prestamosPorSede(sedeId: number): Observable<PrestamoDetalleDTO[]> {
-     return this.http.get<PrestamoDetalleDTO[]>(`${this.api}/prestamos/sede/${sedeId}`);
-   }
+  prestamosPorUsuario(usuarioId: number): Observable<PrestamoDetalleDTO[]> {
+    return this.http.get<PrestamoDetalleDTO[]>(`${this.api}/prestamos/usuario/${usuarioId}`);
+  }
+  prestamosPorSede(sedeId: number): Observable<PrestamoDetalleDTO[]> {
+    return this.http.get<PrestamoDetalleDTO[]>(`${this.api}/prestamos/sede/${sedeId}`);
+  }
   actualizarPrestamo(id: number, dto: Partial<PrestamoDTO>): Observable<PrestamoDTO> {
     return this.http.put<PrestamoDTO>(`${this.api}/prestamos/${id}`, dto);
   }
@@ -51,18 +50,26 @@ export class OperacionesService {
   crearReservaLibro(dto: ReservaLibroDTO): Observable<ReservaLibroDTO> {
     return this.http.post<ReservaLibroDTO>(`${this.api}/reservas-libro`, dto);
   }
-    reservasLibroUsuario(usuarioId: number): Observable<ReservaLibroDetalleDTO[]> {
-      return this.http.get<ReservaLibroDetalleDTO[]>(`${this.api}/reservas-libro/usuario/${usuarioId}`);
-    }
-    reservasLibroSede(sedeId: number): Observable<ReservaLibroDetalleDTO[]> {
-      return this.http.get<ReservaLibroDetalleDTO[]>(`${this.api}/reservas-libro/sede/${sedeId}`);
-    }
-    cancelarReservaLibro(id: number, usuarioId: number): Observable<ReservaLibroDTO> {
-      const params = new HttpParams().set('usuarioId', usuarioId);
-      return this.http.post<ReservaLibroDTO>(`${this.api}/reservas-libro/${id}/cancelar`, {}, { params });
-    }
+  reservasLibroUsuario(usuarioId: number): Observable<ReservaLibroDTO[]> {
+    return this.http.get<ReservaLibroDTO[]>(`${this.api}/reservas-libro/usuario/${usuarioId}`);
+  }
+  reservasLibroSede(sedeId: number): Observable<ReservaLibroDTO[]> {
+    return this.http.get<ReservaLibroDTO[]>(`${this.api}/reservas-libro/sede/${sedeId}`);
+  }
+  cancelarReservaLibro(id: number): Observable<ReservaLibroDTO> {
+    return this.http.post<ReservaLibroDTO>(`${this.api}/reservas-libro/${id}/cancelar`, {});
+  }
 
   // Devoluciones
+  listarDevoluciones(): Observable<DevolucionDTO[]> {
+    return this.http.get<DevolucionDTO[]>(`${this.api}/devoluciones`);
+  }
+  actualizarDevolucion(id: number, dto: DevolucionDTO): Observable<DevolucionDTO> {
+    return this.http.put<DevolucionDTO>(`${this.api}/devoluciones/${id}`, dto);
+  }
+  eliminarDevolucion(id: number): Observable<void> {
+    return this.http.delete<void>(`${this.api}/devoluciones/${id}`);
+  }
   solicitarDevolucion(prestamoId: number, usuarioId: number, sedeDevolucionId: number): Observable<DevolucionDTO> {
     return this.http.post<DevolucionDTO>(`${this.api}/devoluciones/solicitar`, {
       prestamoId,
@@ -175,10 +182,9 @@ export class OperacionesService {
   listarReservasSalas(): Observable<ReservaSalaDTO[]> {
     return this.http.get<ReservaSalaDTO[]>(`${this.api}/reservas-sala`);
   }
-    cancelarReservaSala(id: number, usuarioId: number): Observable<ReservaSalaDTO> {
-      const params = new HttpParams().set('usuarioId', usuarioId);
-      return this.http.post<ReservaSalaDTO>(`${this.api}/reservas-sala/${id}/cancelar`, {}, { params });
-    }
+  cancelarReservaSala(id: number): Observable<ReservaSalaDTO> {
+    return this.http.post<ReservaSalaDTO>(`${this.api}/reservas-sala/${id}/cancelar`, {});
+  }
 
   // Eventos
   listarEventosProximos(): Observable<EventoDTO[]> {

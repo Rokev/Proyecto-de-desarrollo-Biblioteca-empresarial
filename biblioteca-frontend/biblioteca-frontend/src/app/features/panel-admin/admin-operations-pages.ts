@@ -25,7 +25,6 @@ import { Button } from '../../shared/ui/atoms/button/button';
 import { Card } from '../../shared/ui/atoms/card/card';
 import { Alert } from '../../shared/ui/molecules/alert/alert';
 import { ConfirmDialog } from '../../shared/ui/molecules/confirm-dialog/confirm-dialog';
-import { StatCard } from '../../shared/ui/molecules/stat-card/stat-card';
 import { PanelTemplate } from '../../shared/ui/templates/panel-template/panel-template';
 
 @Component({
@@ -190,7 +189,7 @@ export class AdminShippingPage implements OnInit {
 
 @Component({
   selector: 'app-admin-reports-page',
-  imports: [FormsModule, PanelTemplate, Card, Button, StatCard, Alert],
+  imports: [FormsModule, PanelTemplate, Card, Button, Alert],
   template: `
     <app-panel-template titulo="Generación de Reportes (Vista Previa, PDF y CSV)">
       <app-card>

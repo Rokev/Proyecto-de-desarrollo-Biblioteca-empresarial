@@ -139,7 +139,7 @@ export class AuthService {
       case 'ADMIN': this.router.navigate(['/admin/usuarios']); break;
       case 'BIBLIOTECARIO': this.router.navigate(['/panel']); break;
       case 'REPARTIDOR': this.router.navigate(['/reparto']); break;
-      default: this.router.navigate(['/catalogo']);
+      default: this.router.navigate(['/inicio']);
     }
   }
 

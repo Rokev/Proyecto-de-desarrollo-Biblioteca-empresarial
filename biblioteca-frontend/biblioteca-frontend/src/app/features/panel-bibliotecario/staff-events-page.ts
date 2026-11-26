@@ -227,22 +227,15 @@ export class StaffEventsPage implements OnInit {
   protected ejecutarAccion(): void {
     const ev = this.eventoSel();
     if (!ev) return;
-
     if (this.accionEv() === 'ELIMINAR') {
       this.ops.eliminarEvento(ev.id).subscribe({
-        next: () => {
-          this.ui.mostrar('Evento eliminado.', 'info');
-          this.cargar();
-        },
-        error: (e) => this.ui.mostrar(extraerMensajeError(e), 'error'),
+        next: () => { this.ui.mostrar('Evento eliminado.', 'info'); this.cargar(); },
+        error: (e: unknown) => this.ui.mostrar(extraerMensajeError(e), 'error'),
       });
     } else {
       this.ops.cancelarEvento(ev.id).subscribe({
-        next: () => {
-          this.ui.mostrar('Evento cancelado.', 'info');
-          this.cargar();
-        },
-        error: (e) => this.ui.mostrar(extraerMensajeError(e), 'error'),
+        next: () => { this.ui.mostrar('Evento cancelado y asistentes notificados.', 'info'); this.cargar(); },
+        error: (e: unknown) => this.ui.mostrar(extraerMensajeError(e), 'error'),
       });
     }
   }

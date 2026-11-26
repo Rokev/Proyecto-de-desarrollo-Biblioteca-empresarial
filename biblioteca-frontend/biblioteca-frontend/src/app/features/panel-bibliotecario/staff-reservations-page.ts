@@ -1,6 +1,6 @@
 import { DatePipe } from '@angular/common';
 import { Component, inject, OnInit, signal } from '@angular/core';
-import { LibroDTO, ReservaLibroDetalleDTO, UsuarioDTO } from '../../core/models/biblioteca.models';
+import { LibroDTO, ReservaLibroDTO, UsuarioDTO } from '../../core/models/biblioteca.models';
 import { AdminService } from '../../core/services/admin.service';
 import { AuthService } from '../../core/services/auth.service';
 import { CatalogoService } from '../../core/services/catalogo.service';
@@ -17,9 +17,9 @@ import { PanelTemplate } from '../../shared/ui/templates/panel-template/panel-te
         <table class="tabla">
           <thead><tr><th>ID</th><th>Usuario</th><th>Libro</th><th>Fecha Reserva</th><th>Límite Retiro</th><th>Estado</th></tr></thead>
           <tbody>
-            @for (r of reservas(); track r.reservaId) {
+            @for (r of reservas(); track r.id) {
               <tr>
-                <td>#{{ r.reservaId }}</td>
+                <td>{{ r.id }}</td>
                 <td>{{ nombreUsuario(r.usuarioId) }}</td>
                 <td>{{ tituloLibro(r.libroId) }}</td>
                 <td>{{ r.fechaReserva | date:'d MMM y, h:mm a' }}</td>
@@ -41,7 +41,7 @@ export class StaffReservationsPage implements OnInit {
   private readonly catalogo = inject(CatalogoService);
   private readonly admin = inject(AdminService);
 
-  protected readonly reservas = signal<ReservaLibroDetalleDTO[]>([]);
+  protected readonly reservas = signal<ReservaLibroDTO[]>([]);
   protected readonly usuarios = signal<UsuarioDTO[]>([]);
   protected readonly libros = signal<LibroDTO[]>([]);
 
@@ -55,10 +55,10 @@ export class StaffReservationsPage implements OnInit {
 
   protected nombreUsuario(id: number): string {
     const u = this.usuarios().find((x) => x.id === id);
-    return u ? `${u.nombre} ${u.apellido}` : `Usuario #${id}`;
+    return u ? `${u.nombre} ${u.apellido}` : `Usuario ${id}`;
   }
 
   protected tituloLibro(id: number): string {
-    return this.libros().find((l) => l.id === id)?.titulo ?? `Libro #${id}`;
+    return this.libros().find((l) => l.id === id)?.titulo ?? `Libro ${id}`;
   }
 }

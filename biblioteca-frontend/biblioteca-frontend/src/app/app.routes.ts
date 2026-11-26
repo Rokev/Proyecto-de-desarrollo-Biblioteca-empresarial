@@ -2,7 +2,8 @@ import { Routes } from '@angular/router';
 import { authGuard, roleGuard, subscriptionGuard } from './core/guards/auth.guard';
 
 export const routes: Routes = [
-  { path: '', redirectTo: 'catalogo', pathMatch: 'full' },
+  { path: '', redirectTo: 'inicio', pathMatch: 'full' },
+  { path: 'inicio', title: 'Inicio · Biblioteca Red', loadComponent: () => import('./features/home/home-page').then(m => m.HomePage) },
 
   // Autenticación
   { path: 'login', title: 'Iniciar sesión', loadComponent: () => import('./features/auth/login-page').then(m => m.LoginPage) },

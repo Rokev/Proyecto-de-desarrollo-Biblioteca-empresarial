@@ -5,7 +5,6 @@ import { ReservaSalaDTO } from '../../core/models/biblioteca.models';
 import { AuthService } from '../../core/services/auth.service';
 import { NotificacionesUiService } from '../../core/services/notificaciones-ui.service';
 import { OperacionesService } from '../../core/services/operaciones.service';
-import { extraerMensajeError } from '../../core/utils/errores.util';
 import { Badge } from '../../shared/ui/atoms/badge/badge';
 import { Button } from '../../shared/ui/atoms/button/button';
 import { Card } from '../../shared/ui/atoms/card/card';
@@ -76,13 +75,10 @@ export class MyRoomReservationsPage implements OnInit {
 
   protected ejecutarCancelar(): void {
     const id = this.idSel();
-    if (id == null) return;
-    this.ops.cancelarReservaSala(id, this.auth.usuarioId()!).subscribe({
-      next: () => {
-        this.ui.mostrar('Reserva de sala cancelada.', 'info');
-        this.cargar();
-      },
-      error: (e) => this.ui.mostrar(extraerMensajeError(e), 'error'),
+    if (!id) return;
+    this.ops.cancelarReservaSala(id).subscribe(() => {
+      this.ui.mostrar('Reserva de sala cancelada.', 'info');
+      this.cargar();
     });
   }
 }
