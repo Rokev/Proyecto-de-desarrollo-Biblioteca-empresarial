@@ -233,8 +233,9 @@ export class OperacionesService {
       renovacionAutomatica,
     });
   }
-  cancelarSuscripcion(id: number): Observable<SuscripcionDTO> {
-    return this.http.post<SuscripcionDTO>(`${this.api}/suscripciones/${id}/cancelar`, {});
+  cancelarSuscripcion(id: number, usuarioId: number): Observable<SuscripcionDTO> {
+    const params = new HttpParams().set('usuarioId', usuarioId);
+    return this.http.post<SuscripcionDTO>(`${this.api}/suscripciones/${id}/cancelar`, {}, { params });
   }
   multasUsuario(usuarioId: number): Observable<MultaDTO[]> {
     return this.http.get<MultaDTO[]>(`${this.api}/multas/usuario/${usuarioId}`);

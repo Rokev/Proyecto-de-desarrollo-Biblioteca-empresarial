@@ -56,9 +56,13 @@ export class MySubscriptionPage {
   protected readonly confirmOpen = signal(false);
 
   protected ejecutarCancelar(id: number): void {
-    this.ops.cancelarSuscripcion(id).subscribe(() => {
-      this.ui.mostrar('Suscripción cancelada. Tus beneficios siguen activos hasta el fin del período.', 'info');
-      this.auth.refrescarSuscripcion(this.auth.usuarioId()!);
+    const uid = this.auth.usuarioId()!;
+    this.ops.cancelarSuscripcion(id, uid).subscribe({
+      next: () => {
+        this.ui.mostrar('Suscripción cancelada. Tus beneficios siguen activos hasta el fin del período.', 'exito');
+        this.auth.refrescarSuscripcion(uid);
+      },
+      error: (e) => this.ui.mostrar(e?.error?.message ?? 'No se pudo cancelar la suscripción.', 'error')
     });
   }
 }
