@@ -259,8 +259,20 @@ export class StaffOperationsPage implements OnInit {
     this.ops.pedidosSedeDevolucion(sedeId).subscribe((p) => this.pedidosDestino.set(p));
     this.catalogo.buscarLibros().subscribe((l) => this.libros.set(l));
     this.catalogo.listarEjemplares().subscribe((e) => this.ejemplares.set(e));
-    this.admin.listarRoles().subscribe({ next: (r) => this.roles.set(r), error: () => {} });
-    this.admin.listarUsuarios().subscribe({ next: (u) => this.usuarios.set(u), error: () => {} });
+    this.admin.listarRoles().subscribe({
+      next: (r) => this.roles.set(r),
+      error: (e: unknown) => this.avisarFalloLista('roles', e),
+    });
+    this.admin.listarUsuarios().subscribe({
+      next: (u) => this.usuarios.set(u),
+      error: (e: unknown) => this.avisarFalloLista('usuarios', e),
+    });
+  }
+
+  private avisarFalloLista(recurso: string, e: unknown): void {
+    const estado = (e as { status?: number })?.status ?? '?';
+    console.error(`No se pudo cargar /${recurso}`, e);
+    this.ui.mostrar(`No se pudo cargar la lista de ${recurso} (HTTP ${estado}). Los nombres y repartidores no estarán disponibles.`, 'advertencia');
   }
 
   protected limpiarFiltros(): void { this.fEstado.set(''); this.fUsuario.set(''); this.fLibro.set(''); }
