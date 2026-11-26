@@ -122,18 +122,6 @@ export interface PrestamoDetalleDTO {
   fechaDevolucion?: string;
 }
 
-export interface ReservaLibroDetalleDTO {
-  reservaId: number;
-  estado: string;
-  usuarioId: number;
-  libroId: number;
-  libroTitulo?: string;
-  sedeId: number;
-  sedeNombre?: string;
-  fechaReserva?: string;
-  fechaLimiteRetiro?: string;
-}
-
 export interface ReservaLibroDTO {
   id?: number;
   fechaReserva?: string;

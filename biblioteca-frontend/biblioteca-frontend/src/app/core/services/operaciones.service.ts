@@ -16,7 +16,6 @@ import {
   PrestamoDetalleDTO,
   PrestamoDTO,
   ReservaLibroDTO,
-  ReservaLibroDetalleDTO,
   ReservaSalaDTO,
   SalaEstudioDTO,
   SancionDTO,
@@ -54,8 +53,8 @@ export class OperacionesService {
   reservasLibroUsuario(usuarioId: number): Observable<ReservaLibroDTO[]> {
     return this.http.get<ReservaLibroDTO[]>(`${this.api}/reservas-libro/usuario/${usuarioId}`);
   }
-  reservasLibroSede(sedeId: number): Observable<ReservaLibroDetalleDTO[]> {
-    return this.http.get<ReservaLibroDetalleDTO[]>(`${this.api}/reservas-libro/sede/${sedeId}`);
+  reservasLibroSede(sedeId: number): Observable<ReservaLibroDTO[]> {
+    return this.http.get<ReservaLibroDTO[]>(`${this.api}/reservas-libro/sede/${sedeId}`);
   }
   cancelarReservaLibro(id: number): Observable<ReservaLibroDTO> {
     return this.http.post<ReservaLibroDTO>(`${this.api}/reservas-libro/${id}/cancelar`, {});

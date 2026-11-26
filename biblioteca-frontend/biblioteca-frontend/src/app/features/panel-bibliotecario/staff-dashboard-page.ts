@@ -1,6 +1,6 @@
 import { Component, inject, OnInit, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { PedidoInterciudadDTO, PrestamoDetalleDTO, ReservaLibroDetalleDTO } from '../../core/models/biblioteca.models';
+import { PedidoInterciudadDTO, PrestamoDetalleDTO, ReservaLibroDTO } from '../../core/models/biblioteca.models';
 import { AuthService } from '../../core/services/auth.service';
 import { OperacionesService } from '../../core/services/operaciones.service';
 import { Alert } from '../../shared/ui/molecules/alert/alert';
@@ -43,7 +43,7 @@ export class StaffDashboardPage implements OnInit {
   protected readonly auth = inject(AuthService);
 
   protected readonly prestamos = signal<PrestamoDetalleDTO[]>([]);
-  protected readonly reservas = signal<ReservaLibroDetalleDTO[]>([]);
+  protected readonly reservas = signal<ReservaLibroDTO[]>([]);
   protected readonly pedidosSalida = signal<PedidoInterciudadDTO[]>([]);
 
   ngOnInit(): void {
