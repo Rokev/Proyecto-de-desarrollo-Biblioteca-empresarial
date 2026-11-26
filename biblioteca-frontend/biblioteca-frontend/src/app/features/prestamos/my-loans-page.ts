@@ -1,7 +1,7 @@
 import { DatePipe } from '@angular/common';
 import { Component, inject, OnInit, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { PrestamoDTO, ReservaLibroDTO } from '../../core/models/biblioteca.models';
+import { PrestamoDetalleDTO, ReservaLibroDetalleDTO } from '../../core/models/biblioteca.models';
 import { AuthService } from '../../core/services/auth.service';
 import { NotificacionesUiService } from '../../core/services/notificaciones-ui.service';
 import { OperacionesService } from '../../core/services/operaciones.service';
@@ -23,20 +23,20 @@ import { AccountTemplate } from '../../shared/ui/templates/account-template/acco
         <app-empty-state titulo="Aún no tienes préstamos" descripcion="Explora el catálogo y solicita tu primer libro." />
       } @else {
         <div class="grid-cards">
-          @for (p of prestamos(); track p.id) {
+          @for (p of prestamos(); track p.prestamoId) {
             <app-card>
               <div cardEncabezado class="head">
-                <strong>Préstamo #{{ p.id }}</strong>
+                <strong>Préstamo #{{ p.prestamoId }}</strong>
                 <app-badge [texto]="p.estado || 'SOLICITADO'" [estado]="p.estado || 'SOLICITADO'" />
               </div>
-              <p><strong>Sede retiro:</strong> #{{ p.sedeRetiroId }} · <strong>Modalidad:</strong> {{ p.modalidad }}</p>
+              <p><strong>Sede retiro:</strong> #{{ p.sedeId }} · <strong>Modalidad:</strong> {{ p.modalidad }}</p>
               <p><strong>Solicitado:</strong> {{ p.fechaSolicitud | date:'d MMM y' }}</p>
-              @if (p.fechaVencimiento) {
-                <p><strong>Fecha límite devolución:</strong> {{ p.fechaVencimiento | date:'d MMM y' }}</p>
+              @if (p.fechaLimiteDevolucion) {
+                <p><strong>Fecha límite devolución:</strong> {{ p.fechaLimiteDevolucion | date:'d MMM y' }}</p>
               }
               @if (p.estado === 'ACTIVO' || p.estado === 'VENCIDO') {
                 <div cardPie>
-                  <a [routerLink]="['/mi-cuenta/prestamos', p.id, 'devolver']" class="link-dev">Generar QR de devolución →</a>
+                  <a [routerLink]="['/mi-cuenta/prestamos', p.prestamoId, 'devolver']" class="link-dev">Generar QR de devolución →</a>
                 </div>
               }
             </app-card>
@@ -49,10 +49,10 @@ import { AccountTemplate } from '../../shared/ui/templates/account-template/acco
         <p style="color: var(--color-texto-apoyo);">No tienes reservas de libros registradas.</p>
       } @else {
         <div class="grid-cards">
-          @for (r of reservas(); track r.id) {
+          @for (r of reservas(); track r.reservaId) {
             <app-card>
               <div cardEncabezado class="head">
-                <strong>Reserva #{{ r.id }} (Libro #{{ r.libroId }})</strong>
+                <strong>Reserva #{{ r.reservaId }} (Libro #{{ r.libroId }})</strong>
                 <app-badge [texto]="r.estado || 'EN_ESPERA'" [estado]="r.estado || 'EN_ESPERA'" />
               </div>
               <p><strong>Sede:</strong> #{{ r.sedeId }} · <strong>Fecha:</strong> {{ r.fechaReserva | date:'d MMM y' }}</p>
@@ -61,7 +61,7 @@ import { AccountTemplate } from '../../shared/ui/templates/account-template/acco
               }
               @if (r.estado === 'EN_ESPERA' || r.estado === 'NOTIFICADA') {
                 <div cardPie>
-                  <app-button texto="Cancelar Reserva" variante="peligro" tamano="pequeno" (presionado)="pedirCancelarReserva(r.id!)" />
+                  <app-button texto="Cancelar Reserva" variante="peligro" tamano="pequeno" (presionado)="pedirCancelarReserva(r.reservaId)" />
                 </div>
               }
             </app-card>
@@ -86,8 +86,8 @@ export class MyLoansPage implements OnInit {
   private readonly auth = inject(AuthService);
   private readonly ui = inject(NotificacionesUiService);
 
-  protected readonly prestamos = signal<PrestamoDTO[]>([]);
-  protected readonly reservas = signal<ReservaLibroDTO[]>([]);
+  protected readonly prestamos = signal<PrestamoDetalleDTO[]>([]);
+  protected readonly reservas = signal<ReservaLibroDetalleDTO[]>([]);
   protected readonly confirmCancelOpen = signal(false);
   protected readonly reservaACancelar = signal<number | null>(null);
 
@@ -106,8 +106,11 @@ export class MyLoansPage implements OnInit {
 
   protected ejecutarCancelarReserva(): void {
     const id = this.reservaACancelar();
-    if (!id) return;
-    this.ops.cancelarReservaLibro(id).subscribe({
+    if (id == null) {
+      this.ui.mostrar('No se pudo identificar la reserva a cancelar. Recarga la página e inténtalo de nuevo.', 'error');
+      return;
+    }
+    this.ops.cancelarReservaLibro(id, this.auth.usuarioId()!).subscribe({
       next: () => { this.ui.mostrar('Reserva cancelada.', 'info'); this.cargar(); },
       error: (e) => this.ui.mostrar(extraerMensajeError(e), 'error'),
     });

@@ -1,6 +1,6 @@
 import { Component, inject, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { PedidoInterciudadDTO, PrestamoDTO, UsuarioDTO } from '../../core/models/biblioteca.models';
+import { PedidoInterciudadDTO, PrestamoDetalleDTO, PrestamoDTO, UsuarioDTO } from '../../core/models/biblioteca.models';
 import { AdminService } from '../../core/services/admin.service';
 import { AuthService } from '../../core/services/auth.service';
 import { NotificacionesUiService } from '../../core/services/notificaciones-ui.service';
@@ -26,9 +26,9 @@ import { PanelTemplate } from '../../shared/ui/templates/panel-template/panel-te
         <table class="tabla">
           <thead><tr><th>ID</th><th>Usuario</th><th>Ejemplar</th><th>Estado</th><th>Acción</th></tr></thead>
           <tbody>
-            @for (p of prestamos(); track p.id) {
+            @for (p of prestamos(); track p.prestamoId) {
               <tr>
-                <td>#{{ p.id }}</td>
+                <td>#{{ p.prestamoId }}</td>
                 <td>#{{ p.usuarioId }}</td>
                 <td>#{{ p.ejemplarId }}</td>
                 <td><app-badge [texto]="p.estado || ''" [estado]="p.estado || ''" /></td>
@@ -117,7 +117,7 @@ export class StaffOperationsPage implements OnInit {
   protected readonly auth = inject(AuthService);
   private readonly ui = inject(NotificacionesUiService);
 
-  protected readonly prestamos = signal<PrestamoDTO[]>([]);
+  protected readonly prestamos = signal<PrestamoDetalleDTO[]>([]);
   protected readonly pedidosOrigen = signal<PedidoInterciudadDTO[]>([]);
   protected readonly pedidosDestino = signal<PedidoInterciudadDTO[]>([]);
   protected readonly repartidores = signal<UsuarioDTO[]>([]);
@@ -139,8 +139,15 @@ export class StaffOperationsPage implements OnInit {
     });
   }
 
-  protected entregarLocal(p: PrestamoDTO): void {
-    this.ops.actualizarPrestamo(p.id!, { ...p, estado: 'ACTIVO' }).subscribe({
+  protected entregarLocal(p: PrestamoDetalleDTO): void {
+    this.ops.actualizarPrestamo(p.prestamoId, {
+      fechaSolicitud: p.fechaSolicitud,
+      modalidad: p.modalidad as PrestamoDTO['modalidad'],
+      usuarioId: p.usuarioId,
+      ejemplarId: p.ejemplarId,
+      sedeRetiroId: p.sedeId,
+      estado: 'ACTIVO',
+    }).subscribe({
       next: () => { this.ui.mostrar('Entrega registrada. Plazo iniciado.', 'exito'); this.cargar(); },
       error: (e) => this.ui.mostrar(extraerMensajeError(e), 'error'),
     });

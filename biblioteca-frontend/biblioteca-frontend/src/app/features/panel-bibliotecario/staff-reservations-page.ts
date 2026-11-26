@@ -1,6 +1,6 @@
 import { DatePipe } from '@angular/common';
 import { Component, inject, OnInit, signal } from '@angular/core';
-import { LibroDTO, ReservaLibroDTO, UsuarioDTO } from '../../core/models/biblioteca.models';
+import { LibroDTO, ReservaLibroDetalleDTO, UsuarioDTO } from '../../core/models/biblioteca.models';
 import { AdminService } from '../../core/services/admin.service';
 import { AuthService } from '../../core/services/auth.service';
 import { CatalogoService } from '../../core/services/catalogo.service';
@@ -17,9 +17,9 @@ import { PanelTemplate } from '../../shared/ui/templates/panel-template/panel-te
         <table class="tabla">
           <thead><tr><th>ID</th><th>Usuario</th><th>Libro</th><th>Fecha Reserva</th><th>Límite Retiro</th><th>Estado</th></tr></thead>
           <tbody>
-            @for (r of reservas(); track r.id) {
+            @for (r of reservas(); track r.reservaId) {
               <tr>
-                <td>#{{ r.id }}</td>
+                <td>#{{ r.reservaId }}</td>
                 <td>{{ nombreUsuario(r.usuarioId) }}</td>
                 <td>{{ tituloLibro(r.libroId) }}</td>
                 <td>{{ r.fechaReserva | date:'d MMM y, h:mm a' }}</td>
@@ -41,7 +41,7 @@ export class StaffReservationsPage implements OnInit {
   private readonly catalogo = inject(CatalogoService);
   private readonly admin = inject(AdminService);
 
-  protected readonly reservas = signal<ReservaLibroDTO[]>([]);
+  protected readonly reservas = signal<ReservaLibroDetalleDTO[]>([]);
   protected readonly usuarios = signal<UsuarioDTO[]>([]);
   protected readonly libros = signal<LibroDTO[]>([]);
 
