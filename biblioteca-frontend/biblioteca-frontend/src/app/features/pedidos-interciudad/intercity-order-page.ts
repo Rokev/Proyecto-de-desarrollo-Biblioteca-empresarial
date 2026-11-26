@@ -1,4 +1,4 @@
-import { CurrencyPipe } from '@angular/common';
+﻿import { CurrencyPipe } from '@angular/common';
 import { Component, inject, input, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
@@ -98,8 +98,9 @@ export class InterCityOrderPage implements OnInit {
   protected cotizar(): void {
     const sede = this.sedes().find((s) => s.id === Number(this.sedeDevolucionId));
     if (!this.ciudadEntrega || !sede) return;
-    this.ops.cotizarEnvio(this.ciudadEntrega, sede.ciudad).subscribe({
-      next: (r) => this.tarifaCotizada.set(r.tarifa),
+    this.error.set(null);
+    this.ops.cotizarEnvio(sede.ciudad, this.ciudadEntrega.trim()).subscribe({
+      next: (r) => this.tarifaCotizada.set(r.costoEnvio),
       error: (e) => this.error.set(extraerMensajeError(e)),
     });
   }

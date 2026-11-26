@@ -1,4 +1,4 @@
-import { HttpClient, HttpParams } from '@angular/common/http';
+﻿import { HttpClient, HttpParams } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
@@ -99,8 +99,8 @@ export class OperacionesService {
   }
 
   // Pedidos Interciudad
-  cotizarEnvio(ciudadA: string, ciudadB: string): Observable<{ tarifa: number }> {
-    const params = new HttpParams().set('ciudadA', ciudadA).set('ciudadB', ciudadB);
+  cotizarEnvio(ciudadOrigen: string, ciudadDestino: string): Observable<{ ciudadOrigen: string; ciudadDestino: string; costoEnvio: number }> {
+    const params = new HttpParams().set('ciudadOrigen', ciudadOrigen).set('ciudadDestino', ciudadDestino);
     return this.http.get<{ tarifa: number }>(`${this.api}/tarifas-envio/cotizar`, { params });
   }
   solicitarPedidoInterciudad(dto: SolicitudPedidoInterciudadDTO): Observable<PedidoInterciudadDTO> {
