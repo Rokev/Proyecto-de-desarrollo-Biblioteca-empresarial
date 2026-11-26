@@ -17,15 +17,20 @@ import { AuthTemplate } from '../../shared/ui/templates/auth-template/auth-templ
       <h1>Recuperar contraseña</h1>
       @if (error()) { <app-alert titulo="Atención" [mensaje]="error()!" tipo="error" /> }
       @if (mensajeOk()) { <app-alert titulo="Solicitud enviada" [mensaje]="mensajeOk()!" tipo="exito" /> }
+      @if (tokenGenerado()) {
+        <p>Simulamos el envío al correo. Tu token de recuperación (válido 24 horas, un solo uso) es:</p>
+        <p><code>{{ tokenGenerado() }}</code></p>
+        <app-button texto="Continuar y cambiar contraseña" (presionado)="continuar()" />
+      }
 
-      @if (!token()) {
+      @if (!token() && !tokenGenerado()) {
         <form (ngSubmit)="solicitar()">
-          <app-form-field etiqueta="Correo registrado" para="recCorreo" [obligatorio]="true" ayuda="El enlace expira en 24 horas.">
+          <app-form-field etiqueta="Correo registrado" para="recCorreo" [obligatorio]="true" ayuda="El token expira en 24 horas.">
             <input id="recCorreo" type="email" class="campo" [(ngModel)]="correo" name="correo" required />
           </app-form-field>
-          <app-button tipo="submit" texto="Enviar enlace de recuperación" [cargando]="cargando()" />
+          <app-button tipo="submit" texto="Enviar token de recuperación" [cargando]="cargando()" />
         </form>
-      } @else {
+      } @else if (token()) {
         <form (ngSubmit)="restablecer()">
           <app-form-field etiqueta="Nueva contraseña (mín. 8 caracteres)" para="newPass" [obligatorio]="true">
             <input id="newPass" type="password" class="campo" [(ngModel)]="nuevaContrasena" name="pass" required minlength="8" />
@@ -49,13 +54,22 @@ export class RecoverPasswordPage {
   protected readonly cargando = signal(false);
   protected readonly error = signal<string | null>(null);
   protected readonly mensajeOk = signal<string | null>(null);
+  protected readonly tokenGenerado = signal<string | null>(null);
+
+  protected continuar(): void {
+    const t = this.tokenGenerado();
+    if (t) this.router.navigate(['/recuperar', t]);
+  }
 
   protected solicitar(): void {
     if (!this.correo.trim()) return;
     this.cargando.set(true);
     this.error.set(null);
     this.auth.solicitarRecuperacion(this.correo.trim()).subscribe({
-      next: (r) => { this.cargando.set(false); this.mensajeOk.set(r.mensaje); },
+      next: (r) => {
+        this.cargando.set(false);
+        if (r.token) { this.tokenGenerado.set(r.token); } else { this.mensajeOk.set(r.mensaje); }
+      },
       error: (e) => { this.cargando.set(false); this.error.set(extraerMensajeError(e)); },
     });
   }

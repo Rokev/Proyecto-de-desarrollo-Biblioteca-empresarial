@@ -261,7 +261,13 @@ export class AdminUsersPage implements OnInit {
     this.errs.set(e);
     if (Object.keys(e).length > 0) return;
 
-    const payload = { ...this.form, sedeId: this.esRolBibliotecario(this.form.rolId) ? this.form.sedeId : undefined };
+    // Al editar, la contraseña vacía no se envía (el backend conserva la actual)
+    const { contrasena, ...resto } = this.form;
+    const payload: Partial<UsuarioDTO> = {
+      ...resto,
+      sedeId: this.esRolBibliotecario(this.form.rolId) ? this.form.sedeId : undefined,
+      ...(contrasena ? { contrasena } : {}),
+    };
     const id = this.editandoId();
     (id ? this.admin.actualizarUsuario(id, payload) : this.admin.crearUsuario({ ...payload, activo: true })).subscribe({
       next: () => { this.ui.mostrar(id ? 'Cuenta actualizada y auditada.' : 'Cuenta creada.', 'exito'); this.reset(); this.cargar(); },

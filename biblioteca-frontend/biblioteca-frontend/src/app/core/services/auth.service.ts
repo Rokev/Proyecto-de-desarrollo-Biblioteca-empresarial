@@ -59,8 +59,8 @@ export class AuthService {
     return this.http.post<UsuarioDTO>(`${this.apiAuth}/registro`, dto);
   }
 
-  solicitarRecuperacion(correo: string): Observable<{ mensaje: string }> {
-    return this.http.post<{ mensaje: string }>(`${this.apiAuth}/recuperar`, { correo });
+  solicitarRecuperacion(correo: string): Observable<{ mensaje: string; token?: string }> {
+    return this.http.post<{ mensaje: string; token?: string }>(`${this.apiAuth}/recuperar`, { correo });
   }
 
   restablecerContrasena(token: string, nuevaContrasena: string): Observable<{ mensaje: string }> {
