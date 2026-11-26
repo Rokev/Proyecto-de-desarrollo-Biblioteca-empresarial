@@ -1,6 +1,8 @@
-import { Component, computed, inject, input } from '@angular/core';
+﻿import { Component, computed, inject, input, OnInit, signal } from '@angular/core';
 import { RouterLink, RouterLinkActive } from '@angular/router';
+import { SedeDTO } from '../../../../core/models/biblioteca.models';
 import { AuthService } from '../../../../core/services/auth.service';
+import { CatalogoService } from '../../../../core/services/catalogo.service';
 import { MainTemplate } from '../main-template/main-template';
 
 @Component({
@@ -10,6 +12,13 @@ import { MainTemplate } from '../main-template/main-template';
     <app-main-template [titulo]="titulo()" [subtitulo]="subtitulo()">
       <div class="panel-grid">
         <aside class="panel-side" aria-label="Navegación de gestión">
+          @if (sedeActual(); as s) {
+            <div class="sede-info">
+              <small>Sede asignada</small>
+              <strong>{{ s.nombre }}</strong>
+              <span>{{ s.ciudad }}</span>
+            </div>
+          }
           @for (item of menu(); track item.ruta) {
             <a [routerLink]="item.ruta" routerLinkActive="active">{{ item.texto }}</a>
           }
@@ -29,12 +38,32 @@ import { MainTemplate } from '../main-template/main-template';
       a { text-decoration: none; color: var(--color-texto); padding: 0.55rem 0.85rem; border-radius: var(--radio); font-weight: 600;
           &:hover, &.active { background: var(--color-primario-suave); color: var(--color-primario); } }
     }
+    .sede-info {
+      background: #eff6ff; border: 1px solid #bfdbfe; border-radius: var(--radio);
+      padding: 0.65rem 0.85rem; margin-bottom: 0.5rem; display: flex; flex-direction: column; gap: 0.1rem;
+      small { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.04em; color: #1d4ed8; font-weight: 700; }
+      strong { font-size: 0.92rem; color: #0f172a; }
+      span { font-size: 0.82rem; color: #475569; }
+    }
   `]
 })
-export class PanelTemplate {
+export class PanelTemplate implements OnInit {
   private readonly auth = inject(AuthService);
+  private readonly catalogo = inject(CatalogoService);
   readonly titulo = input.required<string>();
   readonly subtitulo = input<string>();
+
+  protected readonly sedeActual = signal<SedeDTO | null>(null);
+
+  ngOnInit(): void {
+    const sedeId = this.auth.perfil()?.sedeId;
+    if (this.auth.rol() === 'BIBLIOTECARIO' && sedeId) {
+      this.catalogo.listarTodasSedes().subscribe({
+        next: (sedes) => this.sedeActual.set(sedes.find((s) => s.id === sedeId) ?? null),
+        error: () => {},
+      });
+    }
+  }
 
   protected readonly menu = computed(() => {
     const rol = this.auth.rol();
