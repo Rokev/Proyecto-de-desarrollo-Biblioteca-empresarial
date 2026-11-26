@@ -43,6 +43,10 @@ public class UsuarioServiceImpl implements UsuarioService {
     public UsuarioDTO crearUsuario(UsuarioDTO dto) {
         log.info("Creando usuario con correo: {}", dto.getCorreo());
 
+        if (dto.getContrasena() == null || dto.getContrasena().isBlank()) {
+            throw new BusinessValidationException("La contrasena es obligatoria");
+        }
+        
         if (usuarioDAO.existsByNombreUsuarioIgnoreCase(dto.getNombreUsuario())) {
             throw new BusinessValidationException(
                     "Ya existe un usuario registrado con el nombre de usuario: " + dto.getNombreUsuario());
