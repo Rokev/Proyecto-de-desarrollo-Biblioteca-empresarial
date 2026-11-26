@@ -46,7 +46,6 @@ public class UsuarioDTO {
     private String correo;
 
     @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
-    @NotBlank(message = "La contrasena es obligatoria")
     @Size(min = 8, max = 72, message = "La contrasena debe tener minimo 8 caracteres")
     @Schema(description = "Contrasena (minimo 8 caracteres). Solo se recibe, nunca se devuelve", example = "Clave1234", accessMode = Schema.AccessMode.WRITE_ONLY, minLength = 8)
     private String contrasena;
