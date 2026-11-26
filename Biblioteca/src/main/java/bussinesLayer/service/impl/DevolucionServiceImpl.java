@@ -1,4 +1,4 @@
-package bussinesLayer.service.impl;
+﻿package bussinesLayer.service.impl;
 
 import bussinesLayer.dto.DevolucionDTO;
 import bussinesLayer.dto.EjemplarDTO;
@@ -222,11 +222,15 @@ public class DevolucionServiceImpl implements DevolucionService {
 
     @Override
     public DevolucionDTO confirmarDevolucion(String codigoQr, Long bibliotecarioId) {
-        if (!usuarioDAO.existsById(bibliotecarioId)) {
-            throw new ResourceNotFoundException("Bibliotecario no encontrado con ID: " + bibliotecarioId);
-        }
+        var bibliotecario = usuarioDAO.findById(bibliotecarioId).orElseThrow(() -> new ResourceNotFoundException("Bibliotecario no encontrado con ID: " + bibliotecarioId));
         DevolucionDTO devolucion = devolucionDAO.findByCodigoQr(codigoQr)
                 .orElseThrow(() -> new ResourceNotFoundException("No existe una devolucion con el codigo QR: " + codigoQr));
+        if (bibliotecario.getSedeId() == null) {
+            throw new BusinessValidationException("El bibliotecario no tiene una sede asignada.");
+        }
+        if (devolucion.getSedeDevolucionId() != null && !devolucion.getSedeDevolucionId().equals(bibliotecario.getSedeId())) {
+            throw new BusinessValidationException("Esta devolución pertenece a otra sede. El usuario debe entregar el libro en la sede seleccionada o generar un nuevo código QR para esta sede.");
+        }
         if (!ESTADO_INICIAL.equalsIgnoreCase(devolucion.getEstado())) {
             throw new BusinessValidationException("La devolucion no esta PENDIENTE (estado actual: "
                     + devolucion.getEstado() + ")");
@@ -312,9 +316,7 @@ public class DevolucionServiceImpl implements DevolucionService {
         if (!perdido && !"DANADO".equalsIgnoreCase(tipo)) {
             throw new BusinessValidationException("El tipo debe ser DANADO o PERDIDO");
         }
-        if (!usuarioDAO.existsById(bibliotecarioId)) {
-            throw new ResourceNotFoundException("Bibliotecario no encontrado con ID: " + bibliotecarioId);
-        }
+        var bibliotecario = usuarioDAO.findById(bibliotecarioId).orElseThrow(() -> new ResourceNotFoundException("Bibliotecario no encontrado con ID: " + bibliotecarioId));
         PrestamoDTO prestamo = prestamoDAO.findById(prestamoId)
                 .orElseThrow(() -> new ResourceNotFoundException("Prestamo no encontrado con ID: " + prestamoId));
         if (!PRESTAMOS_DEVOLVIBLES.contains(prestamo.getEstado().toUpperCase())) {
