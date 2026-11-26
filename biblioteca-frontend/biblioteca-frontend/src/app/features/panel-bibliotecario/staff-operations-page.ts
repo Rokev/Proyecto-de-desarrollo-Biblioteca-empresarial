@@ -2,6 +2,7 @@ import { CurrencyPipe, DatePipe } from '@angular/common';
 import { Component, computed, inject, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
+import { switchMap } from 'rxjs';
 import {
   EjemplarDTO,
   LibroDTO,
@@ -302,7 +303,9 @@ export class StaffOperationsPage implements OnInit {
     const sedeId = this.auth.perfil()?.sedeId!;
 
     if (tipo === 'ENTREGAR_LOCAL') {
-      this.ops.actualizarPrestamo(id, { ...data, estado: 'ACTIVO' }).subscribe({
+      this.ops.obtenerPrestamo(id).pipe(
+        switchMap((prestamo) => this.ops.actualizarPrestamo(id, { ...prestamo, estado: 'ACTIVO' })),
+      ).subscribe({
         next: () => { this.ui.mostrar('Entrega registrada. Plazo iniciado.', 'exito'); this.cargar(); },
         error: (e: unknown) => this.ui.mostrar(extraerMensajeError(e), 'error'),
       });
