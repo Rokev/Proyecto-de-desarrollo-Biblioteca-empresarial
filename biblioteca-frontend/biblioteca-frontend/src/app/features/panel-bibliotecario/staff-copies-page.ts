@@ -1,4 +1,4 @@
-import { Component, inject, OnInit, signal } from '@angular/core';
+import { Component, computed, inject, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { EjemplarDTO, LibroDTO, SedeDTO } from '../../core/models/biblioteca.models';
 import { AuthService } from '../../core/services/auth.service';
@@ -15,7 +15,7 @@ import { PanelTemplate } from '../../shared/ui/templates/panel-template/panel-te
   selector: 'app-staff-copies-page',
   imports: [FormsModule, PanelTemplate, Card, Badge, Button, FormField],
   template: `
-    <app-panel-template titulo="Gestión de Ejemplares y Stock por Sede" subtitulo="Registra copias físicas o actualiza su disponibilidad.">
+    <app-panel-template titulo="Gestión de Ejemplares y Stock por Sede" subtitulo="Registra copias físicas o actualiza la disponibilidad de los libros presentes en sede.">
       <app-card>
         <h3>Registrar Nuevo Ejemplar (Aumentar Stock)</h3>
         <form (ngSubmit)="crear()" class="form-grid">
@@ -49,11 +49,12 @@ import { PanelTemplate } from '../../shared/ui/templates/panel-template/panel-te
         </form>
       </app-card>
 
-      <div class="tabla-responsive" style="margin-top: 1.5rem;">
+      <h3 style="margin-top: 1.5rem;">Ejemplares en Sede (Modificables)</h3>
+      <div class="tabla-responsive">
         <table class="tabla">
           <thead><tr><th>ID</th><th>Código</th><th>Libro</th><th>Sede</th><th>Estado</th><th>Cambiar Estado / Stock</th></tr></thead>
           <tbody>
-            @for (e of ejemplares(); track e.id) {
+            @for (e of ejemplaresEnSede(); track e.id) {
               <tr>
                 <td>{{ e.id }}</td>
                 <td><strong>{{ e.codigoBarras }}</strong></td>
@@ -61,14 +62,38 @@ import { PanelTemplate } from '../../shared/ui/templates/panel-template/panel-te
                 <td>{{ nombreSede(e.sedeId) }}</td>
                 <td><app-badge [texto]="e.estado" [estado]="e.estado" /></td>
                 <td style="display: flex; gap: 0.4rem;">
-                  @if (e.estado !== 'DISPONIBLE') {
-                    <app-button texto="Marcar Disponible" tamano="pequeno" (presionado)="cambiarEstado(e, 'DISPONIBLE')" />
-                  }
                   @if (e.estado === 'DISPONIBLE') {
                     <app-button texto="Marcar Dañado" variante="peligro" tamano="pequeno" (presionado)="cambiarEstado(e, 'DANADO')" />
+                  } @else {
+                    <app-button texto="Marcar Disponible" tamano="pequeno" (presionado)="cambiarEstado(e, 'DISPONIBLE')" />
                   }
                 </td>
               </tr>
+            } @empty {
+              <tr><td colspan="6">No hay ejemplares disponibles o dañados en sede.</td></tr>
+            }
+          </tbody>
+        </table>
+      </div>
+
+      <h3 style="margin-top: 1.75rem;">Ejemplares en Circulación / Fuera de Sede</h3>
+      <p style="color: #64748b; font-size: 0.9rem; margin: 0 0 0.75rem;">
+        Estos ejemplares están prestados, reservados o en tránsito y no se pueden modificar manualmente. Cuando el libro regrese a la sede y se confirme su devolución o recepción, pasará automáticamente a la tabla superior para poder modificarlo.
+      </p>
+      <div class="tabla-responsive">
+        <table class="tabla">
+          <thead><tr><th>ID</th><th>Código</th><th>Libro</th><th>Sede</th><th>Estado</th></tr></thead>
+          <tbody>
+            @for (e of ejemplaresEnCirculacion(); track e.id) {
+              <tr>
+                <td>{{ e.id }}</td>
+                <td><strong>{{ e.codigoBarras }}</strong></td>
+                <td>{{ nombreLibro(e.libroId) }}</td>
+                <td>{{ nombreSede(e.sedeId) }}</td>
+                <td><app-badge [texto]="e.estado" [estado]="e.estado" /></td>
+              </tr>
+            } @empty {
+              <tr><td colspan="5">No hay ejemplares prestados, reservados o en tránsito actualmente.</td></tr>
             }
           </tbody>
         </table>
@@ -85,6 +110,14 @@ export class StaffCopiesPage implements OnInit {
   protected readonly ejemplares = signal<EjemplarDTO[]>([]);
   protected readonly libros = signal<LibroDTO[]>([]);
   protected readonly sedes = signal<SedeDTO[]>([]);
+
+  protected readonly ejemplaresEnSede = computed(() =>
+    this.ejemplares().filter((e) => e.estado === 'DISPONIBLE' || e.estado === 'DANADO' || e.estado === 'PERDIDO')
+  );
+
+  protected readonly ejemplaresEnCirculacion = computed(() =>
+    this.ejemplares().filter((e) => e.estado === 'PRESTADO' || e.estado === 'EN_TRANSITO' || e.estado === 'RESERVADO')
+  );
 
   protected libroId = 0;
   protected sedeId = 0;
@@ -105,11 +138,11 @@ export class StaffCopiesPage implements OnInit {
   }
 
   protected nombreLibro(id: number): string {
-    return this.libros().find((l) => l.id === id)?.titulo ?? `Libro #${id}`;
+    return this.libros().find((l) => l.id === id)?.titulo ?? `Libro ${id}`;
   }
 
   protected nombreSede(id: number): string {
-    return this.sedes().find((s) => s.id === id)?.nombre ?? `Sede #${id}`;
+    return this.sedes().find((s) => s.id === id)?.nombre ?? `Sede ${id}`;
   }
 
   protected crear(): void {

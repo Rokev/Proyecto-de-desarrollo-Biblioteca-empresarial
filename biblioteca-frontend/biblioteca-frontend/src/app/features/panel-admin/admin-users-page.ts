@@ -1,4 +1,4 @@
-import { Component, computed, inject, OnInit, signal } from '@angular/core';
+﻿import { Component, computed, inject, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { CurrencyPipe } from '@angular/common';
@@ -73,23 +73,23 @@ import { PanelTemplate } from '../../shared/ui/templates/panel-template/panel-te
 
       <!-- Filtros combinables -->
       <div style="display:flex; gap:0.75rem; margin-bottom:1rem; flex-wrap:wrap;">
-        <select class="campo" style="max-width:170px;" [(ngModel)]="filtroEstado">
+        <select class="campo" style="max-width:170px;" [ngModel]="filtroEstado()" (ngModelChange)="filtroEstado.set($event)">
           <option value="TODOS">Todos los estados</option>
           <option value="ACTIVO">Activos</option>
           <option value="INACTIVO">Inactivos / Suspendidos</option>
         </select>
         @if (tab() === 'PERSONAL') {
-          <select class="campo" style="max-width:190px;" [(ngModel)]="filtroRol">
+          <select class="campo" style="max-width:190px;" [ngModel]="filtroRol()" (ngModelChange)="filtroRol.set($event)">
             <option [ngValue]="0">Todos los roles</option>
             @for (r of rolesPersonal(); track r.id) { <option [ngValue]="r.id">{{ r.nombre }}</option> }
           </select>
-          <select class="campo" style="max-width:200px;" [(ngModel)]="filtroSede">
+          <select class="campo" style="max-width:200px;" [ngModel]="filtroSede()" (ngModelChange)="filtroSede.set($event)">
             <option [ngValue]="0">Todas las sedes</option>
             @for (s of sedes(); track s.id) { <option [ngValue]="s.id">{{ s.nombre }}</option> }
           </select>
         }
         @if (tab() === 'CLIENTES') {
-          <select class="campo" style="max-width:200px;" [(ngModel)]="filtroSuscripcion">
+          <select class="campo" style="max-width:200px;" [ngModel]="filtroSuscripcion()" (ngModelChange)="filtroSuscripcion.set($event)">
             <option value="TODOS">Con o sin suscripción</option>
             <option value="CON">Con suscripción vigente</option>
             <option value="SIN">Sin suscripción</option>
@@ -180,12 +180,12 @@ export class AdminUsersPage implements OnInit {
   protected readonly sedes = signal<SedeDTO[]>([]);
   protected readonly suscripciones = signal<SuscripcionDTO[]>([]);
   protected readonly multasModal = signal<MultaDTO[] | null>(null);
-  protected filtroSuscripcion = 'TODOS';
+  protected readonly filtroSuscripcion = signal('TODOS');
 
   protected readonly tab = signal<'PERSONAL' | 'CLIENTES'>('PERSONAL');
-  protected filtroEstado = 'TODOS';
-  protected filtroRol = 0;
-  protected filtroSede = 0;
+  protected readonly filtroEstado = signal('TODOS');
+  protected readonly filtroRol = signal(0);
+  protected readonly filtroSede = signal(0);
 
   protected readonly editandoId = signal<number | null>(null);
   protected readonly errs = signal<Record<string, string>>({});
@@ -206,12 +206,12 @@ export class AdminUsersPage implements OnInit {
       const esPers = this.esPersonal(u.rolId);
       if (this.tab() === 'PERSONAL' && !esPers) return false;
       if (this.tab() === 'CLIENTES' && esPers) return false;
-      if (this.filtroEstado === 'ACTIVO' && !u.activo) return false;
-      if (this.filtroEstado === 'INACTIVO' && u.activo) return false;
-      if (this.tab() === 'PERSONAL' && this.filtroRol && u.rolId !== Number(this.filtroRol)) return false;
-      if (this.tab() === 'PERSONAL' && this.filtroSede && u.sedeId !== Number(this.filtroSede)) return false;
-      if (this.tab() === 'CLIENTES' && this.filtroSuscripcion === 'CON' && !this.tieneSuscripcion(u.id)) return false;
-      if (this.tab() === 'CLIENTES' && this.filtroSuscripcion === 'SIN' && this.tieneSuscripcion(u.id)) return false;
+      if (this.filtroEstado() === 'ACTIVO' && !u.activo) return false;
+      if (this.filtroEstado() === 'INACTIVO' && u.activo) return false;
+      if (this.tab() === 'PERSONAL' && this.filtroRol() && u.rolId !== Number(this.filtroRol())) return false;
+      if (this.tab() === 'PERSONAL' && this.filtroSede() && u.sedeId !== Number(this.filtroSede())) return false;
+      if (this.tab() === 'CLIENTES' && this.filtroSuscripcion() === 'CON' && !this.tieneSuscripcion(u.id)) return false;
+      if (this.tab() === 'CLIENTES' && this.filtroSuscripcion() === 'SIN' && this.tieneSuscripcion(u.id)) return false;
       return true;
     })
   );
@@ -239,7 +239,7 @@ export class AdminUsersPage implements OnInit {
     return !!rolId && this.nombreRol(rolId).toUpperCase() === 'BIBLIOTECARIO';
   }
 
-  protected limpiarFiltros(): void { this.filtroEstado = 'TODOS'; this.filtroRol = 0; this.filtroSede = 0; this.filtroSuscripcion = 'TODOS'; }
+  protected limpiarFiltros(): void { this.filtroEstado.set('TODOS'); this.filtroRol.set(0); this.filtroSede.set(0); this.filtroSuscripcion.set('TODOS'); }
   protected tieneSuscripcion(uid: number): boolean { return this.suscripciones().some((s) => s.usuarioId === uid && (s.estado === 'ACTIVA' || s.estado === 'CANCELADA')); }
   protected verMultas(u: UsuarioDTO): void { this.ops.multasUsuario(u.id).subscribe((m) => this.multasModal.set(m)); }
 

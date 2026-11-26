@@ -31,7 +31,7 @@ import { MainTemplate } from '../../shared/ui/templates/main-template/main-templ
         <h3>{{ libro()?.titulo }}</h3>
         <form (ngSubmit)="confirmar()">
           <app-form-field etiqueta="Sede de retiro" para="sede" [obligatorio]="true">
-            <select id="sede" class="campo" [(ngModel)]="sedeSeleccionada" name="sede">
+            <select id="sede" class="campo" [ngModel]="sedeSeleccionada()" (ngModelChange)="sedeSeleccionada.set($event)" name="sede">
               @for (s of sedes(); track s.id) {
                 <option [ngValue]="s.id">{{ s.nombre }} ({{ s.ciudad }})</option>
               }
@@ -74,13 +74,13 @@ export class LoanRequestPage implements OnInit {
   protected readonly guardando = signal(false);
   protected readonly error = signal<string | null>(null);
 
-  protected sedeSeleccionada = 0;
+  protected readonly sedeSeleccionada = signal(0);
   protected modalidad: 'SEDE' | 'DOMICILIO' = 'SEDE';
   protected direccionEntrega = '';
 
   protected readonly ejemplarDisponible = computed(() =>
     this.ejemplares().find(
-      (e) => e.libroId === this.libroId() && e.sedeId === Number(this.sedeSeleccionada) && e.estado === 'DISPONIBLE'
+      (e) => e.libroId === this.libroId() && e.sedeId === Number(this.sedeSeleccionada()) && e.estado === 'DISPONIBLE'
     )
   );
 
@@ -89,7 +89,7 @@ export class LoanRequestPage implements OnInit {
     this.catalogo.obtenerLibro(this.libroId()).subscribe((l) => this.libro.set(l));
     this.catalogo.listarSedesActivas().subscribe((s) => {
       this.sedes.set(s);
-      this.sedeSeleccionada = this.sedeId() ? Number(this.sedeId()) : (s[0]?.id ?? 0);
+      this.sedeSeleccionada.set(this.sedeId() ? Number(this.sedeId()) : (s[0]?.id ?? 0));
     });
     this.catalogo.listarEjemplares().subscribe((e) => this.ejemplares.set(e));
     this.ops.sancionesUsuario(uid).subscribe((san) =>
@@ -108,7 +108,7 @@ export class LoanRequestPage implements OnInit {
     this.ops.crearPrestamo({
       usuarioId: this.auth.usuarioId()!,
       ejemplarId: ej.id!,
-      sedeRetiroId: Number(this.sedeSeleccionada),
+      sedeRetiroId: Number(this.sedeSeleccionada()),
       modalidad: this.modalidad,
       direccionEntrega: this.modalidad === 'DOMICILIO' ? this.direccionEntrega : undefined,
     }).subscribe({

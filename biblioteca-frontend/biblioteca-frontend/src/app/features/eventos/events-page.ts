@@ -17,12 +17,12 @@ import { MainTemplate } from '../../shared/ui/templates/main-template/main-templ
     <app-main-template titulo="Eventos Culturales y Académicos" subtitulo="Participa en talleres, clubes de lectura y conferencias.">
       <!-- Prueba 36: filtro por sede, fecha y tipo -->
       <div class="filtros-bar">
-        <select class="campo" [(ngModel)]="sedeFiltro">
+        <select class="campo" [ngModel]="sedeFiltro()" (ngModelChange)="sedeFiltro.set($event)">
           <option [ngValue]="0">Todas las sedes</option>
           @for (s of sedes(); track s.id) { <option [ngValue]="s.id">{{ s.nombre }}</option> }
         </select>
-        <input type="date" class="campo" [(ngModel)]="fechaFiltro" />
-        <select class="campo" [(ngModel)]="tipoFiltro">
+        <input type="date" class="campo" [ngModel]="fechaFiltro()" (ngModelChange)="fechaFiltro.set($event)" />
+        <select class="campo" [ngModel]="tipoFiltro()" (ngModelChange)="tipoFiltro.set($event)">
           <option value="TODOS">Todos los eventos</option>
           <option value="GENERAL">Abiertos al público</option>
           <option value="EXCLUSIVO">Exclusivos Suscriptores</option>
@@ -55,16 +55,16 @@ export class EventsPage implements OnInit {
 
   protected readonly eventos = signal<EventoDTO[]>([]);
   protected readonly sedes = signal<SedeDTO[]>([]);
-  protected sedeFiltro = 0;
-  protected fechaFiltro = '';
-  protected tipoFiltro = 'TODOS';
+  protected readonly sedeFiltro = signal(0);
+  protected readonly fechaFiltro = signal('');
+  protected readonly tipoFiltro = signal('TODOS');
 
   protected readonly eventosFiltrados = computed(() =>
     this.eventos().filter((e) => {
-      if (this.sedeFiltro && e.sedeId !== Number(this.sedeFiltro)) return false;
-      if (this.fechaFiltro && !e.fechaInicio.startsWith(this.fechaFiltro)) return false;
-      if (this.tipoFiltro === 'EXCLUSIVO' && !e.exclusivo) return false;
-      if (this.tipoFiltro === 'GENERAL' && e.exclusivo) return false;
+      if (this.sedeFiltro() && e.sedeId !== Number(this.sedeFiltro())) return false;
+      if (this.fechaFiltro() && !e.fechaInicio.startsWith(this.fechaFiltro())) return false;
+      if (this.tipoFiltro() === 'EXCLUSIVO' && !e.exclusivo) return false;
+      if (this.tipoFiltro() === 'GENERAL' && e.exclusivo) return false;
       return true;
     })
   );
@@ -75,6 +75,6 @@ export class EventsPage implements OnInit {
   }
 
   protected nombreSede(id: number): string {
-    return this.sedes().find((s) => s.id === id)?.nombre ?? `Sede #${id}`;
+    return this.sedes().find((s) => s.id === id)?.nombre ?? `Sede ${id}`;
   }
 }
