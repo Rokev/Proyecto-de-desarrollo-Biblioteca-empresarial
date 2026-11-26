@@ -188,7 +188,10 @@ public class DevolucionServiceImpl implements DevolucionService {
         }
 
         DevolucionDTO existente = devolucionDAO.findByPrestamoId(prestamo.getId()).orElse(null);
-        if (existente != null && !ESTADO_RECHAZADA.equalsIgnoreCase(existente.getEstado())) {
+        // Una devolucion RECHAZADA o aun PENDIENTE se puede regenerar con un nuevo QR (y posiblemente otra sede).
+        if (existente != null
+                && !ESTADO_RECHAZADA.equalsIgnoreCase(existente.getEstado())
+                && !ESTADO_INICIAL.equalsIgnoreCase(existente.getEstado())) {
             throw new BusinessValidationException("Ya existe una devolucion para el prestamo "
                     + prestamo.getId() + " (estado: " + existente.getEstado() + ")");
         }

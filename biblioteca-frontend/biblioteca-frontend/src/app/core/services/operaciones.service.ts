@@ -77,12 +77,9 @@ export class OperacionesService {
       sedeDevolucionId,
     });
   }
-  confirmarDevolucionQr(codigoQr: string, sedeReceptoraId: number, bibliotecarioId: number): Observable<PrestamoDetalleDTO> {
-    const params = new HttpParams()
-      .set('codigoQr', codigoQr)
-      .set('sedeReceptoraId', sedeReceptoraId)
-      .set('bibliotecarioId', bibliotecarioId);
-    return this.http.post<PrestamoDetalleDTO>(`${this.api}/devoluciones/confirmar`, {}, { params });
+  confirmarDevolucionQr(codigoQr: string, bibliotecarioId: number): Observable<DevolucionDTO> {
+    const params = new HttpParams().set('codigoQr', codigoQr).set('bibliotecarioId', bibliotecarioId);
+    return this.http.post<DevolucionDTO>(`${this.api}/devoluciones/confirmar`, {}, { params });
   }
   registrarDanioPerdida(
     prestamoId: number,
@@ -92,7 +89,7 @@ export class OperacionesService {
   ): Observable<unknown> {
     let params = new HttpParams()
       .set('prestamoId', prestamoId)
-      .set('tipoNovedad', tipoNovedad)
+      .set('tipo', tipoNovedad)
       .set('bibliotecarioId', bibliotecarioId);
     if (observaciones) params = params.set('observaciones', observaciones);
     return this.http.post(`${this.api}/devoluciones/danio-perdida`, {}, { params });
