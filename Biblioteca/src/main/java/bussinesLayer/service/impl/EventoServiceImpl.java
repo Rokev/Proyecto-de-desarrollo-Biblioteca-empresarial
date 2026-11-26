@@ -18,7 +18,9 @@ import persistanceLayer.dao.EventoDAO;
 import persistanceLayer.dao.SedeDAO;
 import persistanceLayer.dao.InscripcionEventoDAO;
 
+import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Locale;
 
 @Service
 @Transactional
@@ -96,8 +98,8 @@ public class EventoServiceImpl implements EventoService {
             n.setUsuarioId(inscripcion.getUsuarioId());
             n.setTipo("EVENTO_ACTUALIZADO");
             n.setTitulo("Evento actualizado");
-            n.setMensaje("El evento \"" + actualizado.getTitulo() + "\" fue actualizado. Fecha de inicio: "
-                    + actualizado.getFechaInicio() + ", fin: " + actualizado.getFechaFin() + ".");
+            n.setMensaje("El evento \"" + actualizado.getTitulo() + "\" fue actualizado. Nuevo horario: "
+                    + describirHorario(actualizado.getFechaInicio(), actualizado.getFechaFin()) + ".");
             n.setCanal("APP");
             n.setFechaCreacion(ahora);
             n.setLeida(false);
@@ -176,5 +178,21 @@ public class EventoServiceImpl implements EventoService {
                 .orElseThrow(() -> new ResourceNotFoundException("Evento no encontrado con ID: " + id));
         log.info("Evento cancelado ID: {}", id);
         return Optional.of(cancelado);
+    }
+
+    private static final Locale LOCALE_ES = Locale.forLanguageTag("es-CO");
+    private static final DateTimeFormatter FORMATO_FECHA = DateTimeFormatter.ofPattern("EEEE d 'de' MMMM 'de' yyyy", LOCALE_ES);
+    private static final DateTimeFormatter FORMATO_HORA = DateTimeFormatter.ofPattern("HH:mm");
+
+    /** Ej: "viernes 27 de noviembre de 2026, de 10:00 a 11:00" (o con ambas fechas si cruza de dia). */
+    private static String describirHorario(LocalDateTime inicio, LocalDateTime fin) {
+        if (inicio == null || fin == null) {
+            return "por confirmar";
+        }
+        if (inicio.toLocalDate().equals(fin.toLocalDate())) {
+            return inicio.format(FORMATO_FECHA) + ", de " + inicio.format(FORMATO_HORA) + " a " + fin.format(FORMATO_HORA);
+        }
+        return "del " + inicio.format(FORMATO_FECHA) + " a las " + inicio.format(FORMATO_HORA)
+                + " al " + fin.format(FORMATO_FECHA) + " a las " + fin.format(FORMATO_HORA);
     }
 }
