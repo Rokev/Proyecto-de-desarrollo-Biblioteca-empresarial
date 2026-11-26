@@ -101,7 +101,7 @@ export class OperacionesService {
   // Pedidos Interciudad
   cotizarEnvio(ciudadOrigen: string, ciudadDestino: string): Observable<{ ciudadOrigen: string; ciudadDestino: string; costoEnvio: number }> {
     const params = new HttpParams().set('ciudadOrigen', ciudadOrigen).set('ciudadDestino', ciudadDestino);
-    return this.http.get<{ tarifa: number }>(`${this.api}/tarifas-envio/cotizar`, { params });
+    return this.http.get<{ ciudadOrigen: string; ciudadDestino: string; costoEnvio: number }>(`${this.api}/tarifas-envio/cotizar`, { params });
   }
   solicitarPedidoInterciudad(dto: SolicitudPedidoInterciudadDTO): Observable<PedidoInterciudadDTO> {
     return this.http.post<PedidoInterciudadDTO>(`${this.api}/pedidos-interciudad`, dto);
