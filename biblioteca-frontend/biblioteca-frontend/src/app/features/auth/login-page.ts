@@ -1,5 +1,5 @@
 import { Component, inject, signal } from '@angular/core';
-import { FormControl, NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../core/services/auth.service';
 import { extraerMensajeError } from '../../core/utils/errores.util';
@@ -38,9 +38,9 @@ import { AuthTemplate } from '../../shared/ui/templates/auth-template/auth-templ
           @if (mensajeRec()) { <app-alert titulo="Solicitud enviada" [mensaje]="mensajeRec()!" tipo="exito" /> }
 
           @if (!tokenGenerado()) {
-            <form (ngSubmit)="solicitarToken()" novalidate>
+            <form [formGroup]="formRec" (ngSubmit)="solicitarToken()" novalidate>
               <app-form-field etiqueta="Correo registrado" para="correoRec" [obligatorio]="true" [error]="errorCorreoRec()">
-                <input id="correoRec" type="email" class="campo" [formControl]="correoRec" />
+                <input id="correoRec" type="email" class="campo" formControlName="correo" />
               </app-form-field>
               <div class="acciones">
                 <app-button tipo="submit" texto="Enviar token de recuperación" [cargando]="cargandoRec()" />
@@ -76,10 +76,11 @@ export class LoginPage {
   protected readonly errorRec = signal<string | null>(null);
   protected readonly mensajeRec = signal<string | null>(null);
   protected readonly tokenGenerado = signal<string | null>(null);
-  protected readonly correoRec = new FormControl('', {
-    nonNullable: true,
-    validators: [Validators.required, Validators.email],
+  // Debe ir dentro de un FormGroup ([formGroup]) para que (ngSubmit) se dispare con ReactiveFormsModule
+  protected readonly formRec = this.fb.group({
+    correo: ['', [Validators.required, Validators.email]],
   });
+  protected get correoRec() { return this.formRec.controls.correo; }
 
   protected readonly cargando = signal(false);
   protected readonly error = signal<string | null>(null);

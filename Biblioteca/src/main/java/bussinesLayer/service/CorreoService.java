@@ -25,7 +25,7 @@ public class CorreoService {
     }
 
     public void enviarRecuperacionContrasena(String correo, String token) {
-        String enlace = urlFrontend + "/restablecer-contrasena?token=" + token;
+        String enlace = urlFrontend + "/recuperar/" + token;
         JavaMailSender sender = mailSender.getIfAvailable();
         if (sender == null) {
             log.info("(Sin SMTP configurado) Enlace de recuperacion para {}: {}", correo, enlace);

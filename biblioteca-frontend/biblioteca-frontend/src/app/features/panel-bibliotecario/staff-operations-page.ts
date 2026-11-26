@@ -34,7 +34,7 @@ import { PanelTemplate } from '../../shared/ui/templates/panel-template/panel-te
 
       <!-- Prueba 74: Filtros combinables por estado, usuario y libro -->
       <div class="filtros-bar">
-        <select class="campo" style="max-width: 210px;" [(ngModel)]="fEstado">
+        <select class="campo" style="max-width: 210px;" [ngModel]="fEstado()" (ngModelChange)="fEstado.set($event)">
           <option value="">Todos los estados</option>
           <option value="SOLICITADO">SOLICITADO</option>
           <option value="ACTIVO">ACTIVO</option>
@@ -48,8 +48,8 @@ import { PanelTemplate } from '../../shared/ui/templates/panel-template/panel-te
           <option value="CANCELADO">CANCELADO</option>
           <option value="CERRADO">CERRADO</option>
         </select>
-        <input class="campo" style="max-width: 220px;" placeholder="Buscar por usuario..." [(ngModel)]="fUsuario" />
-        <input class="campo" style="max-width: 220px;" placeholder="Buscar por libro..." [(ngModel)]="fLibro" />
+        <input class="campo" style="max-width: 220px;" placeholder="Buscar por usuario..." [ngModel]="fUsuario()" (ngModelChange)="fUsuario.set($event)" />
+        <input class="campo" style="max-width: 220px;" placeholder="Buscar por libro..." [ngModel]="fLibro()" (ngModelChange)="fLibro.set($event)" />
         <app-button texto="Limpiar" variante="contorno" tamano="pequeno" (presionado)="limpiarFiltros()" />
       </div>
 
@@ -202,9 +202,10 @@ export class StaffOperationsPage implements OnInit {
   protected readonly libros = signal<LibroDTO[]>([]);
   protected readonly ejemplares = signal<EjemplarDTO[]>([]);
 
-  protected fEstado = '';
-  protected fUsuario = '';
-  protected fLibro = '';
+  // Signals (no propiedades planas): los computed() de abajo solo se recalculan si cambia un signal
+  protected readonly fEstado = signal('');
+  protected readonly fUsuario = signal('');
+  protected readonly fLibro = signal('');
   protected repartidorPorPedido: Record<number, number> = {};
   protected pedidoManualId: number | null = null;
 
@@ -222,30 +223,31 @@ export class StaffOperationsPage implements OnInit {
 
   protected readonly prestamosFiltrados = computed(() =>
     this.prestamos().filter((p) => {
-      if (this.fEstado && p.estado !== this.fEstado) return false;
-      if (this.fUsuario && !this.nombreUsuario(p.usuarioId).toLowerCase().includes(this.fUsuario.toLowerCase())) return false;
-      if (this.fLibro && !(p.libroTitulo || this.tituloPorEjemplar(p.ejemplarId)).toLowerCase().includes(this.fLibro.toLowerCase())) return false;
+      const estado = this.fEstado();
+      const usuario = this.fUsuario().trim().toLowerCase();
+      const libro = this.fLibro().trim().toLowerCase();
+      if (estado && p.estado !== estado) return false;
+      if (usuario && !this.nombreUsuario(p.usuarioId).toLowerCase().includes(usuario)) return false;
+      if (libro && !(p.libroTitulo || this.tituloPorEjemplar(p.ejemplarId)).toLowerCase().includes(libro)) return false;
       return true;
     })
   );
 
-  protected readonly pedidosOrigenFiltrados = computed(() =>
-    this.pedidosOrigen().filter((p) => {
-      if (this.fEstado && p.estado !== this.fEstado) return false;
-      if (this.fUsuario && !this.nombreUsuario(p.usuarioId).toLowerCase().includes(this.fUsuario.toLowerCase())) return false;
-      if (this.fLibro && !p.libroTitulo.toLowerCase().includes(this.fLibro.toLowerCase())) return false;
-      return true;
-    })
-  );
+  protected readonly pedidosOrigenFiltrados = computed(() => this.filtrarPedidos(this.pedidosOrigen()));
 
-  protected readonly pedidosDestinoFiltrados = computed(() =>
-    this.pedidosDestino().filter((p) => {
-      if (this.fEstado && p.estado !== this.fEstado) return false;
-      if (this.fUsuario && !this.nombreUsuario(p.usuarioId).toLowerCase().includes(this.fUsuario.toLowerCase())) return false;
-      if (this.fLibro && !p.libroTitulo.toLowerCase().includes(this.fLibro.toLowerCase())) return false;
+  protected readonly pedidosDestinoFiltrados = computed(() => this.filtrarPedidos(this.pedidosDestino()));
+
+  private filtrarPedidos(lista: PedidoInterciudadDTO[]): PedidoInterciudadDTO[] {
+    const estado = this.fEstado();
+    const usuario = this.fUsuario().trim().toLowerCase();
+    const libro = this.fLibro().trim().toLowerCase();
+    return lista.filter((p) => {
+      if (estado && p.estado !== estado) return false;
+      if (usuario && !this.nombreUsuario(p.usuarioId).toLowerCase().includes(usuario)) return false;
+      if (libro && !(p.libroTitulo ?? '').toLowerCase().includes(libro)) return false;
       return true;
-    })
-  );
+    });
+  }
 
   ngOnInit(): void { this.cargar(); }
 
@@ -261,7 +263,7 @@ export class StaffOperationsPage implements OnInit {
     this.admin.listarUsuarios().subscribe({ next: (u) => this.usuarios.set(u), error: () => {} });
   }
 
-  protected limpiarFiltros(): void { this.fEstado = ''; this.fUsuario = ''; this.fLibro = ''; }
+  protected limpiarFiltros(): void { this.fEstado.set(''); this.fUsuario.set(''); this.fLibro.set(''); }
 
   protected nombreUsuario(id: number): string {
     const u = this.usuarios().find((x) => x.id === id);

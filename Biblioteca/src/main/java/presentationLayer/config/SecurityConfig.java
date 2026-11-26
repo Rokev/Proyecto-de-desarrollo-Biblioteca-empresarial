@@ -134,6 +134,11 @@ public class SecurityConfig {
                         .hasAnyRole(REPARTIDOR, ADMIN)
                         .requestMatchers("/api/v1/repartidores/**").hasAnyRole(REPARTIDOR, ADMIN)
 
+                        // ---- Lectura (solo listados) para el bibliotecario: nombres de usuarios y repartidores en su panel.
+                        //      Debe ir ANTES de la regla de administracion; escritura y /usuarios/{id} siguen siendo solo ADMIN
+                        .requestMatchers(HttpMethod.GET, "/api/v1/usuarios", "/api/v1/roles")
+                        .hasAnyRole(BIBLIOTECARIO, ADMIN)
+
                         // ---- Personal de biblioteca: lo demas de estos modulos
                         .requestMatchers("/api/v1/devoluciones/**", "/api/v1/traslados-retorno/**",
                                 "/api/v1/sanciones/**",
