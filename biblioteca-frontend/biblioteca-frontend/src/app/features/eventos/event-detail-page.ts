@@ -39,8 +39,8 @@ import { MainTemplate } from '../../shared/ui/templates/main-template/main-templ
             />
           } @else {
             <div class="inscripcion">
-              <label>Cupos a reservar: <input type="number" class="campo" style="width: 90px;" min="1" [max]="ev.cuposDisponibles" [(ngModel)]="cupos" /></label>
-              <app-button texto="Reservar Cupos" [deshabilitado]="ev.cuposDisponibles <= 0" (presionado)="reservar(ev.id)" />
+              <span>Límite: <strong>1 cupo por usuario</strong></span>
+              <app-button texto="Reservar Cupo" [deshabilitado]="ev.cuposDisponibles <= 0" (presionado)="reservar(ev.id)" />
             </div>
           }
         </app-card>
@@ -76,7 +76,7 @@ export class EventDetailPage implements OnInit {
     this.ops.inscribirEvento({
       usuarioId: this.auth.usuarioId()!,
       eventoId,
-      cantidadCupos: Number(this.cupos),
+      cantidadCupos: 1,
     }).subscribe({
       next: () => {
         this.ui.mostrar('Inscripción al evento confirmada.', 'exito');

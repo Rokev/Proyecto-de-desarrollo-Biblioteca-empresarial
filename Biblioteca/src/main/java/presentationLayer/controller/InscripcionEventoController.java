@@ -41,7 +41,7 @@ import java.util.Map;
 public class InscripcionEventoController {
 
     private final InscripcionEventoService inscripcionEventoService;
-        private final AccesoUsuario acceso;
+    private final AccesoUsuario acceso;
 
     @PostMapping
     @Operation(summary = "Crear una inscripcion a evento", description = "Inscribe a un usuario en un evento")
@@ -59,8 +59,8 @@ public class InscripcionEventoController {
             @Parameter(description = "Datos de la inscripcion a evento a crear", required = true)
             @Valid @RequestBody InscripcionEventoDTO inscripcionEventoDTO) {
         acceso.validarPropietario(inscripcionEventoDTO.getUsuarioId());
-                if (!acceso.esPersonal()) {
-                        inscripcionEventoDTO.setFechaInscripcion(LocalDateTime.now());
+        if (!acceso.esPersonal()) {
+            inscripcionEventoDTO.setFechaInscripcion(LocalDateTime.now());
         }
         log.info("POST /api/v1/inscripciones-evento - eventoId: {}, usuarioId: {}", inscripcionEventoDTO.getEventoId(), inscripcionEventoDTO.getUsuarioId());
         InscripcionEventoDTO creada = inscripcionEventoService.crearInscripcionEvento(inscripcionEventoDTO);
@@ -149,5 +149,13 @@ public class InscripcionEventoController {
             @Parameter(description = "ID del evento", example = "1") @PathVariable Long eventoId,
             @Parameter(description = "Estado de la inscripcion (ACTIVA por defecto, TODAS para todas)") @RequestParam(required = false) String estado) {
         return ResponseEntity.ok(inscripcionEventoService.obtenerAsistentesDeEvento(eventoId, estado));
+    }
+
+    @GetMapping("/evento/{eventoId}/conteo")
+    @Operation(summary = "Total de asistentes activos de un evento", description = "Devuelve solo el numero de inscritos activos, sin datos personales")
+    public ResponseEntity<Map<String, Integer>> contarAsistentes(
+            @Parameter(description = "ID del evento", example = "1") @PathVariable Long eventoId) {
+        int total = inscripcionEventoService.obtenerAsistentesDeEvento(eventoId, null).size();
+        return ResponseEntity.ok(Map.of("total", total));
     }
 }

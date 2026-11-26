@@ -69,7 +69,7 @@ public class SecurityConfig {
                         .authenticationEntryPoint(authenticationEntryPoint)
                         .accessDeniedHandler(accessDeniedHandler)
                         .jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuthenticationConverter)))
-                                                .authorizeHttpRequests(auth -> auth
+                .authorizeHttpRequests(auth -> auth
 
                         // ---- Publico (sin login)
                         .requestMatchers("/error").permitAll()
@@ -117,6 +117,7 @@ public class SecurityConfig {
                                 "/api/v1/notificaciones", "/api/v1/notificaciones/*",
                                 "/api/v1/metodos-pago", "/api/v1/metodos-pago/*",
                                 "/api/v1/inscripciones-evento", "/api/v1/inscripciones-evento/*",
+                                "/api/v1/inscripciones-evento/evento/*/conteo",
                                 "/api/v1/pedidos-interciudad/*", "/api/v1/pedidos-interciudad/usuario/*",
                                 "/api/v1/devoluciones/sede-sugerida")
                         .hasAnyRole(CLIENTE, BIBLIOTECARIO, ADMIN)

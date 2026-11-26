@@ -24,7 +24,9 @@ import persistanceLayer.dao.NotificacionDAO;
 import java.util.Optional;
 
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Locale;
 
 @Service
 @Transactional
@@ -35,6 +37,8 @@ public class ReservaLibroServiceImpl implements ReservaLibroService {
     private static final String ESTADO_EN_ESPERA = "EN_ESPERA";
     private static final String ESTADO_NOTIFICADA = "NOTIFICADA";
     private static final String ESTADO_CANCELADA = "CANCELADA";
+    private static final DateTimeFormatter FECHA_LEGIBLE =
+            DateTimeFormatter.ofPattern("d 'de' MMMM 'de' yyyy, h:mm a", Locale.forLanguageTag("es-CO"));
     /** Dias que tiene el usuario para retirar el libro una vez notificado. */
     private final NotificacionDAO notificacionDAO;
 
@@ -187,7 +191,7 @@ public class ReservaLibroServiceImpl implements ReservaLibroService {
 
         notificar(reserva.getUsuarioId(), "LIBRO_DISPONIBLE", "Tu libro esta disponible",
                 "El libro \"" + tituloDe(ejemplar.getLibroId()) + "\" que reservaste ya esta disponible. Tienes hasta el "
-                        + reserva.getFechaLimiteRetiro() + " para retirarlo.");
+                        + reserva.getFechaLimiteRetiro().format(FECHA_LEGIBLE) + " para retirarlo.");
         log.info("Ejemplar {} asignado a la reserva {}", ejemplarId, reserva.getId());
         return true;
     }
@@ -238,7 +242,7 @@ public class ReservaLibroServiceImpl implements ReservaLibroService {
         }
     }
 
-    
+
 
     @Override
     @Transactional(readOnly = true)

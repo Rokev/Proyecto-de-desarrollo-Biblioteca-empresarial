@@ -65,12 +65,14 @@ export class MyEventsPage implements OnInit {
       const mias = all.filter((i) => i.usuarioId === uid);
       this.inscripciones.set(mias);
       mias.forEach((ins) => {
-        this.ops.asistentesEvento(ins.eventoId).subscribe((lista) => {
-          this.conteoAsistentes.update((m) => {
-            const copy = new Map(m);
-            copy.set(ins.eventoId, lista.length);
-            return copy;
-          });
+        this.ops.conteoAsistentesEvento(ins.eventoId).subscribe({
+          next: (r) =>
+            this.conteoAsistentes.update((m) => {
+              const copy = new Map(m);
+              copy.set(ins.eventoId, r.total);
+              return copy;
+            }),
+          error: () => {},
         });
       });
     });

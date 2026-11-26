@@ -211,6 +211,9 @@ export class OperacionesService {
   listarInscripciones(): Observable<InscripcionEventoDTO[]> {
     return this.http.get<InscripcionEventoDTO[]>(`${this.api}/inscripciones-evento`);
   }
+  conteoAsistentesEvento(eventoId: number): Observable<{ total: number }> {
+    return this.http.get<{ total: number }>(`${this.api}/inscripciones-evento/evento/${eventoId}/conteo`);
+  }
   asistentesEvento(eventoId: number): Observable<AsistenteEventoDTO[]> {
     return this.http.get<AsistenteEventoDTO[]>(`${this.api}/inscripciones-evento/evento/${eventoId}`);
   }

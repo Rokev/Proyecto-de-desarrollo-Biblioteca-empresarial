@@ -102,15 +102,14 @@ class InscripcionEventoServiceImplTest {
     }
 
     @Test
-    @DisplayName("crearInscripcionEvento: conserva la cantidad de cupos informada y descuenta esa cantidad")
-    void crearInscripcion_conCantidad_descuentaEsaCantidad() {
+    @DisplayName("crearInscripcionEvento: mas de un cupo por usuario lanza BusinessValidationException")
+    void crearInscripcion_masDeUnCupo_lanzaExcepcion() {
         dto.setCantidadCupos(3);
         when(eventoDAO.findById(EVENTO_ID)).thenReturn(Optional.of(evento(false)));
         when(usuarioDAO.existsById(USUARIO_ID)).thenReturn(true);
-        when(eventoDAO.descontarCupos(EVENTO_ID, 3)).thenReturn(1);
-        when(inscripcionEventoDAO.save(dto)).thenAnswer(inv -> inv.getArgument(0));
 
-        assertEquals(3, service.crearInscripcionEvento(dto).getCantidadCupos());
+        assertThrows(BusinessValidationException.class, () -> service.crearInscripcionEvento(dto));
+        verify(eventoDAO, never()).descontarCupos(any(), anyInt());
     }
 
     @Test

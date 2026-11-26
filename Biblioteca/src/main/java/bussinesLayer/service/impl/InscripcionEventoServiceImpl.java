@@ -29,6 +29,8 @@ public class InscripcionEventoServiceImpl implements InscripcionEventoService {
 
     private static final String ESTADO_ACTIVA = "ACTIVA";
     private static final String ESTADO_CANCELADA = "CANCELADA";
+    /** Maximo de cupos que un usuario puede reservar en un evento. */
+    private static final int MAX_CUPOS_POR_USUARIO = 1;
 
     private final InscripcionEventoDAO inscripcionEventoDAO;
     private final EventoDAO eventoDAO;
@@ -48,6 +50,10 @@ public class InscripcionEventoServiceImpl implements InscripcionEventoService {
 
         if (dto.getCantidadCupos() == null) {
             dto.setCantidadCupos(1);
+        }
+        if (dto.getCantidadCupos() > MAX_CUPOS_POR_USUARIO) {
+            throw new BusinessValidationException(
+                    "Cada usuario puede reservar maximo " + MAX_CUPOS_POR_USUARIO + " cupo por evento");
         }
         dto.setEstado(ESTADO_ACTIVA);
         dto.setFechaCancelacion(null);
