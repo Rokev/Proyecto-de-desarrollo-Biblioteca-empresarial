@@ -1,4 +1,4 @@
-﻿import { Component, computed, inject, input, OnInit, signal } from '@angular/core';
+import { Component, computed, effect, inject, input, signal } from '@angular/core';
 import { RouterLink, RouterLinkActive } from '@angular/router';
 import { SedeDTO } from '../../../../core/models/biblioteca.models';
 import { AuthService } from '../../../../core/services/auth.service';
@@ -12,11 +12,17 @@ import { MainTemplate } from '../main-template/main-template';
     <app-main-template [titulo]="titulo()" [subtitulo]="subtitulo()">
       <div class="panel-grid">
         <aside class="panel-side" aria-label="Navegación de gestión">
-          @if (sedeActual(); as s) {
+          @if (auth.rol() === 'BIBLIOTECARIO') {
             <div class="sede-info">
               <small>Sede asignada</small>
-              <strong>{{ s.nombre }}</strong>
-              <span>{{ s.ciudad }}</span>
+              @if (sedeActual(); as s) {
+                <strong>{{ s.nombre }}</strong>
+                <span>{{ s.ciudad }}</span>
+              } @else if (auth.perfil()?.sedeId) {
+                <strong>Sede #{{ auth.perfil()?.sedeId }}</strong>
+              } @else {
+                <strong>Sin sede asignada</strong>
+              }
             </div>
           }
           @for (item of menu(); track item.ruta) {
@@ -47,22 +53,47 @@ import { MainTemplate } from '../main-template/main-template';
     }
   `]
 })
-export class PanelTemplate implements OnInit {
-  private readonly auth = inject(AuthService);
+export class PanelTemplate {
+  protected readonly auth = inject(AuthService);
   private readonly catalogo = inject(CatalogoService);
   readonly titulo = input.required<string>();
   readonly subtitulo = input<string>();
 
   protected readonly sedeActual = signal<SedeDTO | null>(null);
+  private ultimoSedeIdCargado: number | null = null;
 
-  ngOnInit(): void {
-    const sedeId = this.auth.perfil()?.sedeId;
-    if (this.auth.rol() === 'BIBLIOTECARIO' && sedeId) {
-      this.catalogo.listarTodasSedes().subscribe({
-        next: (sedes) => this.sedeActual.set(sedes.find((s) => s.id === sedeId) ?? null),
-        error: () => {},
+  constructor() {
+    effect(() => {
+      const rol = this.auth.rol();
+      const sedeId = this.auth.perfil()?.sedeId;
+      if (rol !== 'BIBLIOTECARIO' || !sedeId) {
+        return;
+      }
+      const idNum = Number(sedeId);
+      if (this.ultimoSedeIdCargado === idNum && this.sedeActual()) {
+        return;
+      }
+      this.ultimoSedeIdCargado = idNum;
+      this.catalogo.listarSedesActivas().subscribe({
+        next: (sedes) => {
+          const encontrada = sedes.find((s) => Number(s.id) === idNum);
+          if (encontrada) {
+            this.sedeActual.set(encontrada);
+          } else {
+            this.catalogo.listarTodasSedes().subscribe({
+              next: (todas) => this.sedeActual.set(todas.find((s) => Number(s.id) === idNum) ?? null),
+              error: () => {},
+            });
+          }
+        },
+        error: () => {
+          this.catalogo.listarTodasSedes().subscribe({
+            next: (todas) => this.sedeActual.set(todas.find((s) => Number(s.id) === idNum) ?? null),
+            error: () => {},
+          });
+        },
       });
-    }
+    });
   }
 
   protected readonly menu = computed(() => {
