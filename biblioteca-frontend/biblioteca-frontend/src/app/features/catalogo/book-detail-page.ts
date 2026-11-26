@@ -1,6 +1,6 @@
 import { Component, computed, inject, input, numberAttribute, OnInit, signal } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
-import { EjemplarDTO, LibroDTO, SedeDTO } from '../../core/models/biblioteca.models';
+import { AutorDTO, EjemplarDTO, GeneroDTO, LibroDTO, SedeDTO } from '../../core/models/biblioteca.models';
 import { AuthService } from '../../core/services/auth.service';
 import { CatalogoService } from '../../core/services/catalogo.service';
 import { NotificacionesUiService } from '../../core/services/notificaciones-ui.service';
@@ -24,6 +24,7 @@ import { MainTemplate } from '../../shared/ui/templates/main-template/main-templ
             <span>ISBN: <strong>{{ l.isbn }}</strong></span>
             <app-badge [texto]="l.idioma" />
           </div>
+          <p><strong>Autor:</strong> {{ autoresTexto() }} · <strong>Género:</strong> {{ generoTexto() }}</p>
           <p><strong>Editorial:</strong> {{ l.editorial || 'N/A' }} · <strong>Año:</strong> {{ l.anioPublicacion }} · <strong>Páginas:</strong> {{ l.numeroPaginas || 'N/A' }}</p>
           <p>{{ l.sinopsis || 'Sin sinopsis registrada.' }}</p>
 
@@ -83,9 +84,24 @@ export class BookDetailPage implements OnInit {
   protected readonly libro = signal<LibroDTO | null>(null);
   protected readonly sedes = signal<SedeDTO[]>([]);
   protected readonly ejemplares = signal<EjemplarDTO[]>([]);
+  protected readonly autores = signal<AutorDTO[]>([]);
+  protected readonly generos = signal<GeneroDTO[]>([]);
 
   protected readonly confirmarReservaAbierto = signal(false);
   protected readonly sedeReserva = signal<SedeDTO | null>(null);
+
+  protected readonly autoresTexto = computed(() => {
+    const ids = this.libro()?.autoresIds ?? [];
+    const nombres = this.autores()
+      .filter((a) => a.id !== undefined && ids.includes(a.id))
+      .map((a) => a.nombre);
+    return nombres.length ? nombres.join(', ') : 'N/A';
+  });
+
+  protected readonly generoTexto = computed(() => {
+    const id = this.libro()?.generoId;
+    return this.generos().find((g) => g.id === id)?.nombre ?? 'N/A';
+  });
 
   protected readonly disponibilidadPorSede = computed(() => {
     const id = this.libroId();
@@ -100,6 +116,8 @@ export class BookDetailPage implements OnInit {
     this.catalogo.obtenerLibro(this.libroId()).subscribe((l) => this.libro.set(l));
     this.catalogo.listarSedesActivas().subscribe((s) => this.sedes.set(s));
     this.catalogo.listarEjemplares().subscribe((e) => this.ejemplares.set(e));
+    this.catalogo.listarAutores().subscribe((a) => this.autores.set(a));
+    this.catalogo.listarGeneros().subscribe((g) => this.generos.set(g));
   }
 
   protected irAPrestamo(libroId: number, sedeId: number): void {
