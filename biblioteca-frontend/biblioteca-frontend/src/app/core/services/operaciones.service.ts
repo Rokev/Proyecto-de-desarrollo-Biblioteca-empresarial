@@ -179,8 +179,9 @@ export class OperacionesService {
   listarReservasSalas(): Observable<ReservaSalaDTO[]> {
     return this.http.get<ReservaSalaDTO[]>(`${this.api}/reservas-sala`);
   }
-  cancelarReservaSala(id: number): Observable<ReservaSalaDTO> {
-    return this.http.post<ReservaSalaDTO>(`${this.api}/reservas-sala/${id}/cancelar`, {});
+  cancelarReservaSala(id: number, usuarioId: number): Observable<ReservaSalaDTO> {
+    const params = new HttpParams().set('usuarioId', usuarioId);
+    return this.http.post<ReservaSalaDTO>(`${this.api}/reservas-sala/${id}/cancelar`, {}, { params });
   }
 
   // Eventos

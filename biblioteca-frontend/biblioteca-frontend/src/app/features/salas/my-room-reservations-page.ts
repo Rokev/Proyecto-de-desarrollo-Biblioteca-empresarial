@@ -76,9 +76,12 @@ export class MyRoomReservationsPage implements OnInit {
   protected ejecutarCancelar(): void {
     const id = this.idSel();
     if (!id) return;
-    this.ops.cancelarReservaSala(id).subscribe(() => {
-      this.ui.mostrar('Reserva de sala cancelada.', 'info');
-      this.cargar();
+    this.ops.cancelarReservaSala(id, this.auth.usuarioId()!).subscribe({
+      next: () => {
+        this.ui.mostrar('Reserva de sala cancelada.', 'exito');
+        this.cargar();
+      },
+      error: (e) => this.ui.mostrar(e?.error?.message ?? 'No se pudo cancelar la reserva.', 'error')
     });
   }
 }
