@@ -42,7 +42,7 @@ import { PanelTemplate } from '../../shared/ui/templates/panel-template/panel-te
           <option value="EN_TRANSITO">EN_TRANSITO</option>
           <option value="ENTREGADO">ENTREGADO</option>
           <option value="NO_RECIBIDO">NO_RECIBIDO</option>
-          <option value="EN_ESPERA_RECOGIDA">EN_ESPERA_RECOGIDA</option>
+          <option value="EN_ESPERA_DE_RECOGIDA">EN_ESPERA_DE_RECOGIDA</option>
           <option value="DEVUELTO_PENDIENTE_TRASLADO">DEVUELTO_PENDIENTE_TRASLADO</option>
           <option value="EN_CAMINO_ORIGEN">EN_CAMINO_ORIGEN</option>
           <option value="CANCELADO">CANCELADO</option>
@@ -148,8 +148,8 @@ import { PanelTemplate } from '../../shared/ui/templates/panel-template/panel-te
                   <app-button
                     texto="Entregar en Sede"
                     tamano="pequeno"
-                    [deshabilitado]="ped.estado !== 'EN_ESPERA_RECOGIDA'"
-                    [attr.title]="ped.estado !== 'EN_ESPERA_RECOGIDA' ? 'Solo disponible en estado EN_ESPERA_RECOGIDA' : 'Entregar al usuario en mostrador'"
+                    [deshabilitado]="ped.estado !== 'EN_ESPERA_DE_RECOGIDA'"
+                    [attr.title]="ped.estado !== 'EN_ESPERA_DE_RECOGIDA' ? 'Solo disponible en estado EN_ESPERA_DE_RECOGIDA' : 'Entregar al usuario en mostrador'"
                     (presionado)="pedirAccion('ENTREGAR_SEDE', ped.id, ped)"
                   />
                   @if (ped.estado === 'ENTREGADO') {

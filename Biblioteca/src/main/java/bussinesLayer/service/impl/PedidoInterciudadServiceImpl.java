@@ -23,6 +23,8 @@ import persistanceLayer.dao.*;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.Locale;
 import java.util.Optional;
 import java.util.List;
 
@@ -307,6 +309,10 @@ public PedidoInterciudadDTO registrarDevolucionEnSede(Long pedidoId, Long biblio
         pedido.setFechaLimiteDevolucion(ahora.plusDays(diasPrestamo));
         pedido.setBibliotecarioId(bibliotecarioId);
 
+        notificar(pedido.getUsuarioId(), "ENTREGA_CONFIRMADA", "Pedido entregado con éxito",
+                "Retiraste tu pedido #" + pedidoId + " en la sede " + pedido.getSedeDevolucionNombre()
+                        + ". Debes devolverlo en esa sede antes del "
+                        + pedido.getFechaLimiteDevolucion().format(FORMATO_LIMITE) + ".");
         return pedidoDAO.update(pedido.getId(), pedido).orElseThrow();
     }
 
@@ -477,6 +483,9 @@ public PedidoInterciudadDTO registrarDevolucionEnSede(Long pedidoId, Long biblio
         });
         return pagoOpt;
     }
+
+    private static final DateTimeFormatter FORMATO_LIMITE =
+            DateTimeFormatter.ofPattern("d 'de' MMMM 'de' yyyy 'a las' HH:mm", Locale.forLanguageTag("es-CO"));
 
     private void notificar(Long usuarioId, String tipo, String titulo, String mensaje) {
         NotificacionDTO notificacion = new NotificacionDTO();
