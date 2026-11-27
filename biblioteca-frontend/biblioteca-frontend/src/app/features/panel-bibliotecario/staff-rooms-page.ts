@@ -35,6 +35,12 @@ import { PanelTemplate } from '../../shared/ui/templates/panel-template/panel-te
           <app-form-field etiqueta="Tarifa por hora (COP)" para="sTar" [obligatorio]="true">
             <input id="sTar" type="number" min="0" class="campo" [(ngModel)]="form.tarifaPorHora" name="tar" required />
           </app-form-field>
+          <app-form-field etiqueta="Hora de apertura" para="sAp">
+            <input id="sAp" type="time" class="campo" [(ngModel)]="form.horaApertura" name="ap" />
+          </app-form-field>
+          <app-form-field etiqueta="Hora de cierre" para="sCi">
+            <input id="sCi" type="time" class="campo" [(ngModel)]="form.horaCierre" name="ci" />
+          </app-form-field>
           <app-form-field etiqueta="Descripción" para="sDesc">
             <input id="sDesc" class="campo" [(ngModel)]="form.descripcion" name="desc" />
           </app-form-field>
@@ -59,7 +65,7 @@ import { PanelTemplate } from '../../shared/ui/templates/panel-template/panel-te
 
       <div class="tabla-responsive" style="margin-top:1.5rem;">
         <table class="tabla">
-          <thead><tr><th>ID</th><th>Nombre</th><th>Capacidad</th><th>Tarifa/Hora</th><th>Estado</th><th>Acciones</th></tr></thead>
+          <thead><tr><th>ID</th><th>Nombre</th><th>Capacidad</th><th>Tarifa/Hora</th><th>Horario</th><th>Estado</th><th>Acciones</th></tr></thead>
           <tbody>
             @for (s of salas(); track s.id) {
               <tr>
@@ -67,6 +73,7 @@ import { PanelTemplate } from '../../shared/ui/templates/panel-template/panel-te
                 <td><strong>{{ s.nombre }}</strong></td>
                 <td>{{ s.capacidad }} personas</td>
                 <td>{{ s.tarifaPorHora | currency:'COP':'symbol-narrow':'1.0-0' }}</td>
+                <td>{{ s.horaApertura && s.horaCierre ? s.horaApertura + ' – ' + s.horaCierre : 'Sin restricción' }}</td>
                 <td><app-badge [texto]="s.activa ? 'Activa' : 'Inactiva'" [estado]="s.activa ? 'ACTIVA' : 'VENCIDO'" /></td>
                 <td style="display:flex; gap:0.4rem;">
                   <app-button texto="Editar" variante="contorno" tamano="pequeno" (presionado)="editar(s)" />
@@ -97,7 +104,7 @@ export class StaffRoomsPage implements OnInit {
   protected readonly salas = signal<SalaEstudioDTO[]>([]);
   protected readonly disp = signal<DisponibilidadSalasDTO | null>(null);
   protected readonly editandoId = signal<number | null>(null);
-  protected form: Partial<SalaEstudioDTO> = { nombre: '', capacidad: 4, tarifaPorHora: 10000, descripcion: '', activa: true };
+  protected form: Partial<SalaEstudioDTO> = { nombre: '', capacidad: 4, tarifaPorHora: 10000, descripcion: '', horaApertura: '08:00', horaCierre: '18:00', activa: true };
   protected inicio = ''; protected fin = '';
 
   protected readonly confirmOpen = signal(false);
@@ -119,12 +126,20 @@ export class StaffRoomsPage implements OnInit {
   }
 
   protected editar(s: SalaEstudioDTO): void { this.editandoId.set(s.id); this.form = { ...s }; }
-  protected reset(): void { this.editandoId.set(null); this.form = { nombre: '', capacidad: 4, tarifaPorHora: 10000, descripcion: '', activa: true }; }
+  protected reset(): void { this.editandoId.set(null); this.form = { nombre: '', capacidad: 4, tarifaPorHora: 10000, descripcion: '', horaApertura: '08:00', horaCierre: '18:00', activa: true }; }
 
   protected guardar(): void {
     const sedeId = this.auth.perfil()?.sedeId;
     if (!this.form.nombre?.trim() || !sedeId) return;
-    const payload = { ...this.form, sedeId };
+    if (!this.form.horaApertura !== !this.form.horaCierre) {
+      this.ui.mostrar('Indica la hora de apertura y la de cierre, o deja ambas vacías.', 'error');
+      return;
+    }
+    if (this.form.horaApertura && this.form.horaCierre && this.form.horaCierre <= this.form.horaApertura) {
+      this.ui.mostrar('La hora de cierre debe ser posterior a la de apertura.', 'error');
+      return;
+    }
+    const payload = { ...this.form, horaApertura: this.form.horaApertura || undefined, horaCierre: this.form.horaCierre || undefined, sedeId };
     const id = this.editandoId();
     (id ? this.ops.actualizarSala(id, payload) : this.ops.crearSala(payload)).subscribe({
       next: () => { this.ui.mostrar(id ? 'Sala actualizada.' : 'Sala creada.', 'exito'); this.reset(); this.cargar(); },

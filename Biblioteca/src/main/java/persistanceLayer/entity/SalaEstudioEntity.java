@@ -9,6 +9,7 @@ import lombok.ToString;
 import lombok.Builder;
 
 import java.math.BigDecimal;
+import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -39,6 +40,11 @@ public class SalaEstudioEntity {
     /** Tarifa normal por hora; a suscriptores se les aplica descuento. */
     @Column(nullable = false, precision = 12, scale = 2)
     private BigDecimal tarifaPorHora;
+
+    /** Horario diario de atencion de la sala. Si es null, la sala no tiene restriccion horaria. */
+    private LocalTime horaApertura;
+
+    private LocalTime horaCierre;
 
     @Column(nullable = false)
     @Builder.Default

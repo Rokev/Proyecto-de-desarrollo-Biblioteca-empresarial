@@ -5,7 +5,7 @@ export type VarianteBadge = 'exito' | 'info' | 'advertencia' | 'error' | 'neutro
 const MAPA: Record<string, VarianteBadge> = {
   DISPONIBLE: 'exito', DEVUELTO: 'exito', ACTIVA: 'exito', ACTIVO: 'exito',
   CONFIRMADA: 'exito', ENTREGADO: 'exito', PAGADA: 'exito', APROBADO: 'exito', CERRADO: 'exito',
-  SOLICITADO: 'info', EN_ESPERA: 'info', EN_ESPERA_RECOGIDA: 'info', NOTIFICADA: 'info',
+  SOLICITADO: 'info', EN_ESPERA: 'info', EN_ESPERA_DE_RECOGIDA: 'info', NOTIFICADA: 'info',
   EN_TRANSITO: 'info', EN_CAMINO_ORIGEN: 'info', PROGRAMADO: 'info',
   PENDIENTE_PAGO: 'advertencia', PENDIENTE: 'advertencia', RESERVADO: 'advertencia',
   DEVUELTO_PENDIENTE_TRASLADO: 'advertencia',

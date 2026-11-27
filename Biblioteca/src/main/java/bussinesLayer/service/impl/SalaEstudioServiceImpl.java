@@ -103,6 +103,12 @@ public class SalaEstudioServiceImpl implements SalaEstudioService {
         if (dto.getCapacidad() < 1) {
             throw new BusinessValidationException("La capacidad debe ser al menos 1");
         }
+        if ((dto.getHoraApertura() == null) != (dto.getHoraCierre() == null)) {
+            throw new BusinessValidationException("Indique la hora de apertura y la de cierre, o ninguna de las dos");
+        }
+        if (dto.getHoraApertura() != null && !dto.getHoraCierre().isAfter(dto.getHoraApertura())) {
+            throw new BusinessValidationException("La hora de cierre debe ser posterior a la hora de apertura");
+        }
     }
 
     @Override
@@ -118,7 +124,8 @@ public class SalaEstudioServiceImpl implements SalaEstudioService {
         }
         List<DisponibilidadSalasDTO.SalaDisponibilidad> salas = salaEstudioDAO.findBySedeIdAndActivaTrue(sedeId).stream()
                 .map(s -> new DisponibilidadSalasDTO.SalaDisponibilidad(s.getId(), s.getNombre(), s.getCapacidad(),
-                        s.getTarifaPorHora(), !reservaSalaDAO.existeSolape(s.getId(), desde, hasta)))
+                        s.getTarifaPorHora(), SalaHorario.dentroDeHorario(s, desde, hasta)
+                                && !reservaSalaDAO.existeSolape(s.getId(), desde, hasta)))
                 .toList();
         int libres = (int) salas.stream().filter(DisponibilidadSalasDTO.SalaDisponibilidad::isDisponible).count();
         return new DisponibilidadSalasDTO(sedeId, !salas.isEmpty(), salas.size(), libres, desde, hasta, salas);
