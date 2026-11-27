@@ -106,6 +106,10 @@ public class SecurityConfig {
                                 "/api/v1/devoluciones/solicitar",
                                 "/api/v1/reservas-libro/*/cancelar", "/api/v1/reservas-sala/*/cancelar")
                         .hasAnyRole(CLIENTE, BIBLIOTECARIO, ADMIN)
+                        .requestMatchers(HttpMethod.GET, "/api/v1/notificaciones", "/api/v1/notificaciones/*")
+                        .hasAnyRole(CLIENTE, BIBLIOTECARIO, REPARTIDOR, ADMIN)
+                        .requestMatchers(HttpMethod.PUT, "/api/v1/notificaciones/*")
+                        .hasAnyRole(CLIENTE, BIBLIOTECARIO, REPARTIDOR, ADMIN)
                         .requestMatchers(HttpMethod.GET,
                                 "/api/v1/prestamos/*", "/api/v1/prestamos/usuario/*",
                                 "/api/v1/reservas-libro/*", "/api/v1/reservas-libro/usuario/*",
