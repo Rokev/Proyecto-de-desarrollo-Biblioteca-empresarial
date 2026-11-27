@@ -60,6 +60,17 @@ public class ChatbotServiceImpl implements ChatbotService {
         Set<String> palabrasMensaje = palabrasClave(mensaje);
         List<PreguntaFrecuenteDTO> base = preguntaFrecuenteDAO.findByActivaTrue();
 
+        // Coincidencia exacta (ignorando tildes, mayusculas y signos): permite preguntas como "hola" o "gracias",
+        // cuyas palabras se descartan como palabras vacias y nunca superarian el puntaje por palabras clave.
+        String mensajeNormalizado = normalizar(mensaje);
+        for (PreguntaFrecuenteDTO faq : base) {
+            if (!mensajeNormalizado.isEmpty() && mensajeNormalizado.equals(normalizar(faq.getPregunta()))) {
+                log.info("Chatbot: coincidencia exacta {}", faq.getId());
+                return new ChatbotRespuestaDTO(VariablesConfiguracion.resolver(faq.getRespuesta(), configuracionService),
+                        faq.getPregunta(), faq.getCategoria(), 1.0, List.of());
+            }
+        }
+
         PreguntaFrecuenteDTO mejor = null;
         double mejorPuntaje = 0;
         for (PreguntaFrecuenteDTO faq : base) {
@@ -119,6 +130,14 @@ public class ChatbotServiceImpl implements ChatbotService {
     /** Deja solo el inicio de la palabra: "cancelar", "cancelo" y "cancelacion" cuentan como la misma. */
     private static String raiz(String palabra) {
         return palabra.length() > RAIZ_LETRAS ? palabra.substring(0, RAIZ_LETRAS) : palabra;
+    }
+
+    private static String normalizar(String texto) {
+        return Normalizer.normalize(texto.toLowerCase(Locale.ROOT), Normalizer.Form.NFD)
+                .replaceAll("\\p{M}", "")
+                .replaceAll("[^a-z0-9\\s]", " ")
+                .trim()
+                .replaceAll("\\s+", " ");
     }
 
     private static double redondear(double valor) {

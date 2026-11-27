@@ -1,5 +1,5 @@
 import { CurrencyPipe, DatePipe } from '@angular/common';
-import { Component, inject, input, OnInit, signal } from '@angular/core';
+import { Component, computed, inject, input, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import {
@@ -114,6 +114,12 @@ export class AdminPlansPage implements OnInit {
   }
 }
 
+/** Igual que CiudadUtil del backend: sin tildes y con mayúscula inicial ("bogotá" -> "Bogota"). */
+function normalizarCiudad(ciudad: string): string {
+  return ciudad.trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().split(/\s+/)
+    .map((p) => p.charAt(0).toUpperCase() + p.slice(1)).join(' ');
+}
+
 @Component({
   selector: 'app-admin-shipping-page',
   imports: [FormsModule, RouterLink, CurrencyPipe, PanelTemplate, Card, Button],
@@ -161,14 +167,20 @@ export class AdminShippingPage implements OnInit {
   private readonly ui = inject(NotificacionesUiService);
 
   protected readonly tarifas = signal<TarifaEnvioDTO[]>([]);
-  protected readonly ciudades = signal<string[]>([]);
+  private readonly ciudadesSedes = signal<string[]>([]);
+  /** Ciudades de las sedes + las que ya tienen tarifa, normalizadas como en el backend, para que el selector siempre las tenga. */
+  protected readonly ciudades = computed(() => {
+    const todas = [...this.ciudadesSedes(), ...this.tarifas().flatMap((t) => [t.ciudadA, t.ciudadB])]
+      .filter((c) => !!c).map(normalizarCiudad);
+    return [...new Set(todas)].sort((a, b) => a.localeCompare(b));
+  });
   protected readonly editId = signal<number | undefined>(undefined);
   protected ciudadA = ''; protected ciudadB = ''; protected tarifa = 12000;
 
   ngOnInit(): void {
     this.cargar();
     this.catalogo.listarTodasSedes().subscribe((s) => {
-      this.ciudades.set([...new Set(s.map((x) => x.ciudad))]);
+      this.ciudadesSedes.set(s.map((x) => x.ciudad));
     });
   }
   private cargar(): void { this.admin.listarTarifas().subscribe((t) => this.tarifas.set(t)); }
@@ -344,7 +356,12 @@ export class AdminPaymentsPage implements OnInit {
   template: `
     <app-panel-template titulo="Historial de Auditoría del Sistema">
       <div style="display:flex; gap:0.65rem; margin-bottom:1rem; flex-wrap:wrap;">
-        <input type="number" class="campo" style="max-width:140px;" placeholder="Usuario ID" [(ngModel)]="fUsuarioId" />
+        <select class="campo" style="max-width:220px;" [(ngModel)]="fUsuarioId">
+          <option [ngValue]="null">Todos los usuarios</option>
+          @for (u of usuarios(); track u.id) {
+            <option [ngValue]="u.id">{{ u.nombreUsuario }} ({{ u.nombre }} {{ u.apellido }})</option>
+          }
+        </select>
         <select class="campo" style="max-width:170px;" [(ngModel)]="fModulo">
           <option value="">Todos los módulos</option>
           <option value="USUARIOS">USUARIOS</option><option value="PERSONAL">PERSONAL</option>
@@ -393,11 +410,14 @@ export class AdminAuditPage implements OnInit {
   readonly modulo = input<string>();
 
   protected readonly logs = signal<AuditoriaDTO[]>([]);
+  protected readonly usuarios = signal<UsuarioDTO[]>([]);
   protected readonly pagina = signal(0);
   protected fUsuarioId: number | null = null;
   protected fModulo = ''; protected fAccion = ''; protected fDesde = ''; protected fHasta = '';
 
   ngOnInit(): void {
+    this.admin.listarUsuarios().subscribe((u) =>
+      this.usuarios.set([...u].sort((a, b) => a.nombreUsuario.localeCompare(b.nombreUsuario))));
     if (this.usuarioId()) this.fUsuarioId = Number(this.usuarioId());
     if (this.modulo()) this.fModulo = this.modulo()!;
     this.buscar(0);
