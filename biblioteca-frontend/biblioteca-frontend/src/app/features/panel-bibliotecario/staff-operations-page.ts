@@ -87,7 +87,7 @@ import { PanelTemplate } from '../../shared/ui/templates/panel-template/panel-te
       <h3 style="margin-top: 2rem;">Pedidos Interciudad (Salida / Retorno a Sede de Origen)</h3>
       <div class="tabla-responsive">
         <table class="tabla">
-          <thead><tr><th>ID</th><th>Libro</th><th>Usuario / Dirección</th><th>Programado</th><th>Devolución / Envío</th><th>Motivo Retorno</th><th>Estado</th><th>Acciones</th></tr></thead>
+          <thead><tr><th>ID</th><th>Libro</th><th>Usuario / Dirección</th><th>Programado</th><th>Devolución / Envío</th><th>Motivo Retorno</th><th>Repartidor</th><th>Estado</th><th>Acciones</th></tr></thead>
           <tbody>
             @for (ped of pedidosOrigenFiltrados(); track ped.id) {
               <tr>
@@ -97,6 +97,7 @@ import { PanelTemplate } from '../../shared/ui/templates/panel-template/panel-te
                 <td>{{ ped.fechaRecepcion }} · {{ ped.horaRecepcion }}</td>
                 <td>{{ ped.sedeDevolucionNombre }}<br><small>{{ ped.costoEnvio | currency:'COP':'symbol-narrow':'1.0-0' }}</small></td>
                 <td>{{ motivoRetorno(ped) }}</td>
+                <td>{{ ped.repartidorNombre || '-' }}</td>
                 <td><app-badge [texto]="ped.estado" [estado]="ped.estado" /></td>
                 <td style="display:flex; gap:0.35rem; flex-wrap:wrap; align-items:center;">
                   <select
@@ -122,7 +123,7 @@ import { PanelTemplate } from '../../shared/ui/templates/panel-template/panel-te
                 </td>
               </tr>
             } @empty {
-              <tr><td colspan="8">No hay pedidos salientes con los filtros aplicados.</td></tr>
+              <tr><td colspan="9">No hay pedidos salientes con los filtros aplicados.</td></tr>
             }
           </tbody>
         </table>
